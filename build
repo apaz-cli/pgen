@@ -1,0 +1,24 @@
+#!/bin/sh
+
+# Clean
+rm tmp.c PEG.c PEG.h a.out 2>/dev/null
+
+# Run packcc
+./packcc PEG.peg
+
+# If successful, build the parser.
+if test -f "PEG.c"; then
+
+  # Combine the .c and .h files
+  echo "/* PEG.h */" > tmp.c
+  cat PEG.h >> tmp.c
+  echo -e "\n\n/* PEG.c*/" >> tmp.c
+  cat PEG.c >> tmp.c
+  grep -v "#include \"PEG.h\"" tmp.c > PEG.c
+  rm PEG.h tmp.c
+
+  # Compile
+  cc -O2 PEG.c -o peg
+else
+  echo -e "\u001b[31;1mPackcc failed.\033[0m"
+fi
