@@ -14,16 +14,16 @@ lacking in packcc.
 
 ## Roadmap
 
-[x] Working PEG grammar
-[ ] PackCC extensions
-[ ] Tokenizer pgen extensions
-[ ] AST pgen extensions
-[ ] PEG symbol tables
-[ ] Left-recursion elmimination
-[ ] Tokenizer code generataion
-[ ] Parser code generation
-[ ] Daisho grammar
-[ ] Daisho symbol tables
+- [x] Working PEG grammar
+- [ ] PackCC extensions
+- [ ] Tokenizer pgen extensions
+- [ ] AST pgen extensions
+- [ ] PEG symbol tables
+- [ ] Left-recursion elmimination
+- [ ] Tokenizer code generataion
+- [ ] Parser code generation
+- [ ] Daisho grammar
+- [ ] Daisho symbol tables
 
 
 ## Building
