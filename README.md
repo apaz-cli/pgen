@@ -15,7 +15,8 @@ lacking in packcc.
 ## Roadmap
 
 - [x] Working PEG grammar
-- [ ] PackCC extensions
+- [x] PackCC extensions
+- [ ] PEG AST generation
 - [ ] Tokenizer pgen extensions
 - [ ] AST pgen extensions
 - [ ] PEG symbol tables

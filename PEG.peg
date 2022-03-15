@@ -16,7 +16,7 @@ ValueExt <- '%value' Spacing Literal
 AuxilExt <- '%auxil' Spacing Literal
 HeaderExt <- '%header' Spacing CCodeExt Spacing
 EndCCodeExt <- '%%' (!EOF .)* EOF
-CCodeExt <- '{' Spacing (CCOMMENT / CCodeExt / !'}' .)* '}' Spacing
+CCodeExt <- '{' Spacing (CCOMMENT / &'{' CCodeExt / !'}' .)* '}' Spacing
 CCOMMENT <- CSLCOMMENT / CMLCOMMENT
 CSLCOMMENT <- '//' (!EOL .)* EOL
 CMLCOMMENT <- '/*' (!'*/' .)* '*/'
@@ -51,28 +51,22 @@ Identifier <- IDENTSTART IDENTCONT* Spacing
 
 
 %prefix "peg"
-%value "ASTNode_t*"
+%value "ASTNode*"
 %auxil "auxil_t*"
 
 %header {
+/* Depends on but does not initialize the Daisho runtime. */
 #include <daisho/Daisho.h>
+#include "PEGAST.h"
 
-#define PCC_GETCHAR(auxil) nextChar(auxil)
 #define PCC_BUFFERSIZE (__DAI_PAGESIZE * 64)
-#define PCC_DEBUG(auxil, event, rule, level, pos, buffer, length) debugVisit(auxil, event, rule, level)
-#define PCC_ERROR(auxil) debugError(auxil)
-
-struct ASTNode_t;
-typedef struct ASTNode_t ASTNode_t;
-struct ASTNode_t {
-  ASTNode_t* parent;
-};
 
 typedef struct {
   __Dai_String_View target;
   void* ctx;
 } auxil_t;
 
+#define PCC_GETCHAR(auxil) nextChar(auxil)
 static inline char nextChar(auxil_t* auxil) {
   if (auxil->target.str[auxil->target.len] == '\0') {
     return EOF;
@@ -82,6 +76,8 @@ static inline char nextChar(auxil_t* auxil) {
     return ret;
   }
 }
+
+#define PCC_DEBUG(auxil, event, rule, level, pos, buffer, length) debugVisit(auxil, event, rule, level)
 static inline void debugVisit(auxil_t* auxil, int event, char* rule, size_t level) {
   if (isupper(rule[2])) return;
 
@@ -91,10 +87,10 @@ static inline void debugVisit(auxil_t* auxil, int event, char* rule, size_t leve
   else printf("%s", __DAI_COLOR_RED);
 
   for (size_t i = 0; i < level; i++) printf("%c%c", ' ', ' ');
-  printf("%s\n", rule);
-
-  printf("%s", __DAI_COLOR_RESET);
+  printf("%s%s\n", rule, __DAI_COLOR_RESET);
 }
+
+#define PCC_ERROR(auxil) debugError(auxil)
 static inline void debugError(auxil_t* auxil) {
     puts("Syntax error:");
     puts(auxil->target.str + auxil->target.len);
@@ -106,14 +102,14 @@ static inline void debugError(auxil_t* auxil) {
 %%
 int main(int argc, char** argv) {
 
-  // Load file
+  // Load target file
   char* filename = argc == 2 ? argv[1] : "PEG.peg";
   auxil_t auxil;
   auxil.target = __Dai_readFile(filename);
   auxil.target.len = 0;
 
   // Parse ast
-  ASTNode_t* ast;
+  ASTNode* ast;
   peg_context_t* ctx = peg_create(&auxil);
   auxil.ctx = ctx;
   int parser_ret = peg_parse(ctx, &ast);

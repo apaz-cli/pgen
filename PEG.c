@@ -4,24 +4,18 @@
 #ifndef PCC_INCLUDED_PEG_H
 #define PCC_INCLUDED_PEG_H
 
+/* Depends on but does not initialize the Daisho runtime. */
 #include <daisho/Daisho.h>
+#include "PEGAST.h"
 
-#define PCC_GETCHAR(auxil) nextChar(auxil)
 #define PCC_BUFFERSIZE (__DAI_PAGESIZE * 64)
-#define PCC_DEBUG(auxil, event, rule, level, pos, buffer, length) debugVisit(auxil, event, rule, level)
-#define PCC_ERROR(auxil) debugError(auxil)
-
-struct ASTNode_t;
-typedef struct ASTNode_t ASTNode_t;
-struct ASTNode_t {
-  ASTNode_t* parent;
-};
 
 typedef struct {
   __Dai_String_View target;
   void* ctx;
 } auxil_t;
 
+#define PCC_GETCHAR(auxil) nextChar(auxil)
 static inline char nextChar(auxil_t* auxil) {
   if (auxil->target.str[auxil->target.len] == '\0') {
     return EOF;
@@ -31,6 +25,8 @@ static inline char nextChar(auxil_t* auxil) {
     return ret;
   }
 }
+
+#define PCC_DEBUG(auxil, event, rule, level, pos, buffer, length) debugVisit(auxil, event, rule, level)
 static inline void debugVisit(auxil_t* auxil, int event, char* rule, size_t level) {
   if (isupper(rule[2])) return;
 
@@ -40,10 +36,10 @@ static inline void debugVisit(auxil_t* auxil, int event, char* rule, size_t leve
   else printf("%s", __DAI_COLOR_RED);
 
   for (size_t i = 0; i < level; i++) printf("%c%c", ' ', ' ');
-  printf("%s\n", rule);
-
-  printf("%s", __DAI_COLOR_RESET);
+  printf("%s%s\n", rule, __DAI_COLOR_RESET);
 }
+
+#define PCC_ERROR(auxil) debugError(auxil)
 static inline void debugError(auxil_t* auxil) {
     puts("Syntax error:");
     puts(auxil->target.str + auxil->target.len);
@@ -55,7 +51,7 @@ extern "C" {
 typedef struct peg_context_tag peg_context_t;
 
 peg_context_t *peg_create(auxil_t*auxil);
-int peg_parse(peg_context_t *ctx, ASTNode_t**ret);
+int peg_parse(peg_context_t *ctx, ASTNode**ret);
 void peg_destroy(peg_context_t *ctx);
 
 #ifdef __cplusplus
@@ -130,7 +126,7 @@ typedef struct pcc_range_tag {
     size_t end;
 } pcc_range_t;
 
-typedef ASTNode_t*pcc_value_t;
+typedef ASTNode*pcc_value_t;
 
 typedef auxil_t*pcc_auxil_t;
 
@@ -1706,6 +1702,20 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_CCodeExt(peg_context_t *ctx) {
             L0003:;
                 ctx->cur = p;
                 pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
+                {
+                    const size_t p = ctx->cur;
+                    if (
+                        pcc_refill_buffer(ctx, 1) < 1 ||
+                        ctx->buffer.buf[ctx->cur] != '{'
+                    ) goto L0005;
+                    ctx->cur++;
+                    ctx->cur = p;
+                    goto L0006;
+                L0005:;
+                    ctx->cur = p;
+                    goto L0004;
+                L0006:;
+                }
                 if (!pcc_apply_rule(ctx, pcc_evaluate_rule_CCodeExt, &chunk->thunks, NULL)) goto L0004;
                 goto L0002;
             L0004:;
@@ -1716,21 +1726,21 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_CCodeExt(peg_context_t *ctx) {
                     if (
                         pcc_refill_buffer(ctx, 1) < 1 ||
                         ctx->buffer.buf[ctx->cur] != '}'
-                    ) goto L0006;
+                    ) goto L0008;
                     ctx->cur++;
                     ctx->cur = p;
-                    goto L0005;
-                L0006:;
+                    goto L0007;
+                L0008:;
                     ctx->cur = p;
                 }
                 {
                     int u;
                     const size_t n = pcc_get_char_as_utf32(ctx, &u);
-                    if (n == 0) goto L0005;
+                    if (n == 0) goto L0007;
                     ctx->cur += n;
                 }
                 goto L0002;
-            L0005:;
+            L0007:;
                 ctx->cur = p;
                 pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
                 goto L0001;
@@ -2838,7 +2848,7 @@ peg_context_t *peg_create(auxil_t*auxil) {
     return pcc_context__create(auxil);
 }
 
-int peg_parse(peg_context_t *ctx, ASTNode_t**ret) {
+int peg_parse(peg_context_t *ctx, ASTNode**ret) {
     if (pcc_apply_rule(ctx, pcc_evaluate_rule_Grammar, &ctx->thunks, ret))
         pcc_do_action(ctx, &ctx->thunks, ret);
     else
@@ -2854,14 +2864,14 @@ void peg_destroy(peg_context_t *ctx) {
 
 int main(int argc, char** argv) {
 
-  // Load file
+  // Load target file
   char* filename = argc == 2 ? argv[1] : "PEG.peg";
   auxil_t auxil;
   auxil.target = __Dai_readFile(filename);
   auxil.target.len = 0;
 
   // Parse ast
-  ASTNode_t* ast;
+  ASTNode* ast;
   peg_context_t* ctx = peg_create(&auxil);
   auxil.ctx = ctx;
   int parser_ret = peg_parse(ctx, &ast);
