@@ -1,4 +1,6 @@
 #!/bin/sh
 
 ./build
-./peg
+if test -f "peg"; then
+  ./peg
+fi

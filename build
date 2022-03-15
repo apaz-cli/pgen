@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Clean
-rm tmp.c PEG.c PEG.h a.out 2>/dev/null
+rm peg tmp.c PEG.c PEG.h a.out 2>/dev/null
 
 # Run packcc
 ./packcc PEG.peg
@@ -18,7 +18,8 @@ if test -f "PEG.c"; then
   rm PEG.h tmp.c
 
   # Compile
-  cc -O2 PEG.c -o peg
+  cc -O3 -rdynamic -g PEG.c -o peg
+
 else
-  echo -e "\u001b[31;1mPackcc failed.\033[0m"
+  echo "\033[0;31mPackcc failed.\033[0m"
 fi
