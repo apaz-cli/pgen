@@ -5,7 +5,6 @@
 #define PCC_INCLUDED_PEG_H
 
 /* Depends on but does not initialize the Daisho runtime. */
-#include <daisho/Daisho.h>
 #include "PEGAST.h"
 
 #define PCC_BUFFERSIZE (__DAI_PAGESIZE * 64)
@@ -30,13 +29,11 @@ static inline char nextChar(auxil_t* auxil) {
 static inline void debugVisit(auxil_t* auxil, int event, char* rule, size_t level) {
   if (isupper(rule[2])) return;
 
-  /* Color eval, accept, reject */
-  if (event == 0) printf("%s", __DAI_COLOR_BLUE);
-  else if (event == 1) printf("%s", __DAI_COLOR_GREEN);
-  else printf("%s", __DAI_COLOR_RED);
-
   for (size_t i = 0; i < level; i++) printf("%c%c", ' ', ' ');
-  printf("%s%s\n", rule, __DAI_COLOR_RESET);
+
+  /* Color eval, accept, reject */
+  char* color =  event ? event == 1 ? __DAI_COLOR_GREEN : __DAI_COLOR_RED : __DAI_COLOR_BLUE;
+  printf("%s%s%s\n", color, rule, __DAI_COLOR_RESET);
 }
 
 #define PCC_ERROR(auxil) debugError(auxil)
@@ -2754,28 +2751,16 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_IDENTCONT(peg_context_t *ctx) {
     pcc_value_table__resize(ctx->auxil, &chunk->values, 0);
     pcc_capture_table__resize(ctx->auxil, &chunk->capts, 0);
     {
-        const size_t p = ctx->cur;
-        const size_t n = chunk->thunks.len;
-        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_IDENTSTART, &chunk->thunks, NULL)) goto L0002;
-        goto L0001;
-    L0002:;
-        ctx->cur = p;
-        pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
-        {
-            int u;
-            const size_t n = pcc_get_char_as_utf32(ctx, &u);
-            if (n == 0) goto L0003;
-            if (!(
-                (u >= 0x000030 && u <= 0x000039)
-            )) goto L0003;
-            ctx->cur += n;
-        }
-        goto L0001;
-    L0003:;
-        ctx->cur = p;
-        pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
-        goto L0000;
-    L0001:;
+        int u;
+        const size_t n = pcc_get_char_as_utf32(ctx, &u);
+        if (n == 0) goto L0000;
+        if (!(
+            (u >= 0x000061 && u <= 0x00007a) ||
+            (u >= 0x000041 && u <= 0x00005a) ||
+            u == 0x00005f ||
+            (u >= 0x000030 && u <= 0x000039)
+        )) goto L0000;
+        ctx->cur += n;
     }
     ctx->level--;
     PCC_DEBUG(ctx->auxil, PCC_DBG_MATCH, "IDENTCONT", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));

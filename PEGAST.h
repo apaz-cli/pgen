@@ -1,9 +1,11 @@
 #ifndef PCC_AST_INCLUDED
 #define PCC_AST_INCLUDED
+#include <daisho/Daisho.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <limits.h>
+#include <stdio.h>
 
 /* Rounds size up to the given stride for memory alignment purposes */
 #define ALIGN(size) PCC_ALIGN(size, _Alignof(max_align_t))
@@ -57,8 +59,14 @@ ASTNode_destroy(ASTNode* self) {
 
 static inline void
 AST_print_helper(ASTNode* current, size_t depth) {
+    /* Print current node. */
     for (size_t i = 0; i < depth; i++) printf("  ");
     puts(current->name);
+
+    /* Print children. */
+    if (!current->children)
+        for (size_t i = 0; i < current->num_children; i++)
+            AST_print_helper(current->children[i], depth + 1);
 }
 
 static inline void
@@ -66,14 +74,13 @@ AST_print(ASTNode* root) {
     AST_print_helper(root, 0);
 }
 
-/* Adds a key/value pair to the current rule's node's map. */
-#define SET(type, key, value)
-/* Gets a key/value pair from the current rule's node's map. */
-#define GET(type, key)
-/* Adds a child to the current rule's AST node. */
-#define ADD(child)
-/* Removes a child from the current rule's AST node. */
-#define REMOVE(child)
-
+/* Create a new ASTNode for this rule, with the given key. */
+#define INIT(name) __ = ASTNode_new(name)
+/* Adds a key/value pair to the current node. */
+#define SET(type, key, value) _SET(type, key, value, __)
+#define _SET(type, key, value, node)
+/* Gets a key/value pair from the current node. */
+#define GET(type, key) _GET(type, key, __)
+#define _GET(type, key, node)
 
 #endif /* PCC_AST_INCLUDED */

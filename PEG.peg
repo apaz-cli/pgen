@@ -46,7 +46,7 @@ Class <- '[' '^'? (!']' Range)* ']' Spacing
 Literal <- "'" (!"'" CHAR)* "'" Spacing
          / '"' (!'"' CHAR)* '"' Spacing
 IDENTSTART <- [a-zA-Z_]
-IDENTCONT <- IDENTSTART / [0-9]
+IDENTCONT <- [a-zA-Z_0-9]
 Identifier <- IDENTSTART IDENTCONT* Spacing
 
 
@@ -56,7 +56,6 @@ Identifier <- IDENTSTART IDENTCONT* Spacing
 
 %header {
 /* Depends on but does not initialize the Daisho runtime. */
-#include <daisho/Daisho.h>
 #include "PEGAST.h"
 
 #define PCC_BUFFERSIZE (__DAI_PAGESIZE * 64)
@@ -81,13 +80,11 @@ static inline char nextChar(auxil_t* auxil) {
 static inline void debugVisit(auxil_t* auxil, int event, char* rule, size_t level) {
   if (isupper(rule[2])) return;
 
-  /* Color eval, accept, reject */
-  if (event == 0) printf("%s", __DAI_COLOR_BLUE);
-  else if (event == 1) printf("%s", __DAI_COLOR_GREEN);
-  else printf("%s", __DAI_COLOR_RED);
-
   for (size_t i = 0; i < level; i++) printf("%c%c", ' ', ' ');
-  printf("%s%s\n", rule, __DAI_COLOR_RESET);
+
+  /* Color eval, accept, reject */
+  char* color =  event ? event == 1 ? __DAI_COLOR_GREEN : __DAI_COLOR_RED : __DAI_COLOR_BLUE;
+  printf("%s%s%s\n", color, rule, __DAI_COLOR_RESET);
 }
 
 #define PCC_ERROR(auxil) debugError(auxil)
