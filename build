@@ -18,7 +18,7 @@ if test -f "PEG.c"; then
   rm PEG.h tmp.c
 
   # Compile
-  cc -O3 -rdynamic -g PEG.c -o peg
+  cc -O0 -rdynamic -g PEG.c -o peg
 
 else
   echo "\033[0;31mPackcc failed.\033[0m"

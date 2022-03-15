@@ -3,29 +3,23 @@
 Grammar <- Spacing Definition+ Extensions
 Definition <- Identifier LEFTARROW Expression
 Expression <- Prefix+ (SLASH Prefix+)*
-Prefix <- (AND / NOT)? Primary (QUESTION / STAR / PLUS)? 
+Prefix <- (AND / NOT)? Primary (QUESTION / STAR / PLUS)?
 Primary <- Identifier !LEFTARROW
          / OPEN Expression CLOSE
-         / Literal / Class / DOT / ActionExprExt
+         / Literal / Class / DOT / CCodeExt
 
 # Extension Syntax
-Extensions <- EOF / (Extension Spacing)* EOF 
-Extension <- PrefixExt / ValueExt / AuxilExt / HeaderExt / CCodeExt
+Extensions <- EOF / Spacing (Extension Spacing)* EOF
+Extension <- PrefixExt / ValueExt / AuxilExt / HeaderExt / EndCCodeExt
 PrefixExt <- '%prefix' Spacing Literal
 ValueExt <- '%value' Spacing Literal
 AuxilExt <- '%auxil' Spacing Literal
-HeaderExt <- '%header' Spacing ExtBody Spacing
-CCodeExt <- '%%' .* EOF
-ExtBody <- '{' Spacing ExtBody '}' Spacing
-         / '{' Spacing (!'}' .)+ '}' Spacing
-         / '{' Spacing '}' Spacing
-#CCOMMENT <- CSLCOMMENT / CMLCOMMENT
-#CSLCOMMENT <- '//' (!EOL .)* EOL
-#CMLCOMMENT <- '/*' (!'*/' .)* '*/'
-
-
-ActionExprExt <- '{' Spacing ActionExprExt '}' Spacing /
-                 '{' Spacing (!'}' .)* '}' Spacing
+HeaderExt <- '%header' Spacing CCodeExt Spacing
+EndCCodeExt <- '%%' (!EOF .)* EOF
+CCodeExt <- '{' Spacing (CCOMMENT / CCodeExt / !'}' .)* '}' Spacing
+CCOMMENT <- CSLCOMMENT / CMLCOMMENT
+CSLCOMMENT <- '//' (!EOL .)* EOL
+CMLCOMMENT <- '/*' (!'*/' .)* '*/'
 
 # Lexical syntax
 EOF <- !.
@@ -64,8 +58,9 @@ Identifier <- IDENTSTART IDENTCONT* Spacing
 #include <daisho/Daisho.h>
 
 #define PCC_GETCHAR(auxil) nextChar(auxil)
-#define PCC_BUFFERSIZE (__DAI_PAGESIZE * 10)
+#define PCC_BUFFERSIZE (__DAI_PAGESIZE * 64)
 #define PCC_DEBUG(auxil, event, rule, level, pos, buffer, length) debugVisit(auxil, event, rule, level)
+#define PCC_ERROR(auxil) debugError(auxil)
 
 struct ASTNode_t;
 typedef struct ASTNode_t ASTNode_t;
@@ -88,12 +83,23 @@ static inline char nextChar(auxil_t* auxil) {
   }
 }
 static inline void debugVisit(auxil_t* auxil, int event, char* rule, size_t level) {
-  if (event != 0) return;
   if (isupper(rule[2])) return;
-  for (size_t i = 0; i < level; i++)
-    putchar(' ');
+
+  /* Color eval, accept, reject */
+  if (event == 0) printf("%s", __DAI_COLOR_BLUE);
+  else if (event == 1) printf("%s", __DAI_COLOR_GREEN);
+  else printf("%s", __DAI_COLOR_RED);
+
+  for (size_t i = 0; i < level; i++) printf("%c%c", ' ', ' ');
   printf("%s\n", rule);
+
+  printf("%s", __DAI_COLOR_RESET);
 }
+static inline void debugError(auxil_t* auxil) {
+    puts("Syntax error:");
+    puts(auxil->target.str + auxil->target.len);
+}
+
 }
 
 
@@ -105,14 +111,13 @@ int main(int argc, char** argv) {
   auxil_t auxil;
   auxil.target = __Dai_readFile(filename);
   auxil.target.len = 0;
-  printf("Loaded %s\n", filename);
 
   // Parse ast
   ASTNode_t* ast;
   peg_context_t* ctx = peg_create(&auxil);
   auxil.ctx = ctx;
   int parser_ret = peg_parse(ctx, &ast);
-  printf("%i\n", parser_ret);
+
   peg_destroy(ctx);
   return 0;
 }
