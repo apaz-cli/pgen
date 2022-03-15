@@ -8,7 +8,7 @@
 
 #define PCC_GETCHAR(auxil) nextChar(auxil)
 #define PCC_BUFFERSIZE (__DAI_PAGESIZE * 10)
-#define PCC_DEBUG(auxil, event, rule, level, pos, buffer, length) debugVisit(rule, level)
+#define PCC_DEBUG(auxil, event, rule, level, pos, buffer, length) debugVisit(auxil, event, rule, level)
 
 struct ASTNode_t;
 typedef struct ASTNode_t ASTNode_t;
@@ -18,6 +18,7 @@ struct ASTNode_t {
 
 typedef struct {
   __Dai_String_View target;
+  void* ctx;
 } auxil_t;
 
 static inline char nextChar(auxil_t* auxil) {
@@ -29,10 +30,12 @@ static inline char nextChar(auxil_t* auxil) {
     return ret;
   }
 }
-static inline void debugVisit(char* rule, size_t level) {
+static inline void debugVisit(auxil_t* auxil, int event, char* rule, size_t level) {
+  if (event != 0) return;
+  if (isupper(rule[2])) return;
   for (size_t i = 0; i < level; i++)
     putchar(' ');
-  puts(rule);
+  printf("%s\n", rule);
 }
 #ifdef __cplusplus
 extern "C" {
@@ -1094,7 +1097,6 @@ static void pcc_do_action(peg_context_t *ctx, const pcc_thunk_array_t *thunks, p
 static pcc_thunk_chunk_t *pcc_evaluate_rule_Grammar(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_Definition(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_Expression(peg_context_t *ctx);
-static pcc_thunk_chunk_t *pcc_evaluate_rule_Sequence(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_Prefix(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_Primary(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_Extensions(peg_context_t *ctx);
@@ -1108,9 +1110,8 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_ExtBody(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_ActionExprExt(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_EOF(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_EOL(peg_context_t *ctx);
-static pcc_thunk_chunk_t *pcc_evaluate_rule_Space(peg_context_t *ctx);
-static pcc_thunk_chunk_t *pcc_evaluate_rule_PEGComment(peg_context_t *ctx);
-static pcc_thunk_chunk_t *pcc_evaluate_rule_Spacing(peg_context_t *ctx);
+static pcc_thunk_chunk_t *pcc_evaluate_rule_SPACE(peg_context_t *ctx);
+static pcc_thunk_chunk_t *pcc_evaluate_rule_PEGCOMMENT(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_DOT(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_CLOSE(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_OPEN(peg_context_t *ctx);
@@ -1121,12 +1122,13 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_NOT(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_AND(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_SLASH(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_LEFTARROW(peg_context_t *ctx);
-static pcc_thunk_chunk_t *pcc_evaluate_rule_Char(peg_context_t *ctx);
+static pcc_thunk_chunk_t *pcc_evaluate_rule_CHAR(peg_context_t *ctx);
+static pcc_thunk_chunk_t *pcc_evaluate_rule_Spacing(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_Range(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_Class(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_Literal(peg_context_t *ctx);
-static pcc_thunk_chunk_t *pcc_evaluate_rule_IdentStart(peg_context_t *ctx);
-static pcc_thunk_chunk_t *pcc_evaluate_rule_IdentCont(peg_context_t *ctx);
+static pcc_thunk_chunk_t *pcc_evaluate_rule_IDENTSTART(peg_context_t *ctx);
+static pcc_thunk_chunk_t *pcc_evaluate_rule_IDENTCONT(peg_context_t *ctx);
 static pcc_thunk_chunk_t *pcc_evaluate_rule_Identifier(peg_context_t *ctx);
 
 static pcc_thunk_chunk_t *pcc_evaluate_rule_Grammar(peg_context_t *ctx) {
@@ -1196,17 +1198,57 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_Expression(peg_context_t *ctx) {
     ctx->level++;
     pcc_value_table__resize(ctx->auxil, &chunk->values, 0);
     pcc_capture_table__resize(ctx->auxil, &chunk->capts, 0);
-    if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Sequence, &chunk->thunks, NULL)) goto L0000;
+    {
+        const size_t p0 = ctx->cur;
+        const size_t n0 = chunk->thunks.len;
+        int i;
+        for (i = 0;; i++) {
+            const size_t p = ctx->cur;
+            const size_t n = chunk->thunks.len;
+            if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Prefix, &chunk->thunks, NULL)) goto L0001;
+            if (ctx->cur == p) break;
+            continue;
+        L0001:;
+            ctx->cur = p;
+            pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
+            break;
+        }
+        if (i < 1) {
+            ctx->cur = p0;
+            pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n0);
+            goto L0000;
+        }
+    }
     {
         int i;
         for (i = 0;; i++) {
             const size_t p = ctx->cur;
             const size_t n = chunk->thunks.len;
-            if (!pcc_apply_rule(ctx, pcc_evaluate_rule_SLASH, &chunk->thunks, NULL)) goto L0001;
-            if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Sequence, &chunk->thunks, NULL)) goto L0001;
+            if (!pcc_apply_rule(ctx, pcc_evaluate_rule_SLASH, &chunk->thunks, NULL)) goto L0002;
+            {
+                const size_t p0 = ctx->cur;
+                const size_t n0 = chunk->thunks.len;
+                int i;
+                for (i = 0;; i++) {
+                    const size_t p = ctx->cur;
+                    const size_t n = chunk->thunks.len;
+                    if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Prefix, &chunk->thunks, NULL)) goto L0003;
+                    if (ctx->cur == p) break;
+                    continue;
+                L0003:;
+                    ctx->cur = p;
+                    pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
+                    break;
+                }
+                if (i < 1) {
+                    ctx->cur = p0;
+                    pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n0);
+                    goto L0002;
+                }
+            }
             if (ctx->cur == p) break;
             continue;
-        L0001:;
+        L0002:;
             ctx->cur = p;
             pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
             break;
@@ -1220,32 +1262,6 @@ L0000:;
     PCC_DEBUG(ctx->auxil, PCC_DBG_NOMATCH, "Expression", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
     pcc_thunk_chunk__destroy(ctx->auxil, chunk);
     return NULL;
-}
-
-static pcc_thunk_chunk_t *pcc_evaluate_rule_Sequence(peg_context_t *ctx) {
-    pcc_thunk_chunk_t *const chunk = pcc_thunk_chunk__create(ctx->auxil);
-    chunk->pos = ctx->cur;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_EVALUATE, "Sequence", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->buffer.len - chunk->pos));
-    ctx->level++;
-    pcc_value_table__resize(ctx->auxil, &chunk->values, 0);
-    pcc_capture_table__resize(ctx->auxil, &chunk->capts, 0);
-    {
-        int i;
-        for (i = 0;; i++) {
-            const size_t p = ctx->cur;
-            const size_t n = chunk->thunks.len;
-            if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Prefix, &chunk->thunks, NULL)) goto L0001;
-            if (ctx->cur == p) break;
-            continue;
-        L0001:;
-            ctx->cur = p;
-            pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
-            break;
-        }
-    }
-    ctx->level--;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_MATCH, "Sequence", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
-    return chunk;
 }
 
 static pcc_thunk_chunk_t *pcc_evaluate_rule_Prefix(peg_context_t *ctx) {
@@ -1344,29 +1360,29 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_Primary(peg_context_t *ctx) {
     L0002:;
         ctx->cur = p;
         pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
-        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_ActionExprExt, &chunk->thunks, NULL)) goto L0004;
+        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_OPEN, &chunk->thunks, NULL)) goto L0004;
+        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Expression, &chunk->thunks, NULL)) goto L0004;
+        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_CLOSE, &chunk->thunks, NULL)) goto L0004;
         goto L0001;
     L0004:;
         ctx->cur = p;
         pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
-        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_OPEN, &chunk->thunks, NULL)) goto L0005;
-        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Expression, &chunk->thunks, NULL)) goto L0005;
-        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_CLOSE, &chunk->thunks, NULL)) goto L0005;
+        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Literal, &chunk->thunks, NULL)) goto L0005;
         goto L0001;
     L0005:;
         ctx->cur = p;
         pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
-        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Literal, &chunk->thunks, NULL)) goto L0006;
+        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Class, &chunk->thunks, NULL)) goto L0006;
         goto L0001;
     L0006:;
         ctx->cur = p;
         pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
-        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Class, &chunk->thunks, NULL)) goto L0007;
+        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_DOT, &chunk->thunks, NULL)) goto L0007;
         goto L0001;
     L0007:;
         ctx->cur = p;
         pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
-        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_DOT, &chunk->thunks, NULL)) goto L0008;
+        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_ActionExprExt, &chunk->thunks, NULL)) goto L0008;
         goto L0001;
     L0008:;
         ctx->cur = p;
@@ -1920,10 +1936,10 @@ L0000:;
     return NULL;
 }
 
-static pcc_thunk_chunk_t *pcc_evaluate_rule_Space(peg_context_t *ctx) {
+static pcc_thunk_chunk_t *pcc_evaluate_rule_SPACE(peg_context_t *ctx) {
     pcc_thunk_chunk_t *const chunk = pcc_thunk_chunk__create(ctx->auxil);
     chunk->pos = ctx->cur;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_EVALUATE, "Space", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->buffer.len - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_EVALUATE, "SPACE", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->buffer.len - chunk->pos));
     ctx->level++;
     pcc_value_table__resize(ctx->auxil, &chunk->values, 0);
     pcc_capture_table__resize(ctx->auxil, &chunk->capts, 0);
@@ -1957,19 +1973,19 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_Space(peg_context_t *ctx) {
     L0001:;
     }
     ctx->level--;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_MATCH, "Space", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_MATCH, "SPACE", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
     return chunk;
 L0000:;
     ctx->level--;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_NOMATCH, "Space", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_NOMATCH, "SPACE", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
     pcc_thunk_chunk__destroy(ctx->auxil, chunk);
     return NULL;
 }
 
-static pcc_thunk_chunk_t *pcc_evaluate_rule_PEGComment(peg_context_t *ctx) {
+static pcc_thunk_chunk_t *pcc_evaluate_rule_PEGCOMMENT(peg_context_t *ctx) {
     pcc_thunk_chunk_t *const chunk = pcc_thunk_chunk__create(ctx->auxil);
     chunk->pos = ctx->cur;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_EVALUATE, "PEGComment", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->buffer.len - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_EVALUATE, "PEGCOMMENT", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->buffer.len - chunk->pos));
     ctx->level++;
     pcc_value_table__resize(ctx->auxil, &chunk->values, 0);
     pcc_capture_table__resize(ctx->auxil, &chunk->capts, 0);
@@ -2007,54 +2023,13 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_PEGComment(peg_context_t *ctx) {
     }
     if (!pcc_apply_rule(ctx, pcc_evaluate_rule_EOL, &chunk->thunks, NULL)) goto L0000;
     ctx->level--;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_MATCH, "PEGComment", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_MATCH, "PEGCOMMENT", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
     return chunk;
 L0000:;
     ctx->level--;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_NOMATCH, "PEGComment", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_NOMATCH, "PEGCOMMENT", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
     pcc_thunk_chunk__destroy(ctx->auxil, chunk);
     return NULL;
-}
-
-static pcc_thunk_chunk_t *pcc_evaluate_rule_Spacing(peg_context_t *ctx) {
-    pcc_thunk_chunk_t *const chunk = pcc_thunk_chunk__create(ctx->auxil);
-    chunk->pos = ctx->cur;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_EVALUATE, "Spacing", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->buffer.len - chunk->pos));
-    ctx->level++;
-    pcc_value_table__resize(ctx->auxil, &chunk->values, 0);
-    pcc_capture_table__resize(ctx->auxil, &chunk->capts, 0);
-    {
-        int i;
-        for (i = 0;; i++) {
-            const size_t p = ctx->cur;
-            const size_t n = chunk->thunks.len;
-            {
-                const size_t p = ctx->cur;
-                const size_t n = chunk->thunks.len;
-                if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Space, &chunk->thunks, NULL)) goto L0003;
-                goto L0002;
-            L0003:;
-                ctx->cur = p;
-                pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
-                if (!pcc_apply_rule(ctx, pcc_evaluate_rule_PEGComment, &chunk->thunks, NULL)) goto L0004;
-                goto L0002;
-            L0004:;
-                ctx->cur = p;
-                pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
-                goto L0001;
-            L0002:;
-            }
-            if (ctx->cur == p) break;
-            continue;
-        L0001:;
-            ctx->cur = p;
-            pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
-            break;
-        }
-    }
-    ctx->level--;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_MATCH, "Spacing", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
-    return chunk;
 }
 
 static pcc_thunk_chunk_t *pcc_evaluate_rule_DOT(peg_context_t *ctx) {
@@ -2288,10 +2263,10 @@ L0000:;
     return NULL;
 }
 
-static pcc_thunk_chunk_t *pcc_evaluate_rule_Char(peg_context_t *ctx) {
+static pcc_thunk_chunk_t *pcc_evaluate_rule_CHAR(peg_context_t *ctx) {
     pcc_thunk_chunk_t *const chunk = pcc_thunk_chunk__create(ctx->auxil);
     chunk->pos = ctx->cur;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_EVALUATE, "Char", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->buffer.len - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_EVALUATE, "CHAR", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->buffer.len - chunk->pos));
     ctx->level++;
     pcc_value_table__resize(ctx->auxil, &chunk->values, 0);
     pcc_capture_table__resize(ctx->auxil, &chunk->capts, 0);
@@ -2421,13 +2396,54 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_Char(peg_context_t *ctx) {
     L0001:;
     }
     ctx->level--;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_MATCH, "Char", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_MATCH, "CHAR", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
     return chunk;
 L0000:;
     ctx->level--;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_NOMATCH, "Char", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_NOMATCH, "CHAR", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
     pcc_thunk_chunk__destroy(ctx->auxil, chunk);
     return NULL;
+}
+
+static pcc_thunk_chunk_t *pcc_evaluate_rule_Spacing(peg_context_t *ctx) {
+    pcc_thunk_chunk_t *const chunk = pcc_thunk_chunk__create(ctx->auxil);
+    chunk->pos = ctx->cur;
+    PCC_DEBUG(ctx->auxil, PCC_DBG_EVALUATE, "Spacing", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->buffer.len - chunk->pos));
+    ctx->level++;
+    pcc_value_table__resize(ctx->auxil, &chunk->values, 0);
+    pcc_capture_table__resize(ctx->auxil, &chunk->capts, 0);
+    {
+        int i;
+        for (i = 0;; i++) {
+            const size_t p = ctx->cur;
+            const size_t n = chunk->thunks.len;
+            {
+                const size_t p = ctx->cur;
+                const size_t n = chunk->thunks.len;
+                if (!pcc_apply_rule(ctx, pcc_evaluate_rule_SPACE, &chunk->thunks, NULL)) goto L0003;
+                goto L0002;
+            L0003:;
+                ctx->cur = p;
+                pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
+                if (!pcc_apply_rule(ctx, pcc_evaluate_rule_PEGCOMMENT, &chunk->thunks, NULL)) goto L0004;
+                goto L0002;
+            L0004:;
+                ctx->cur = p;
+                pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
+                goto L0001;
+            L0002:;
+            }
+            if (ctx->cur == p) break;
+            continue;
+        L0001:;
+            ctx->cur = p;
+            pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
+            break;
+        }
+    }
+    ctx->level--;
+    PCC_DEBUG(ctx->auxil, PCC_DBG_MATCH, "Spacing", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
+    return chunk;
 }
 
 static pcc_thunk_chunk_t *pcc_evaluate_rule_Range(peg_context_t *ctx) {
@@ -2440,18 +2456,18 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_Range(peg_context_t *ctx) {
     {
         const size_t p = ctx->cur;
         const size_t n = chunk->thunks.len;
-        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Char, &chunk->thunks, NULL)) goto L0002;
+        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_CHAR, &chunk->thunks, NULL)) goto L0002;
         if (
             pcc_refill_buffer(ctx, 1) < 1 ||
             ctx->buffer.buf[ctx->cur] != '-'
         ) goto L0002;
         ctx->cur++;
-        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Char, &chunk->thunks, NULL)) goto L0002;
+        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_CHAR, &chunk->thunks, NULL)) goto L0002;
         goto L0001;
     L0002:;
         ctx->cur = p;
         pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
-        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Char, &chunk->thunks, NULL)) goto L0003;
+        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_CHAR, &chunk->thunks, NULL)) goto L0003;
         goto L0001;
     L0003:;
         ctx->cur = p;
@@ -2577,7 +2593,7 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_Literal(peg_context_t *ctx) {
                 L0004:;
                     ctx->cur = p;
                 }
-                if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Char, &chunk->thunks, NULL)) goto L0003;
+                if (!pcc_apply_rule(ctx, pcc_evaluate_rule_CHAR, &chunk->thunks, NULL)) goto L0003;
                 if (ctx->cur == p) break;
                 continue;
             L0003:;
@@ -2630,7 +2646,7 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_Literal(peg_context_t *ctx) {
                 L0007:;
                     ctx->cur = p;
                 }
-                if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Char, &chunk->thunks, NULL)) goto L0006;
+                if (!pcc_apply_rule(ctx, pcc_evaluate_rule_CHAR, &chunk->thunks, NULL)) goto L0006;
                 if (ctx->cur == p) break;
                 continue;
             L0006:;
@@ -2666,10 +2682,10 @@ L0000:;
     return NULL;
 }
 
-static pcc_thunk_chunk_t *pcc_evaluate_rule_IdentStart(peg_context_t *ctx) {
+static pcc_thunk_chunk_t *pcc_evaluate_rule_IDENTSTART(peg_context_t *ctx) {
     pcc_thunk_chunk_t *const chunk = pcc_thunk_chunk__create(ctx->auxil);
     chunk->pos = ctx->cur;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_EVALUATE, "IdentStart", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->buffer.len - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_EVALUATE, "IDENTSTART", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->buffer.len - chunk->pos));
     ctx->level++;
     pcc_value_table__resize(ctx->auxil, &chunk->values, 0);
     pcc_capture_table__resize(ctx->auxil, &chunk->capts, 0);
@@ -2685,26 +2701,26 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_IdentStart(peg_context_t *ctx) {
         ctx->cur += n;
     }
     ctx->level--;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_MATCH, "IdentStart", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_MATCH, "IDENTSTART", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
     return chunk;
 L0000:;
     ctx->level--;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_NOMATCH, "IdentStart", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_NOMATCH, "IDENTSTART", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
     pcc_thunk_chunk__destroy(ctx->auxil, chunk);
     return NULL;
 }
 
-static pcc_thunk_chunk_t *pcc_evaluate_rule_IdentCont(peg_context_t *ctx) {
+static pcc_thunk_chunk_t *pcc_evaluate_rule_IDENTCONT(peg_context_t *ctx) {
     pcc_thunk_chunk_t *const chunk = pcc_thunk_chunk__create(ctx->auxil);
     chunk->pos = ctx->cur;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_EVALUATE, "IdentCont", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->buffer.len - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_EVALUATE, "IDENTCONT", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->buffer.len - chunk->pos));
     ctx->level++;
     pcc_value_table__resize(ctx->auxil, &chunk->values, 0);
     pcc_capture_table__resize(ctx->auxil, &chunk->capts, 0);
     {
         const size_t p = ctx->cur;
         const size_t n = chunk->thunks.len;
-        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_IdentStart, &chunk->thunks, NULL)) goto L0002;
+        if (!pcc_apply_rule(ctx, pcc_evaluate_rule_IDENTSTART, &chunk->thunks, NULL)) goto L0002;
         goto L0001;
     L0002:;
         ctx->cur = p;
@@ -2726,11 +2742,11 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_IdentCont(peg_context_t *ctx) {
     L0001:;
     }
     ctx->level--;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_MATCH, "IdentCont", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_MATCH, "IDENTCONT", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
     return chunk;
 L0000:;
     ctx->level--;
-    PCC_DEBUG(ctx->auxil, PCC_DBG_NOMATCH, "IdentCont", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
+    PCC_DEBUG(ctx->auxil, PCC_DBG_NOMATCH, "IDENTCONT", ctx->level, chunk->pos, (ctx->buffer.buf + chunk->pos), (ctx->cur - chunk->pos));
     pcc_thunk_chunk__destroy(ctx->auxil, chunk);
     return NULL;
 }
@@ -2742,13 +2758,13 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_Identifier(peg_context_t *ctx) {
     ctx->level++;
     pcc_value_table__resize(ctx->auxil, &chunk->values, 0);
     pcc_capture_table__resize(ctx->auxil, &chunk->capts, 0);
-    if (!pcc_apply_rule(ctx, pcc_evaluate_rule_IdentStart, &chunk->thunks, NULL)) goto L0000;
+    if (!pcc_apply_rule(ctx, pcc_evaluate_rule_IDENTSTART, &chunk->thunks, NULL)) goto L0000;
     {
         int i;
         for (i = 0;; i++) {
             const size_t p = ctx->cur;
             const size_t n = chunk->thunks.len;
-            if (!pcc_apply_rule(ctx, pcc_evaluate_rule_IdentCont, &chunk->thunks, NULL)) goto L0001;
+            if (!pcc_apply_rule(ctx, pcc_evaluate_rule_IDENTCONT, &chunk->thunks, NULL)) goto L0001;
             if (ctx->cur == p) break;
             continue;
         L0001:;
@@ -2798,6 +2814,7 @@ int main(int argc, char** argv) {
   // Parse ast
   ASTNode_t* ast;
   peg_context_t* ctx = peg_create(&auxil);
+  auxil.ctx = ctx;
   int parser_ret = peg_parse(ctx, &ast);
   printf("%i\n", parser_ret);
   peg_destroy(ctx);

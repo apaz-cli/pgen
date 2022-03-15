@@ -2,13 +2,11 @@
 # Hierarchical syntax
 Grammar <- Spacing Definition+ Extensions
 Definition <- Identifier LEFTARROW Expression
-Expression <- Sequence (SLASH Sequence)*
-Sequence <- Prefix*
+Expression <- Prefix+ (SLASH Prefix+)*
 Prefix <- (AND / NOT)? Primary (QUESTION / STAR / PLUS)? 
 Primary <- Identifier !LEFTARROW
-         / ActionExprExt
          / OPEN Expression CLOSE
-         / Literal / Class / DOT
+         / Literal / Class / DOT / ActionExprExt
 
 # Extension Syntax
 Extensions <- EOF / (Extension Spacing)* EOF 
@@ -21,9 +19,9 @@ CCodeExt <- '%%' .* EOF
 ExtBody <- '{' Spacing ExtBody '}' Spacing
          / '{' Spacing (!'}' .)+ '}' Spacing
          / '{' Spacing '}' Spacing
-#CComment <- CSLComment / CMLComment
-#CSLComment <- '//' (!EOL .)* EOL
-#CMLComment <- '/*' (!'*/' .)* '*/'
+#CCOMMENT <- CSLCOMMENT / CMLCOMMENT
+#CSLCOMMENT <- '//' (!EOL .)* EOL
+#CMLCOMMENT <- '/*' (!'*/' .)* '*/'
 
 
 ActionExprExt <- '{' Spacing ActionExprExt '}' Spacing /
@@ -32,9 +30,8 @@ ActionExprExt <- '{' Spacing ActionExprExt '}' Spacing /
 # Lexical syntax
 EOF <- !.
 EOL <- '\r\n' / '\n' / '\r'
-Space <- ' ' / '\t' / EOL
-PEGComment <- '#' (!EOL .)* EOL
-Spacing <- (Space / PEGComment)*
+SPACE <- ' ' / '\t' / EOL
+PEGCOMMENT <- '#' (!EOL .)* EOL
 DOT <- '.' Spacing
 CLOSE <- ')' Spacing
 OPEN <- '(' Spacing
@@ -45,17 +42,18 @@ NOT <- '!' Spacing
 AND <- '&' Spacing
 SLASH <- '/' Spacing
 LEFTARROW <- '<-' Spacing
-Char <- '\\' [nrt'"\[\]\\]
+CHAR <- '\\' [nrt'"\[\]\\]
       / '\\' [0-2][0-7][0-7]
       / '\\' [0-7][0-7]?
       / !'\\' .
-Range <- Char '-' Char / Char
+Spacing <- (SPACE / PEGCOMMENT)*
+Range <- CHAR '-' CHAR / CHAR
 Class <- '[' '^'? (!']' Range)* ']' Spacing
-Literal <- ['] (!['] Char)* ['] Spacing
-         / ["] (!["] Char)* ["] Spacing
-IdentStart <- [a-zA-Z_]
-IdentCont <- IdentStart / [0-9]
-Identifier <- IdentStart IdentCont* Spacing
+Literal <- ['] (!['] CHAR)* ['] Spacing
+         / ["] (!["] CHAR)* ["] Spacing
+IDENTSTART <- [a-zA-Z_]
+IDENTCONT <- IDENTSTART / [0-9]
+Identifier <- IDENTSTART IDENTCONT* Spacing
 
 
 %prefix "peg"
@@ -67,7 +65,7 @@ Identifier <- IdentStart IdentCont* Spacing
 
 #define PCC_GETCHAR(auxil) nextChar(auxil)
 #define PCC_BUFFERSIZE (__DAI_PAGESIZE * 10)
-#define PCC_DEBUG(auxil, event, rule, level, pos, buffer, length) debugVisit(rule, level)
+#define PCC_DEBUG(auxil, event, rule, level, pos, buffer, length) debugVisit(auxil, event, rule, level)
 
 struct ASTNode_t;
 typedef struct ASTNode_t ASTNode_t;
@@ -77,6 +75,7 @@ struct ASTNode_t {
 
 typedef struct {
   __Dai_String_View target;
+  void* ctx;
 } auxil_t;
 
 static inline char nextChar(auxil_t* auxil) {
@@ -88,10 +87,12 @@ static inline char nextChar(auxil_t* auxil) {
     return ret;
   }
 }
-static inline void debugVisit(char* rule, size_t level) {
+static inline void debugVisit(auxil_t* auxil, int event, char* rule, size_t level) {
+  if (event != 0) return;
+  if (isupper(rule[2])) return;
   for (size_t i = 0; i < level; i++)
     putchar(' ');
-  puts(rule);
+  printf("%s\n", rule);
 }
 }
 
@@ -109,6 +110,7 @@ int main(int argc, char** argv) {
   // Parse ast
   ASTNode_t* ast;
   peg_context_t* ctx = peg_create(&auxil);
+  auxil.ctx = ctx;
   int parser_ret = peg_parse(ctx, &ast);
   printf("%i\n", parser_ret);
   peg_destroy(ctx);
