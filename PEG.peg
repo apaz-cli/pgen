@@ -8,7 +8,7 @@ Primary <- Identifier !LEFTARROW
          / OPEN Expression CLOSE
          / Literal / Class / DOT / CCodeExt
 
-# Extension Syntax
+# Packcc Extension Syntax
 Extensions <- EOF / Spacing (Extension Spacing)* EOF
 Extension <- PrefixExt / ValueExt / AuxilExt / HeaderExt / EndCCodeExt
 PrefixExt <- '%prefix' Spacing Literal
@@ -43,8 +43,8 @@ CHAR <- '\\' [nrt'"\[\]\\]
 Spacing <- (SPACE / PEGCOMMENT)*
 Range <- CHAR '-' CHAR / CHAR
 Class <- '[' '^'? (!']' Range)* ']' Spacing
-Literal <- ['] (!['] CHAR)* ['] Spacing
-         / ["] (!["] CHAR)* ["] Spacing
+Literal <- "'" (!"'" CHAR)* "'" Spacing
+         / '"' (!'"' CHAR)* '"' Spacing
 IDENTSTART <- [a-zA-Z_]
 IDENTCONT <- IDENTSTART / [0-9]
 Identifier <- IDENTSTART IDENTCONT* Spacing

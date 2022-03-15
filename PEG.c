@@ -2623,15 +2623,11 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_Literal(peg_context_t *ctx) {
     {
         const size_t p = ctx->cur;
         const size_t n = chunk->thunks.len;
-        {
-            int u;
-            const size_t n = pcc_get_char_as_utf32(ctx, &u);
-            if (n == 0) goto L0002;
-            if (!(
-                u == 0x000027
-            )) goto L0002;
-            ctx->cur += n;
-        }
+        if (
+            pcc_refill_buffer(ctx, 1) < 1 ||
+            ctx->buffer.buf[ctx->cur] != '\''
+        ) goto L0002;
+        ctx->cur++;
         {
             int i;
             for (i = 0;; i++) {
@@ -2639,15 +2635,11 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_Literal(peg_context_t *ctx) {
                 const size_t n = chunk->thunks.len;
                 {
                     const size_t p = ctx->cur;
-                    {
-                        int u;
-                        const size_t n = pcc_get_char_as_utf32(ctx, &u);
-                        if (n == 0) goto L0004;
-                        if (!(
-                            u == 0x000027
-                        )) goto L0004;
-                        ctx->cur += n;
-                    }
+                    if (
+                        pcc_refill_buffer(ctx, 1) < 1 ||
+                        ctx->buffer.buf[ctx->cur] != '\''
+                    ) goto L0004;
+                    ctx->cur++;
                     ctx->cur = p;
                     goto L0003;
                 L0004:;
@@ -2662,29 +2654,21 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_Literal(peg_context_t *ctx) {
                 break;
             }
         }
-        {
-            int u;
-            const size_t n = pcc_get_char_as_utf32(ctx, &u);
-            if (n == 0) goto L0002;
-            if (!(
-                u == 0x000027
-            )) goto L0002;
-            ctx->cur += n;
-        }
+        if (
+            pcc_refill_buffer(ctx, 1) < 1 ||
+            ctx->buffer.buf[ctx->cur] != '\''
+        ) goto L0002;
+        ctx->cur++;
         if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Spacing, &chunk->thunks, NULL)) goto L0002;
         goto L0001;
     L0002:;
         ctx->cur = p;
         pcc_thunk_array__revert(ctx->auxil, &chunk->thunks, n);
-        {
-            int u;
-            const size_t n = pcc_get_char_as_utf32(ctx, &u);
-            if (n == 0) goto L0005;
-            if (!(
-                u == 0x000022
-            )) goto L0005;
-            ctx->cur += n;
-        }
+        if (
+            pcc_refill_buffer(ctx, 1) < 1 ||
+            ctx->buffer.buf[ctx->cur] != '\"'
+        ) goto L0005;
+        ctx->cur++;
         {
             int i;
             for (i = 0;; i++) {
@@ -2692,15 +2676,11 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_Literal(peg_context_t *ctx) {
                 const size_t n = chunk->thunks.len;
                 {
                     const size_t p = ctx->cur;
-                    {
-                        int u;
-                        const size_t n = pcc_get_char_as_utf32(ctx, &u);
-                        if (n == 0) goto L0007;
-                        if (!(
-                            u == 0x000022
-                        )) goto L0007;
-                        ctx->cur += n;
-                    }
+                    if (
+                        pcc_refill_buffer(ctx, 1) < 1 ||
+                        ctx->buffer.buf[ctx->cur] != '\"'
+                    ) goto L0007;
+                    ctx->cur++;
                     ctx->cur = p;
                     goto L0006;
                 L0007:;
@@ -2715,15 +2695,11 @@ static pcc_thunk_chunk_t *pcc_evaluate_rule_Literal(peg_context_t *ctx) {
                 break;
             }
         }
-        {
-            int u;
-            const size_t n = pcc_get_char_as_utf32(ctx, &u);
-            if (n == 0) goto L0005;
-            if (!(
-                u == 0x000022
-            )) goto L0005;
-            ctx->cur += n;
-        }
+        if (
+            pcc_refill_buffer(ctx, 1) < 1 ||
+            ctx->buffer.buf[ctx->cur] != '\"'
+        ) goto L0005;
+        ctx->cur++;
         if (!pcc_apply_rule(ctx, pcc_evaluate_rule_Spacing, &chunk->thunks, NULL)) goto L0005;
         goto L0001;
     L0005:;
