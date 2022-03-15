@@ -12,7 +12,7 @@ if test -f "PEG.c"; then
   # Combine the .c and .h files
   echo "/* PEG.h */" > tmp.c
   cat PEG.h >> tmp.c
-  echo -e "\n\n/* PEG.c*/" >> tmp.c
+  echo "\n\n/* PEG.c*/" >> tmp.c
   cat PEG.c >> tmp.c
   grep -v "#include \"PEG.h\"" tmp.c > PEG.c
   rm PEG.h tmp.c
