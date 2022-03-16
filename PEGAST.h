@@ -1,15 +1,20 @@
 #ifndef PCC_AST_INCLUDED
 #define PCC_AST_INCLUDED
-#include <daisho/Daisho.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <limits.h>
 #include <stdio.h>
 
-/* Rounds size up to the given stride for memory alignment purposes */
-#define ALIGN(size) PCC_ALIGN(size, _Alignof(max_align_t))
-#define PCC_ALIGN(size, stride) (((size + stride - 1) / stride) * stride)
+/* Create a new ASTNode for this rule, with the given key. */
+#define INIT(name) __ = ASTNode_new(name)
+/* Adds a key/value pair to the current node. */
+#define SET(type, key, value)
+/* Gets a key/value pair from the current node. */
+#define GET(type, key) _GET(type, key, __)
+#define _GET(type, key, node)
+/* Clear the children of the current node.*/
+#define CLEAR() ASTNode_clearChildren(__)
 
 
 /**********************/
@@ -17,9 +22,9 @@
 /**********************/
 
 /* This AST Node implementation is not efficient,
-   the API is what's important. The daic implementation
-   will use a custom memory allocator and handle
-   fragmentation. This is the dumbest example possible. */
+   simplicity is what's important. The daic implementation
+   will be optimized and will use a custom memory allocator.
+   This is the dumbest example possible. */
 struct ASTNode;
 typedef struct ASTNode ASTNode;
 struct ASTNode {
@@ -58,6 +63,15 @@ ASTNode_destroy(ASTNode* self) {
 }
 
 static inline void
+ASTNode_clearChildren(ASTNode* self) {
+    for (size_t i = 0; i < self->num_children; i++) {
+        ASTNode_destroy(self->children[i]);
+    }
+    free(self->children);
+    self->children = NULL;
+}
+
+static inline void
 AST_print_helper(ASTNode* current, size_t depth) {
     /* Print current node. */
     for (size_t i = 0; i < depth; i++) printf("  ");
@@ -74,13 +88,5 @@ AST_print(ASTNode* root) {
     AST_print_helper(root, 0);
 }
 
-/* Create a new ASTNode for this rule, with the given key. */
-#define INIT(name) __ = ASTNode_new(name)
-/* Adds a key/value pair to the current node. */
-#define SET(type, key, value) _SET(type, key, value, __)
-#define _SET(type, key, value, node)
-/* Gets a key/value pair from the current node. */
-#define GET(type, key) _GET(type, key, __)
-#define _GET(type, key, node)
 
 #endif /* PCC_AST_INCLUDED */

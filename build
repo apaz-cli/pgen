@@ -3,10 +3,10 @@
 # Clean
 rm peg tmp.c PEG.c PEG.h a.out 2>/dev/null
 
-# Run packcc
+# Generate the pgen PEG parser code from its packcc grammar.
 ./packcc PEG.peg
 
-# If successful, build the parser.
+# If successful, build the pgen PEG parser.
 if test -f "PEG.c"; then
 
   # Combine the .c and .h files
@@ -17,9 +17,27 @@ if test -f "PEG.c"; then
   grep -v "#include \"PEG.h\"" tmp.c > PEG.c
   rm PEG.h tmp.c
 
-  # Compile
-  cc -O0 -rdynamic -g PEG.c -o peg
+  # Compile the parser
+  cc -O0 PEG.c -o peg
 
 else
-  printf "\033[0;31mPackcc failed.\033[0m\n"
+  printf "\033[0;31mPackcc failed to build the bootstrap parser from its grammar.\033[0m\n"
+  exit 1
 fi
+
+
+# Bootstrap pgen with its own grammar.
+
+#./peg pgen.peg
+
+#if test -f "pgen.h"; then
+#  :;
+#  cc -O0 pgen.c
+#else
+#  printf "\033[0;31mPackcc failed to build pgen from its grammar.\033[0m\n"
+#  exit 1
+#fi
+
+# Have pgen regenerate itself.
+
+#./pgen pgen.peg
