@@ -55,10 +55,9 @@ Identifier <- IDENTSTART IDENTCONT* Spacing
 %auxil "auxil_t*"
 
 %header {
-/* Depends on but does not initialize the Daisho runtime. */
-#include "PEGAST.h"
-
 #define PCC_BUFFERSIZE (__DAI_PAGESIZE * 64)
+
+#include "PEGAST.h"
 
 typedef struct {
   __Dai_String_View target;
@@ -97,6 +96,7 @@ static inline void debugError(auxil_t* auxil) {
 
 
 %%
+
 int main(int argc, char** argv) {
 
   // Load target file
