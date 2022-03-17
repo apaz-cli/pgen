@@ -1,0 +1,51 @@
+
+# Hierarchical syntax
+Grammar <- Spacing Definition* Extensions
+Definition <- Identifier LEFTARROW Expression
+Expression <- (Prefix+) (SLASH Prefix+)*
+Prefix <- (AND / NOT)? Primary (QUESTION / STAR / PLUS)?
+        / LabelExt
+Primary <- Identifier !LEFTARROW {}
+         / OPEN Expression CLOSE
+         / Literal / Class / DOT / CCodeExt
+
+# Packcc Extension Syntax
+# value and auxil extensions are always the same and built in.
+# prefix is based on the grammar file name.
+Extensions <- EOF / Spacing (Extension Spacing)* EOF
+Extension <- HeaderExt / EndCCodeExt
+HeaderExt <- '%header' Spacing CCodeExt Spacing
+EndCCodeExt <- '%%' (!EOF .)* EOF
+LabelExt <- Identifier ':' Identifier / Identifier ':' OPEN Identifier CLOSE
+CCodeExt <- '{' Spacing (&'{' CCodeExt / !'}' .)* '}' Spacing
+CCOMMENT <- CSLCOMMENT / CMLCOMMENT
+CSLCOMMENT <- '//' (!EOL .)* EOL
+CMLCOMMENT <- '/*' (!'*/' .)* '*/'
+
+# Lexical syntax
+EOF <- !.
+EOL <- '\r\n' / '\n' / '\r'
+SPACE <- ' ' / '\t' / EOL
+PEGCOMMENT <- '#' (!EOL .)* EOL
+DOT <- '.' Spacing
+CLOSE <- ')' Spacing
+OPEN <- '(' Spacing
+PLUS <- '+' Spacing
+STAR <- '*' Spacing
+QUESTION <- '?' Spacing
+NOT <- '!' Spacing
+AND <- '&' Spacing
+SLASH <- '/' Spacing
+LEFTARROW <- '<-' Spacing
+CHAR <- '\\' [nrt'"\[\]\\]
+      / '\\' [0-2][0-7][0-7]
+      / '\\' [0-7][0-7]?
+      / !'\\' .
+Spacing <- (SPACE / PEGCOMMENT)*
+Range <- CHAR '-' CHAR / CHAR
+Class <- '[' '^'? (!']' Range)* ']' Spacing
+Literal <- "'" (!"'" CHAR)* "'" Spacing
+         / '"' (!'"' CHAR)* '"' Spacing
+IDENTSTART <- [a-zA-Z_]
+IDENTCONT <- [a-zA-Z_0-9]
+Identifier <- IDENTSTART IDENTCONT* Spacing

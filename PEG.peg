@@ -18,7 +18,7 @@ AuxilExt <- '%auxil' Spacing Literal
 HeaderExt <- '%header' Spacing CCodeExt Spacing
 EndCCodeExt <- '%%' (!EOF .)* EOF
 LabelExt <- Identifier ':' Identifier / Identifier ':' OPEN Identifier CLOSE
-CCodeExt <- '{' Spacing (CCOMMENT / &'{' CCodeExt / !'}' .)* '}' Spacing
+CCodeExt <- '{' Spacing (&'{' CCodeExt / !'}' .)* '}' Spacing
 CCOMMENT <- CSLCOMMENT / CMLCOMMENT
 CSLCOMMENT <- '//' (!EOL .)* EOL
 CMLCOMMENT <- '/*' (!'*/' .)* '*/'
