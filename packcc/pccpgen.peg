@@ -19,9 +19,6 @@ HeaderExt <- '%header' Spacing CCodeExt Spacing
 EndCCodeExt <- '%%' (!EOF .)* EOF
 LabelExt <- Identifier ':' Identifier / Identifier ':' OPEN Identifier CLOSE
 CCodeExt <- '{' Spacing (&'{' CCodeExt / !'}' .)* '}' Spacing
-CCOMMENT <- CSLCOMMENT / CMLCOMMENT
-CSLCOMMENT <- '//' (!EOL .)* EOL
-CMLCOMMENT <- '/*' (!'*/' .)* '*/'
 
 # Lexical syntax
 EOF <- !.
@@ -57,7 +54,7 @@ Identifier <- IDENTSTART IDENTCONT* Spacing
 %auxil "auxil_t*"
 
 %header {
-#include "PEGAST.h"
+#include "pccast.h"
 #include <daisho/Daisho.h>
 
 #define PCC_BUFFERSIZE (__DAI_PAGESIZE * 64)
@@ -101,7 +98,7 @@ static inline void debugError(auxil_t* auxil) {
 int main(int argc, char** argv) {
 
   // Load target file
-  char* filename = argc == 2 ? argv[1] : "PEG.peg";
+  char* filename = argc == 2 ? argv[1] : "pgen.peg";
   auxil_t auxil;
   auxil.target = __Dai_readFile(filename);
   auxil.target.len = 0;

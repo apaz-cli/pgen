@@ -1,24 +1,29 @@
 #!/bin/sh
 
 # Clean
-rm peg tmp.c PEG.c PEG.h a.out 2>/dev/null
+rm pgen 2>/dev/null
+cd packcc/
+rm tmp.c pccpgen.c pccpgen.h 2>/dev/null
+cd ..
 
-# Generate the pgen PEG parser code from its packcc grammar.
-./packcc PEG.peg
 
-# If successful, build the pgen PEG parser.
-if test -f "PEG.c"; then
+# Generate the bootstrap parser from its packcc grammar.
+cd packcc/
+./packcc pccpgen.peg
+
+# If successful, build it.
+if test -f "pccpgen.c"; then
 
   # Combine the .c and .h files
-  printf "/* PEG.h */\n" > tmp.c
-  cat PEG.h >> tmp.c
-  printf "\n\n/* PEG.c */\n" >> tmp.c
-  cat PEG.c >> tmp.c
-  grep -v "#include \"PEG.h\"" tmp.c > PEG.c
-  rm PEG.h tmp.c
+  printf "/* pccpgen.h */\n" > tmp.c
+  cat pccpgen.h >> tmp.c
+  printf "\n\n/* pccpgen.c */\n" >> tmp.c
+  cat pccpgen.c >> tmp.c
+  grep -v "#include \"pccpgen.h\"" tmp.c > pccpgen.c
+  rm pccpgen.h tmp.c
 
-  # Compile the parser
-  cc -O0 PEG.c -o peg
+  # Compile
+  cc pccpgen.c -o pgen
 
 else
   printf "\033[0;31mPackcc failed to build the bootstrap parser from its grammar.\033[0m\n"
@@ -27,6 +32,8 @@ fi
 
 
 # Bootstrap pgen with its own grammar.
+cd ../src/
+
 
 #./peg pgen.peg
 

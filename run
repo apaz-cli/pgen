@@ -1,6 +1,0 @@
-#!/bin/sh
-
-./build
-if test -f "peg"; then
-  ./pgen
-fi
