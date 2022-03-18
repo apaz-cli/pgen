@@ -28,10 +28,10 @@ notably lacking in packcc.
 
 ## Bootstrapping
 
-First, build the latest version of [packcc](https://github.com/arithy/packcc). Name the binary `packcc`.
-The code should already be included in this repo as `packcc.c`. A linux x86_64 ELF binary is also included.
-Overwrite it if you're on another platform. Compiling packcc should not require any special flags. To
-update/refetch and recompile packcc, it should just be:
+First, build the latest version of [packcc](https://github.com/arithy/packcc). Put the binary in
+`packcc/packcc`. The code should already be included in this repo at `packcc/packcc.c`. A linux x86_64
+ELF binary is also included. Overwrite it if you're on another platform. Compiling packcc should not
+require any special flags. To update/refetch and recompile packcc, it should just be:
 ```sh
 cd packcc/
 
@@ -51,8 +51,7 @@ In order, this will:
 1. Use packcc to generate a parser for pgen grammar from a packcc grammar.
 2. Combine the `.h` and `.c` files that were generated.
 3. Compile the combined file into a bootstrap pgen version.
-4. Use the bootstrap pgen version to generate a new tokenizer and parser,
-   this time from a grammar written in pgen itself.
+4. Use the bootstrap pgen version to generate a new tokenizer and parser from a grammar written in pgen itself.
 5. Compile the new tokenizer and parser into a new pgen version.
 6. Use the new pgen version to parse its own syntax and regenerate the tokenizer and parser for its own binary.
 7. Recompile using the new tokenizer and parser.
