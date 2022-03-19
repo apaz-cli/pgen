@@ -48,7 +48,7 @@ Once you have your `packcc` binary, you should be able to just put it in the mai
 ```
 
 In order, this will:
-1. Use packcc to generate a parser for pgen grammar from a packcc grammar.
+1. Use `packcc` to generate a parser for pgen grammar from a packcc grammar.
 2. Combine the `.h` and `.c` files that were generated.
 3. Compile the combined file into a bootstrap pgen version.
 4. Use the bootstrap pgen version to generate a new tokenizer and parser from a grammar written in pgen itself.
@@ -56,7 +56,7 @@ In order, this will:
 6. Use the new pgen version to parse its own syntax and regenerate the tokenizer and parser for its own binary.
 7. Recompile using the new tokenizer and parser.
 
-At the end of it, you should be left with the final binary `pgen`.
+At the end of it, you should be left with the final `pgen` binary at the root of the project folder.
 
 
 ## Using pgen
