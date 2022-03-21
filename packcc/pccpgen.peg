@@ -1,53 +1,59 @@
 
 # Hierarchical syntax
-Grammar <- Spacing Definition* Extensions
-Definition <- Identifier LEFTARROW Expression
-Expression <- (Prefix+) (SLASH Prefix+)*
-Prefix <- (AND / NOT)? Primary (QUESTION / STAR / PLUS)?
-        / LabelExt
-Primary <- Identifier !LEFTARROW {}
-         / OPEN Expression CLOSE
-         / Literal / Class / DOT / CCodeExt
+Grammar <- SPACING Definition* SPACING Extensions
+Definition <- (COMM / FRAG)? TOKIDENT LEFTARROW RightSide
+            / RULEIDENT LEFTARROW RightSide
+
+RightSide <- (ExprMod+) (SLASH ExprMod+)*
+ExprMod <- (AND / NOT)* ExprBase (QUESTION / STAR / PLUS)*
+ExprBase <- RULEIDENT !LEFTARROW   { }
+           / STRLIT                { }
+           / OPEN RightSide CLOSE  { }
+           / CHARCLASS             { }
+           / DOT                   { }
+           / CCodeExt              { }
 
 # Packcc Extension Syntax
-Extensions <- EOF / Spacing (Extension Spacing)* EOF
-Extension <- PrefixExt / ValueExt / AuxilExt / HeaderExt / EndCCodeExt
-PrefixExt <- '%prefix' Spacing Literal
-ValueExt <- '%value' Spacing Literal
-AuxilExt <- '%auxil' Spacing Literal
-HeaderExt <- '%header' Spacing CCodeExt Spacing
+Extensions <- EOF / SPACING (Extension SPACING)* EOF
+Extension <- HeaderExt / EndCCodeExt
+HeaderExt <- '%header' SPACING CCodeExt SPACING
 EndCCodeExt <- '%%' (!EOF .)* EOF
-LabelExt <- Identifier ':' Identifier / Identifier ':' OPEN Identifier CLOSE
-CCodeExt <- '{' Spacing (&'{' CCodeExt / !'}' .)* '}' Spacing
+CCodeExt <- '{' SPACING (&'{' CCodeExt / !'}' .)* '}' SPACING
 
 # Lexical syntax
 EOF <- !.
 EOL <- '\r\n' / '\n' / '\r'
 SPACE <- ' ' / '\t' / EOL
-PEGCOMMENT <- '#' (!EOL .)* EOL
-DOT <- '.' Spacing
-CLOSE <- ')' Spacing
-OPEN <- '(' Spacing
-PLUS <- '+' Spacing
-STAR <- '*' Spacing
-QUESTION <- '?' Spacing
-NOT <- '!' Spacing
-AND <- '&' Spacing
-SLASH <- '/' Spacing
-LEFTARROW <- '<-' Spacing
+COMMENT <- '#' (!EOL .)* EOL
+
+DOT <- '.' SPACING
+CLOSE <- ')' SPACING
+OPEN <- '(' SPACING
+PLUS <- '+' SPACING
+STAR <- '*' SPACING
+QUESTION <- '?' SPACING
+NOT <- '!' SPACING
+AND <- '&' SPACING
+SLASH <- '/' SPACING
+LEFTARROW <- '<-' SPACING
+COMM <- 'comm' SPACING
+FRAG <- 'frag' SPACING
+
+
 CHAR <- '\\' [nrt'"\[\]\\]
       / '\\' [0-2][0-7][0-7]
       / '\\' [0-7][0-7]?
       / !'\\' .
-Spacing <- (SPACE / PEGCOMMENT)*
-Range <- CHAR '-' CHAR / CHAR
-Class <- '[' '^'? (!']' Range)* ']' Spacing
-Literal <- "'" (!"'" CHAR)* "'" Spacing
-         / '"' (!'"' CHAR)* '"' Spacing
-IDENTSTART <- [a-zA-Z_]
-IDENTCONT <- [a-zA-Z_0-9]
-Identifier <- IDENTSTART IDENTCONT* Spacing
+SPACING <- (SPACE / COMMENT)*
+RANGE <- CHAR '-' CHAR / CHAR
+CHARCLASS <- '[' '^'? (!']' RANGE)* ']' SPACING
+STRLIT <- "'" (!"'" CHAR)* "'" SPACING
+        / '"' (!'"' CHAR)* '"' SPACING
 
+IDENTSTART <- [A-Z]
+IDENTCONT <- [a-zA-Z_0-9]
+TOKIDENT <- IDENTSTART+ SPACING
+RULEIDENT <- IDENTSTART IDENTCONT* SPACING
 
 %prefix "peg"
 %value "ASTNode*"
@@ -98,9 +104,12 @@ static inline void debugError(auxil_t* auxil) {
 int main(int argc, char** argv) {
 
   // Load target file
-  char* filename = argc == 2 ? argv[1] : "pgen.peg";
+  char* filename = argc == 2 ? argv[1] : "../src/pgen.peg";
   auxil_t auxil;
   auxil.target = __Dai_readFile(filename);
+  if (!auxil.target.str) {
+
+  }
   auxil.target.len = 0;
 
   // Initialize parser

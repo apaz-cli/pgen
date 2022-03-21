@@ -3,7 +3,7 @@
 # Clean
 rm pgen 2>/dev/null
 cd packcc/
-rm tmp.c pccpgen.c pccpgen.h 2>/dev/null
+rm bootstrap tmp.c pccpgen.c pccpgen.h 2>/dev/null
 cd ../src/
 rm pgen 2>/dev/null
 cd ..
