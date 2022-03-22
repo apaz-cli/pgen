@@ -1,32 +1,14 @@
 
-# Hierarchical syntax
-Grammar <- SPACING Definition* Extensions
-Definition <- IDENT LEFTARROW Expression
-Expression <- (Prefix+) (SLASH Prefix+)*
-Prefix <- (AND / NOT)? Primary (QUESTION / STAR / PLUS)?
-        / LabelExt
-Primary <- IDENT !LEFTARROW {}
-         / OPEN Expression CLOSE
-         / Literal / Class / DOT / CCodeExt
+#############
+# Tokenizer #
+#############
 
-# Packcc Extension Syntax
-# value and auxil extensions are always the same and built in.
-# prefix is based on the grammar file name.
-Extensions <- EOF / SPACING (Extension SPACING)* EOF
-Extension <- HeaderExt / EndCCodeExt
-HeaderExt <- '%header' SPACING CCodeExt SPACING
-EndCCodeExt <- '%%' (!EOF .)* EOF
-LabelExt <- IDENT ':' IDENT / IDENT ':' OPEN IDENT CLOSE
-CCodeExt <- '{' SPACING (&'{' CCodeExt / !'}' .)* '}' SPACING
-
-# Lexical syntax
-EOF <- !.
-EOL <- '\r\n' / '\n' / '\r'
-SPACE <- ' ' / '\t' / !.
-COMMENT <- '#' (!!. .)* !.
+# (EOF is automatic.)
 DOT <- '.'
 CLOSE <- ')'
 OPEN <- '('
+LBRACK <- '{'
+RBRACK <- '}'
 PLUS <- '+'
 STAR <- '*'
 QUESTION <- '?'
@@ -34,15 +16,49 @@ NOT <- '!'
 AND <- '&'
 SLASH <- '/'
 LEFTARROW <- '<-'
-CHAR <- '\\' [nrt'"\[\]\\]
+
+frag CHAR <- '\\' [nrt'"\[\]\\]
       / '\\' [0-2][0-7][0-7]
       / '\\' [0-7][0-7]?
       / !'\\' .
-SPACING <- (SPACE / COMMENT)*
-frag RANGE <- CHAR '-' CHAR / CHAR
-Class <- '[' '^'? (!']' RANGE)* ']' SPACING
-Literal <- "'" (!"'" CHAR)* "'" SPACING
-         / '"' (!'"' CHAR)* '"' SPACING
-frag IDENTSTART <- [a-zA-Z_]
+STRLIT <- "'" (!"'" CHAR)* "'"
+        / '"' (!'"' CHAR)* '"'
+
+CHARCLASS <- '[' '^'? (!']' (CHAR '-' CHAR / CHAR))* ']'
+frag IDENTSTART <- [A-Z]
 frag IDENTCONT <- [a-zA-Z_0-9]
-IDENT <- IDENTSTART IDENTCONT* SPACING
+TOKIDENT <- IDENTSTART+
+RULEIDENT <- IDENTSTART IDENTCONT+
+
+# Ignored tokens
+frag EOL <- '\r\n' / '\n' / '\r'
+comm COMMENT <- '#' (!EOL .)* EOL
+comm SPACE <- ' '+ / '\t'+ / EOL+
+
+
+##########
+# PARSER #
+##########
+
+# Hierarchical syntax
+Grammar    <- Definition* EOF
+
+Definition <- FragDef / CommDef / TokenDef / RuleDef
+FragDef    <- FRAG TOKIDENT  LEFTARROW RightSide
+CommDef    <- COMM TOKIDENT  LEFTARROW RightSide
+TokenDef   <-      TOKIDENT  LEFTARROW RightSide
+RuleDef    <-      RULEIDENT LEFTARROW RightSide
+
+RightSide <- (ExprMod+) (SLASH ExprMod+)*
+ExprMod   <- (AND / NOT)* ExprBase (QUESTION / STAR / PLUS)*
+ExprBase  <- TOKIDENT  !LEFTARROW
+           / RULEIDENT !LEFTARROW
+           / STRLIT
+           / OPEN RightSide CLOSE
+           / CHARCLASS
+           / DOT
+           / BBrack
+
+BBrack <- LBRACK (&LBRACK BBrack / !RBRACK .)* RBRACK
+
+

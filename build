@@ -25,7 +25,7 @@ if test -f "pccpgen.c"; then
   rm pccpgen.h tmp.c
 
   # Compile
-  cc pccpgen.c -o bootstrap 
+  cc pccpgen.c -o bootstrap
 
 else
   printf "\033[0;31mPackcc failed to build the bootstrap parser from its packcc grammar.\033[0m\n"
@@ -33,10 +33,10 @@ else
 fi
 
 
-# Bootstrap pgen with its own grammar.
+# Build pgen
 cd ../src/
 
-
+# Bootstrap pgen with its own grammar.
 ./../packcc/bootstrap pgen.peg
 
 #if test -f "pgen.h"; then
