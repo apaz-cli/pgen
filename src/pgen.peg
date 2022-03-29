@@ -4,36 +4,36 @@
 #############
 
 # (EOF is automatic.)
-DOT <- '.'
-CLOSE <- ')'
-OPEN <- '('
-LBRACK <- '{'
-RBRACK <- '}'
-PLUS <- '+'
-STAR <- '*'
-QUESTION <- '?'
-NOT <- '!'
-AND <- '&'
-SLASH <- '/'
-LEFTARROW <- '<-'
+DOT             <- '.'
+CLOSE           <- ')'
+OPEN            <- '('
+LBRACK          <- '{'
+RBRACK          <- '}'
+PLUS            <- '+'
+STAR            <- '*'
+QUESTION        <- '?'
+NOT             <- '!'
+AND             <- '&'
+SLASH           <- '/'
+LEFTARROW       <- '<-'
 
-frag CHAR <- '\\' [nrt'"\[\]\\]
-      / '\\' [0-2][0-7][0-7]
-      / '\\' [0-7][0-7]?
-      / !'\\' .
-STRLIT <- "'" (!"'" CHAR)* "'"
-        / '"' (!'"' CHAR)* '"'
+frag CHAR       <- '\\' [nrt'"\[\]\\]
+                 / '\\' [0-2][0-7][0-7]
+                 / '\\' [0-7][0-7]?
+                 / !'\\' .
+STRLIT          <- "'" (!"'" CHAR)* "'"
+                 / '"' (!'"' CHAR)* '"'
 
-CHARCLASS <- '[' '^'? (!']' (CHAR '-' CHAR / CHAR))* ']'
+CHARCLASS       <- '[' '^'? (!']' (CHAR '-' CHAR / CHAR))* ']'
 frag IDENTSTART <- [A-Z]
-frag IDENTCONT <- [a-zA-Z_0-9]
-TOKIDENT <- IDENTSTART+
-RULEIDENT <- IDENTSTART IDENTCONT+
+frag IDENTCONT  <- [a-zA-Z_0-9]
+TOKIDENT        <- IDENTSTART+
+RULEIDENT       <- IDENTSTART IDENTCONT+
 
 # Ignored tokens
-frag EOL <- '\r\n' / '\n' / '\r'
-comm COMMENT <- '#' (!EOL .)* EOL
-comm SPACE <- ' '+ / '\t'+ / EOL+
+frag EOL        <- ('\r\n' / '\n' / '\r')
+comm COMMENT    <- '#' (!EOL .)* EOL
+comm SPACE      <- ' '+ / '\t'+ / EOL+
 
 
 ##########
@@ -41,24 +41,24 @@ comm SPACE <- ' '+ / '\t'+ / EOL+
 ##########
 
 # Hierarchical syntax
-Grammar    <- Definition* EOF
+Grammar         <- Definition* EOF
 
-Definition <- FragDef / CommDef / TokenDef / RuleDef
-FragDef    <- FRAG TOKIDENT  LEFTARROW RightSide
-CommDef    <- COMM TOKIDENT  LEFTARROW RightSide
-TokenDef   <-      TOKIDENT  LEFTARROW RightSide
-RuleDef    <-      RULEIDENT LEFTARROW RightSide
+Definition      <- FragDef / CommDef / TokenDef / RuleDef
+FragDef         <- FRAG TOKIDENT  LEFTARROW RightSide
+CommDef         <- COMM TOKIDENT  LEFTARROW RightSide
+TokenDef        <-      TOKIDENT  LEFTARROW RightSide
+RuleDef         <-      RULEIDENT LEFTARROW RightSide
 
-RightSide <- (ExprMod+) (SLASH ExprMod+)*
-ExprMod   <- (AND / NOT)* ExprBase (QUESTION / STAR / PLUS)*
-ExprBase  <- TOKIDENT  !LEFTARROW
-           / RULEIDENT !LEFTARROW
-           / STRLIT
-           / OPEN RightSide CLOSE
-           / CHARCLASS
-           / DOT
-           / BBrack
+RightSide       <- (ExprMod+) (SLASH ExprMod+)*
+ExprMod         <- (AND / NOT)* ExprBase (QUESTION / STAR / PLUS)*
+ExprBase        <- TOKIDENT  !LEFTARROW
+                 / RULEIDENT !LEFTARROW
+                 / STRLIT
+                 / OPEN RightSide CLOSE
+                 / CHARCLASS
+                 / DOT
+                 / BBrack
 
-BBrack <- LBRACK (&LBRACK BBrack / !RBRACK .)* RBRACK
+BBrack          <- LBRACK (&LBRACK BBrack / !RBRACK .)* RBRACK
 
 
