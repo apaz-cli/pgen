@@ -23,47 +23,15 @@ notably lacking in packcc.
 
 ## Roadmap
 
-- [x] Working `packcc` grammar for `pgen`
 - [x] Completed `pgen` grammar for `pgen`
 - [ ] Shared symbol table code
-- [ ] Finalized `pgen` grammar written in itself
-- [ ] `pccpgen` -> `pccpgen` AST
-- [ ] `pccpgen` AST -> normalized `pgen` symbol table
-- [ ] `pgen` AST -> normalized `pgen` symbol table
-- [ ] Symbol table -> Tokenizer code generation
-- [ ] Symbol table -> Parser code generation
-- [ ] Working `pgen` abstract machine
-- [ ] `pgen` can parse itself
-- [ ] `pgen` can generate itself
-
-
-## The perks of using pgen
-
-
-
-## The API
-
-| Type                                                     | Description                    |
-| -------------------------------------------------------- | ------------------------------ |
-| `pgen_list_##type`                                       | List class with buf, len, cap. |
-| `enum pgen_toktype`                                      | The names of all the tokens.   |
-| `struct pgen_token`                                      | `toktype` and match.           |
-| `struct pgen_astnode`                                    |                                |
-
-| Function                                                 | Description                    |
-| -------------------------------------------------------- | ------------------------------ |
-| `char* pgen_readfile(char*)`                             |                                |
-| `pgen_list_pgen_token pgen_name_tokenize(char*, size_t)` |                                |
-| `pgen_astnode* pgen_name_parse(pgen_list_pgen_token)`    |                                |
-
-| Variables available inside an action    | Type           | Description                    |
-| --------------------------------------- | -------------- | ------------------------------ |
-| ... | |
-
-
-## The pgen abstract machine
-
-Starting with the rule called `Grammar`, the Tokenizer rules are
+- [ ] Handwritten tokenizer for `pgen`
+- [ ] Handwritten parser for `pgen`
+- [ ] Symbol table generation
+- [ ] Tokenizer code generation from symtab
+- [ ] Parser code generation from symtab
+- [ ] `pgen` can parse and generate itself
+- [ ] `pgen` is self-hosting
 
 
 ## Tips on writing grammars
