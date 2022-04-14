@@ -34,6 +34,8 @@ struct ASTNode {
     size_t num_children;
 };
 
+#define PCCAST_OOM() do { fprintf(stderr, "Out of memory.\n");, exit(1); } while(0)
+
 static inline ASTNode*
 ASTNode_new(char* name) {
     ASTNode* node = (ASTNode*)malloc(sizeof(ASTNode));
@@ -48,11 +50,11 @@ static inline void
 ASTNode_addChild(ASTNode* parent, ASTNode* child) {
     if (!child) return;
     if (!parent) return;
-
     parent->num_children++;
     parent->children =
         (ASTNode**)realloc(parent->children, sizeof(ASTNode*) * parent->num_children);
     parent->children[parent->num_children - 1] = child;
+    if (!parent->children) PCCAST_OOM();
 }
 
 static inline void
