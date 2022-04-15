@@ -1,31 +1,35 @@
-#include "list.h"
-#include "util.h"
+#if 0 // Memory debugging.
+#define MEMDEBUG 1
+#define PRINT_MEMALLOCS 1
+#include <apaz-libc/memdebug.h>
+#endif
 
-LIST_DECLARE(String_View);
-LIST_DEFINE(String_View);
+#include "util.h"
 
 int main(int argc, char **argv) {
 
   // Determine target
   char *filename = argc == 2 ? argv[1] : "src/pgen.peg";
+  size_t fnamelen = strlen(filename);
 
-  // Load target file
-  String_View target = readFile(filename);
-
-  // Split into lines.
-  list_String_View lines = list_String_View_new();
-  size_t last_offset = 0;
-  for (size_t i = 0; i < target.len; i++) {
-    if ((target.str[i] == '\n') | (i == target.len - 1)) {
-      String_View sv = {target.str + last_offset, i - last_offset};
-      list_String_View_add(&lines, sv);
-      last_offset = i;
-    }
+  // Determine file type
+  bool isGrammar;
+  if (fnamelen >= 4) {
+    isGrammar = strcmp(filename + fnamelen - 4, ".peg") == 0;
+  } else {
+    ERROR("Could not tell whether the file is for a tokenizer or a parser.\n"
+          "Please rename with the .tok or .peg extension.");
   }
+
+  // Read the file into lines.
+  list_Codepoint_String_View lines = readFileCodepointLines(filename);
 
   for (size_t i = 0; i < lines.len; i++) {
-      printStringView(list_String_View_get(&lines, i));
+    printCodepointStringView(list_Codepoint_String_View_get(&lines, i));
   }
+
+  free(list_Codepoint_String_View_get(&lines, 0).str);
+  list_Codepoint_String_View_clear(&lines);
 
   return 0;
 }

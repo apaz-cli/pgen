@@ -16,7 +16,7 @@
   } while (0)
 #define ERROR(errstr)                                                          \
   do {                                                                         \
-    fprintf(stderr, "pgen has encountered an error: %s.\n", errstr);           \
+    fprintf(stderr, "pgen has encountered an error:\n%s\n", errstr);           \
     exit(1);                                                                   \
   } while (0)
 
@@ -44,7 +44,7 @@
     size_t prev = self->len;                                                   \
     self->len++;                                                               \
     if (self->cap <= self->len) {                                              \
-      self->cap = self->len * 2;                                               \
+      self->cap = self->len * 2 + 30;                                          \
       self->buf = (type *)realloc(self->buf, sizeof(list_##type) * self->cap); \
       if (!self->buf)                                                          \
         return 1;                                                              \

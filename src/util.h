@@ -2,16 +2,21 @@
 #define PGEN_INCLUDE_UTIL
 #include <fcntl.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-typedef struct {
-  char *str;
-  size_t len;
-} String_View;
+#include "list.h"
+#include "utf8.h"
+
+LIST_DECLARE(String_View);
+LIST_DEFINE(String_View);
+LIST_DECLARE(Codepoint_String_View);
+LIST_DEFINE(Codepoint_String_View);
 
 /*
  * Returns SIZE_MAX on error. There's no worry of that being a legitimate value.
@@ -58,11 +63,71 @@ static inline String_View readFile(char *filePath) {
 }
 
 static inline void printStringView(String_View sv) {
-    fwrite(sv.str, sv.len, 1, stdout);
+  fwrite(sv.str, sv.len, 1, stdout);
 }
 
-static inline void showHelp(void) {
-  
+static inline void printCodepointStringView(Codepoint_String_View cpsv) {
+  String_View sv = UTF8_encode(cpsv.str, cpsv.len);
+  printStringView(sv);
+  free(sv.str);
 }
+
+/* Open the file, converting to  that it parses as UTF8. */
+static inline Codepoint_String_View readFileCodepoints(char *filePath) {
+  String_View view = readFile(filePath);
+  UTF8State state;
+  UTF8_decode_init(&state, view.str, view.len);
+
+  /* Over-allocate enough space. */
+  codepoint_t *cps = (codepoint_t *)malloc(sizeof(codepoint_t) * view.len + 1);
+
+  /* Parse */
+  size_t cps_read = 0;
+  codepoint_t cp;
+  Codepoint_String_View sv;
+  for (;;) {
+    cp = UTF8_decodeNext(&state);
+
+    if (cp == UTF8_ERR) {
+      sv.str = NULL;
+      sv.len = 0;
+      return sv;
+    } else if (cp == UTF8_END) {
+      break;
+    }
+
+    cps[cps_read++] = cp;
+  };
+
+  /* Don't resize it at the end. The caller can if they want. */
+  sv.str = cps;
+  sv.len = view.len;
+
+  free(view.str);
+  return sv;
+}
+
+/* Open the file, converting to  that it parses as UTF8. */
+static inline list_Codepoint_String_View
+readFileCodepointLines(char *filePath) {
+
+  // Read the file as codepoints
+  Codepoint_String_View target = readFileCodepoints(filePath);
+
+  // Split into lines.
+  list_Codepoint_String_View lines = list_Codepoint_String_View_new();
+  size_t last_offset = 0;
+  for (size_t i = 0; i < target.len; i++) {
+    if ((target.str[i] == '\n') | (i == target.len - 1)) {
+      Codepoint_String_View sv = {target.str + last_offset, i - last_offset};
+      list_Codepoint_String_View_add(&lines, sv);
+      last_offset = i;
+    }
+  }
+
+  return lines;
+}
+
+static inline void showHelp(void) {}
 
 #endif /* PGEN_INCLUDE_UTIL */
