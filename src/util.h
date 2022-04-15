@@ -72,39 +72,48 @@ static inline void printCodepointStringView(Codepoint_String_View cpsv) {
   free(sv.str);
 }
 
-/* Open the file, converting to  that it parses as UTF8. */
+/* Open a UTF8 file, returning a UTF32 codepoint string that must be freed. */
+/* Returns {.str = NULL} on UTF8 parsing error or OOM. */
 static inline Codepoint_String_View readFileCodepoints(char *filePath) {
+  /* Read the file. */
   String_View view = readFile(filePath);
-  UTF8State state;
-  UTF8_decode_init(&state, view.str, view.len);
 
-  /* Over-allocate enough space. */
-  codepoint_t *cps = (codepoint_t *)malloc(sizeof(codepoint_t) * view.len + 1);
+  /* Over-allocate enough space for the UTF32 translation. */
+  codepoint_t *cps = (codepoint_t *)malloc(sizeof(codepoint_t) * view.len);
+  Codepoint_String_View cpsv;
+  if (!cps) {
+      cpsv.str = NULL;
+      cpsv.len = 0;
+      return cpsv;
+  }
 
   /* Parse */
   size_t cps_read = 0;
   codepoint_t cp;
-  Codepoint_String_View sv;
+  UTF8State state;
+  UTF8_decode_init(&state, view.str, view.len);
   for (;;) {
     cp = UTF8_decodeNext(&state);
 
     if (cp == UTF8_ERR) {
-      sv.str = NULL;
-      sv.len = 0;
-      return sv;
+      free(view.str);
+      free(cps);
+      cpsv.str = NULL;
+      cpsv.len = 0;
+      return cpsv;
     } else if (cp == UTF8_END) {
       break;
+    } else {
+      cps[cps_read++] = cp;
     }
-
-    cps[cps_read++] = cp;
   };
 
   /* Don't resize it at the end. The caller can if they want. */
-  sv.str = cps;
-  sv.len = view.len;
+  cpsv.str = cps;
+  cpsv.len = view.len;
 
   free(view.str);
-  return sv;
+  return cpsv;
 }
 
 /* Open the file, converting to  that it parses as UTF8. */
