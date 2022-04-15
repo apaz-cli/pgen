@@ -1,0 +1,4 @@
+#ifndef SYMTAB_INCLUDED
+#define SYMTAB_INCLUDED
+
+#endif /* SYMTAB_INCLUDED */

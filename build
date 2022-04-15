@@ -8,6 +8,8 @@ cd ../src/
 rm pgen 2>/dev/null
 cd ..
 
+# Generate the documentation.
+pandoc pgen_man.md -s -tman
 
 # Generate the bootstrap parser from its packcc grammar.
 cd packcc/
