@@ -72,65 +72,43 @@ static inline void printCodepointStringView(Codepoint_String_View cpsv) {
   free(sv.str);
 }
 
-/* Open a UTF8 file, returning a UTF32 codepoint string that must be freed. */
+/* Open the file as utf8, returning a string of utf32 codepoints. */
 /* Returns {.str = NULL} on UTF8 parsing error or OOM. */
+/* {.str} must be freed. */
 static inline Codepoint_String_View readFileCodepoints(char *filePath) {
   /* Read the file. */
   String_View view = readFile(filePath);
-
-  /* Over-allocate enough space for the UTF32 translation. */
-  codepoint_t *cps = (codepoint_t *)malloc(sizeof(codepoint_t) * view.len);
-  Codepoint_String_View cpsv;
-  if (!cps) {
-      cpsv.str = NULL;
-      cpsv.len = 0;
-      return cpsv;
+  if (!view.str) {
+    Codepoint_String_View cpsv;
+    cpsv.str = NULL;
+    cpsv.len = 0;
+    return cpsv;
+  } else {
+    return UTF8_decode_view(view);
   }
-
-  /* Parse */
-  size_t cps_read = 0;
-  codepoint_t cp;
-  UTF8State state;
-  UTF8_decode_init(&state, view.str, view.len);
-  for (;;) {
-    cp = UTF8_decodeNext(&state);
-
-    if (cp == UTF8_ERR) {
-      free(view.str);
-      free(cps);
-      cpsv.str = NULL;
-      cpsv.len = 0;
-      return cpsv;
-    } else if (cp == UTF8_END) {
-      break;
-    } else {
-      cps[cps_read++] = cp;
-    }
-  };
-
-  /* Don't resize it at the end. The caller can if they want. */
-  cpsv.str = cps;
-  cpsv.len = view.len;
-
-  free(view.str);
-  return cpsv;
 }
 
-/* Open the file, converting to  that it parses as UTF8. */
+/* Open the file as utf8, converting to utf32 and returning each line in a list. */
+/* Returns an empty list on UTF8 parsing error or OOM. */
+/* The list must be destroyed, and list.get(0).str must be freed. */
 static inline list_Codepoint_String_View
 readFileCodepointLines(char *filePath) {
 
   // Read the file as codepoints
   Codepoint_String_View target = readFileCodepoints(filePath);
 
-  // Split into lines.
   list_Codepoint_String_View lines = list_Codepoint_String_View_new();
-  size_t last_offset = 0;
-  for (size_t i = 0; i < target.len; i++) {
+  if (!target.str) return lines; // return empty list on error
+
+  // Split into lines.
+  for (size_t i = 0, last = 0; i < target.len; i++) {
     if ((target.str[i] == '\n') | (i == target.len - 1)) {
-      Codepoint_String_View sv = {target.str + last_offset, i - last_offset};
+      Codepoint_String_View sv;
+      sv.str = target.str + last;
+      sv.len = i - last;
       list_Codepoint_String_View_add(&lines, sv);
-      last_offset = i;
+
+      last = i;
     }
   }
 

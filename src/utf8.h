@@ -38,7 +38,7 @@ typedef struct {
 /***********/
 
 /* Get the next byte. Returns UTF8_END if there are no more bytes. */
-static inline char UTF8_cont_8(UTF8State *state) {
+static inline char UTF8_nextByte(UTF8State *state) {
   if (state->idx >= state->len)
     return UTF8_END;
   char c = (state->inp[state->idx] & 0xFF);
@@ -50,8 +50,8 @@ static inline char UTF8_cont_8(UTF8State *state) {
  * Get the 6-bit payload of the next continuation byte.
  * Return UTF8_ERR if it is not a contination byte.
  */
-static inline char UTF8_cont_6(UTF8State *state) {
-  char c = UTF8_cont_8(state);
+static inline char UTF8_contByte(UTF8State *state) {
+  char c = UTF8_nextByte(state);
   return ((c & 0xC0) == 0x80) ? (c & 0x3F) : UTF8_ERR;
 }
 
@@ -64,7 +64,7 @@ static inline char UTF8_cont_6(UTF8State *state) {
 /**********/
 
 /* Initialize the UTF-8 decoder. The decoder is not reentrant. */
-static inline void UTF8_decode_init(UTF8State *state, char *str, size_t len) {
+static inline void UTF8_decoder_init(UTF8State *state, char *str, size_t len) {
   state->idx = 0;
   state->inp = str;
   state->len = len;
@@ -99,15 +99,15 @@ static inline codepoint_t UTF8_decodeNext(UTF8State *state) {
 
   state->byte = state->idx;
   state->chr += 1;
-  c = UTF8_cont_8(state);
+  c = UTF8_nextByte(state);
 
   /* Zero continuation (0 to 127) */
   if ((c & 0x80) == 0) {
-    return c;
+    return (codepoint_t)c;
   }
   /* One continuation (128 to 2047) */
   else if ((c & 0xE0) == 0xC0) {
-    c1 = UTF8_cont_6(state);
+    c1 = UTF8_contByte(state);
     if (c1 >= 0) {
       r = ((c & 0x1F) << 6) | c1;
       if (r >= 128)
@@ -116,8 +116,8 @@ static inline codepoint_t UTF8_decodeNext(UTF8State *state) {
   }
   /* Two continuations (2048 to 55295 and 57344 to 65535) */
   else if ((c & 0xF0) == 0xE0) {
-    c1 = UTF8_cont_6(state);
-    c2 = UTF8_cont_6(state);
+    c1 = UTF8_contByte(state);
+    c2 = UTF8_contByte(state);
     if ((c1 | c2) >= 0) {
       r = ((c & 0x0F) << 12) | (c1 << 6) | c2;
       if (r >= 2048 && (r < 55296 || r > 57343))
@@ -126,9 +126,9 @@ static inline codepoint_t UTF8_decodeNext(UTF8State *state) {
   }
   /* Three continuations (65536 to 1114111) */
   else if ((c & 0xF8) == 0xF0) {
-    c1 = UTF8_cont_6(state);
-    c2 = UTF8_cont_6(state);
-    c3 = UTF8_cont_6(state);
+    c1 = UTF8_contByte(state);
+    c2 = UTF8_contByte(state);
+    c3 = UTF8_contByte(state);
     if ((c1 | c2 | c3) >= 0) {
       r = ((c & 0x07) << 18) | (c1 << 12) | (c2 << 6) | c3;
       if (r >= 65536 && r <= 1114111)
@@ -204,13 +204,41 @@ static inline String_View UTF8_encode(codepoint_t *codepoints, size_t len) {
   return ret;
 }
 
-static inline String_View UTF8_encode_len(codepoint_t *codepoints) {
-  // strlen()
-  const codepoint_t *s;
-  for (s = codepoints; *s; ++s)
-    ;
-  size_t len = (s - codepoints);
-  return UTF8_encode(codepoints, len);
+static inline Codepoint_String_View UTF8_decode_view(String_View view) {
+
+  /* Over-allocate enough space for the UTF32 translation. */
+  codepoint_t *cps = (codepoint_t *)malloc(sizeof(codepoint_t) * view.len);
+  Codepoint_String_View cpsv;
+  if (!cps) {
+      cpsv.str = NULL;
+      cpsv.len = 0;
+      return cpsv;
+  }
+
+  /* Parse */
+  size_t cps_read = 0;
+  codepoint_t cp;
+  UTF8State state;
+  UTF8_decoder_init(&state, view.str, view.len);
+  for (;;) {
+    cp = UTF8_decodeNext(&state);
+
+    if (cp == UTF8_ERR) {
+      free(view.str);
+      free(cps);
+      cpsv.str = NULL;
+      cpsv.len = 0;
+      return cpsv;
+    } else if (cp == UTF8_END) {
+      break;
+    } else {
+      cps[cps_read++] = cp;
+    }
+  };
+
+  cpsv.str = cps;
+  cpsv.len = cps_read;
+  return cpsv;
 }
 
 static inline String_View UTF8_encode_view(Codepoint_String_View view) {

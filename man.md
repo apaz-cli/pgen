@@ -1,4 +1,4 @@
-% pgen(1) | Daisho Language Manual
+% pgen(1) | Daisho Programmer's Manual
 
 # NAME
 
