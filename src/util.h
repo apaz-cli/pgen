@@ -57,6 +57,10 @@ static inline String_View readFile(char *filePath) {
   return (String_View){.str = buffer, .len = fsize};
 }
 
+static inline void printStringView(String_View sv) {
+    fwrite(sv.str, sv.len, 1, stdout);
+}
+
 static inline void showHelp(void) {
   
 }

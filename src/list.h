@@ -1,5 +1,7 @@
 #ifndef NTUI_LIST_INCLUDE
 #define NTUI_LIST_INCLUDE
+#include <stdlib.h>
+#include <stdio.h>
 
 /**********/
 /* Macros */
@@ -9,12 +11,12 @@
 #define MAX(a, b) ((a) < (b) ? (b) : (a))
 #define OOM()                                                                  \
   do {                                                                         \
-    fprintf(stderr, "ntui out of memory.\n");                                  \
+    fprintf(stderr, "pgen has run out of memory.\n");                          \
     exit(1);                                                                   \
   } while (0)
 #define ERROR(errstr)                                                          \
   do {                                                                         \
-    fprintf(stderr, "ntui error: %s.\n", errstr);                              \
+    fprintf(stderr, "pgen has encountered an error: %s.\n", errstr);           \
     exit(1);                                                                   \
   } while (0)
 

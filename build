@@ -1,45 +1,21 @@
 #!/bin/sh
 
 # Clean
-rm pgen 2>/dev/null
-cd packcc/
-rm bootstrap tmp.c pccpgen.c pccpgen.h 2>/dev/null
-cd ../src/
-rm pgen 2>/dev/null
-cd ..
 
 # Generate the documentation.
-pandoc pgen_man.md -s -tman
+#pandoc pgen_man.md -s -tman
+
+
+# Build the bootstrap parser
+gcc src/bootstrap.c -o pgen
+
 
 # Generate the bootstrap parser from its packcc grammar.
-cd packcc/
-./packcc pccpgen.peg
-
-# If successful, build it.
-if test -f "pccpgen.c"; then
-
-  # Combine the .c and .h files
-  printf "/* pccpgen.h */\n" > tmp.c
-  cat pccpgen.h >> tmp.c
-  printf "\n\n/* pccpgen.c */\n" >> tmp.c
-  cat pccpgen.c >> tmp.c
-  grep -v "#include \"pccpgen.h\"" tmp.c > pccpgen.c
-  rm pccpgen.h tmp.c
-
-  # Compile
-  cc pccpgen.c -o bootstrap
-
-else
-  printf "\033[0;31mPackcc failed to build the bootstrap parser from its packcc grammar.\033[0m\n"
-  exit 1
-fi
 
 
 # Build pgen
-cd ../src/
 
 # Bootstrap pgen with its own grammar.
-./../packcc/bootstrap pgen.peg
 
 #if test -f "pgen.h"; then
 #  :;
