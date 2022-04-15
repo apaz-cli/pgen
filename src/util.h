@@ -57,4 +57,8 @@ static inline String_View readFile(char *filePath) {
   return (String_View){.str = buffer, .len = fsize};
 }
 
+static inline void showHelp(void) {
+  
+}
+
 #endif /* PGEN_INCLUDE_UTIL */

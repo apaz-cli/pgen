@@ -9,7 +9,7 @@ int main(int argc, char** argv) {
   // Load target file
   String_View target = readFile(filename);
 
-  // Count newlines and the end of file.
+  // Split into lines.
   
 
   return 0;
