@@ -28,8 +28,13 @@ static inline size_t fileSize(char *filePath) {
   return (!stat(filePath, &st)) ? (size_t)st.st_size : SIZE_MAX;
 }
 
+/* Open the file and returns its contents in a string. */
+/* Returns {.str = NULL, .len = 0} on UTF8 parsing error. */
+/* Returns {.str = NULL, .len = 1} on OOM. */
+/* {.str} must be freed. */
 static inline String_View readFile(char *filePath) {
   String_View err = {.str = NULL, .len = 0};
+  String_View oom = {.str = NULL, .len = 1};
 
   /* Ask for the length of the file */
   size_t fsize = fileSize(filePath);
@@ -45,7 +50,7 @@ static inline String_View readFile(char *filePath) {
   char *buffer = (char *)malloc(fsize + 1);
   if (!buffer) {
     close(fd);
-    return err;
+    return oom;
   }
 
   /* Read the file into a buffer and close it. */
@@ -73,7 +78,8 @@ static inline void printCodepointStringView(Codepoint_String_View cpsv) {
 }
 
 /* Open the file as utf8, returning a string of utf32 codepoints. */
-/* Returns {.str = NULL} on UTF8 parsing error or OOM. */
+/* Returns {.str = NULL, .len = 0} on UTF8 parsing error. */
+/* Returns {.str = NULL, .len = 1} on OOM. */
 /* {.str} must be freed. */
 static inline Codepoint_String_View readFileCodepoints(char *filePath) {
   /* Read the file. */
@@ -81,7 +87,7 @@ static inline Codepoint_String_View readFileCodepoints(char *filePath) {
   if (!view.str) {
     Codepoint_String_View cpsv;
     cpsv.str = NULL;
-    cpsv.len = 0;
+    cpsv.len = view.len;
     return cpsv;
   } else {
     return UTF8_decode_view(view);

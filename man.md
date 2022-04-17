@@ -2,11 +2,11 @@
 
 # NAME
 
-pgen - A parser-generator.
+pgen - A tokenizer and parser generator.
 
 # SYNOPSIS
 
-`pgen [-h] [-g] [INPUT_TOK] [INPUT_PEG] [-o OUTPUT_PATH]`
+`pgen [-h] [-g] INPUT_TOK [INPUT_PEG] [-o OUTPUT_PATH]`
 
 # DESCRIPTION
 
@@ -14,19 +14,11 @@ pgen - A parser-generator.
 
 :   Show this help message and exit
 
-`-g`
-
-:   Generate code using GCC/Clang-specific extensions
-
 `-o`
 
 :   Provide an output path for the generated tokenizer and/or parser.
 
 # EXAMPLES
-
-`pgen parser.peg`
-
-:   Generates the header file parser.h.
 
 `pgen tokenizer.tok`
 
@@ -34,15 +26,21 @@ pgen - A parser-generator.
 
 `pgen tokenizer.tok parser.peg`
 
-:   Generates the header files tokenizer.h and parser.h.
+:   Generates header files tokenizer.h and parser.h.
 
 `pgen tokenizer.tok parser.peg -o output.h`
 
-:   Generates both the tokenizer and parser into the same header file.
+:   Generates both the tokenizer and parser and concatenates the header files into output.h.
+
+# NOTES
+
+`The header files generated also contain the entire implementation as static inline functions. There is no .c file.`
+
+`You can't generate just a parser with no tokenizer. It must have a token stream to operate on.`
 
 # AUTHOR
 
-`Written by apaz, for the Daisho programming language.`
+`Written by apaz for the Daisho programming language.`
 
 # REPORTING BUGS
 

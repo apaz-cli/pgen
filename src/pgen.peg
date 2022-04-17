@@ -1,41 +1,4 @@
 
-#############
-# Tokenizer #
-#############
-
-# (EOF is automatic.)
-DOT             <- '.'
-CLOSE           <- ')'
-OPEN            <- '('
-LBRACK          <- '{'
-RBRACK          <- '}'
-PLUS            <- '+'
-STAR            <- '*'
-QUESTION        <- '?'
-NOT             <- '!'
-AND             <- '&'
-SLASH           <- '/'
-LEFTARROW       <- '<-'
-
-frag CHAR       <- '\\' [nrt'"\[\]\\]
-                 / '\\' [0-2][0-7][0-7]
-                 / '\\' [0-7][0-7]?
-                 / !'\\' .
-STRLIT          <- "'" (!"'" CHAR)* "'"
-                 / '"' (!'"' CHAR)* '"'
-
-CHARCLASS       <- '[' '^'? (!']' (CHAR '-' CHAR / CHAR))* ']'
-frag IDENTSTART <- [A-Z]
-frag IDENTCONT  <- [a-zA-Z_0-9]
-TOKIDENT        <- IDENTSTART+
-RULEIDENT       <- IDENTSTART IDENTCONT+
-
-# Ignored tokens
-frag EOL        <- ('\r\n' / '\n' / '\r')
-comm COMMENT    <- '#' (!EOL .)* EOL
-comm SPACE      <- ' '+ / '\t'+ / EOL+
-
-
 ##########
 # PARSER #
 ##########
@@ -60,5 +23,3 @@ ExprBase        <- TOKIDENT  !LEFTARROW
                  / BBrack
 
 BBrack          <- LBRACK (&LBRACK BBrack / !RBRACK .)* RBRACK
-
-

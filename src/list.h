@@ -1,7 +1,7 @@
 #ifndef NTUI_LIST_INCLUDE
 #define NTUI_LIST_INCLUDE
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /**********/
 /* Macros */
@@ -14,9 +14,11 @@
     fprintf(stderr, "pgen has run out of memory.\n");                          \
     exit(1);                                                                   \
   } while (0)
-#define ERROR(errstr)                                                          \
+#define ERROR(...)                                                             \
   do {                                                                         \
-    fprintf(stderr, "pgen has encountered an error:\n%s\n", errstr);           \
+    fprintf(stderr, "pgen has encountered an error:\n");                       \
+    fprintf(stderr, __VA_ARGS__);                                              \
+    fprintf(stderr, "\n");                                                     \
     exit(1);                                                                   \
   } while (0)
 
