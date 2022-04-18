@@ -2,6 +2,7 @@
 #define NTUI_LIST_INCLUDE
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 /**********/
 /* Macros */
@@ -73,6 +74,9 @@
       self->buf[i] = self->buf[i + 1];                                         \
     self->len = nlen;                                                          \
     return ret;                                                                \
+  }                                                                            \
+  static inline bool list_##type##_isEmpty(list_##type * self) {               \
+    return self->len == 0;                                                     \
   }                                                                            \
   static inline void list_##type##_clear(list_##type *self) {                  \
     free(self->buf);                                                           \
