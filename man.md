@@ -12,7 +12,7 @@ pgen - A tokenizer and parser generator.
 
 `-h, --help`
 
-:   Show this help message and exit
+:   Show this help message and exit.
 
 `-o`
 
