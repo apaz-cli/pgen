@@ -17,6 +17,8 @@ LIST_DECLARE(String_View);
 LIST_DEFINE(String_View);
 LIST_DECLARE(Codepoint_String_View);
 LIST_DEFINE(Codepoint_String_View);
+LIST_DECLARE(size_t);
+LIST_DEFINE(size_t);
 
 /*
  * Returns SIZE_MAX on error. There's no worry of that being a legitimate value.
@@ -33,8 +35,12 @@ static inline size_t fileSize(char *filePath) {
 /* Returns {.str = NULL, .len = 1} on OOM. */
 /* {.str} must be freed. */
 static inline String_View readFile(char *filePath) {
-  String_View err = {.str = NULL, .len = 0};
-  String_View oom = {.str = NULL, .len = 1};
+  String_View err;
+  err.str = NULL;
+  err.len = 0;
+  String_View oom;
+  oom.str = NULL;
+  oom.len = 1;
 
   /* Ask for the length of the file */
   size_t fsize = fileSize(filePath);
@@ -64,7 +70,10 @@ static inline String_View readFile(char *filePath) {
   /* Write null terminator */
   buffer[fsize] = '\0';
 
-  return (String_View){.str = buffer, .len = fsize};
+  String_View ret;
+  ret.str = buffer;
+  ret.len = fsize;
+  return ret;
 }
 
 static inline void printStringView(String_View sv) {
@@ -121,6 +130,28 @@ readFileCodepointLines(char *filePath) {
   return lines;
 }
 
-static inline void showHelp(void) {}
+static inline list_size_t
+find_sv_newlines(String_View sv) {
+  list_size_t l = list_size_t_new();
+
+  for (size_t i = 0; i < sv.len; i++) {
+    if (sv.str[i] == '\n')
+      list_size_t_add(&l, i);
+  }
+
+  return l;
+}
+
+static inline list_size_t
+find_cpsv_newlines(Codepoint_String_View cpsv) {
+  list_size_t l = list_size_t_new();
+
+  for (size_t i = 0; i < cpsv.len; i++) {
+    if (cpsv.str[i] == '\n')
+      list_size_t_add(&l, i);
+  }
+
+  return l;
+}
 
 #endif /* PGEN_INCLUDE_UTIL */
