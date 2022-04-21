@@ -1,0 +1,40 @@
+
+// Literals
+FOR_KEYWORD: "for";
+
+// State Machines
+/* There are three types of states for a state machine.
+ * 1. Accepting states
+ * 2. Currently rejecting states
+ * 3. Permanently rejecting state (-1)
+ *
+ * The user of the tokenizer-generater defines state transitions
+ */
+
+// Rules follow this format:
+/*
+TOKEN_NAME: (ACCEPTING_STATES) {
+  (START_STATE, CONSUMED_CHARACTER) -> OUTPUT_STATE;
+};
+*/
+
+// Examples:
+IDENTIFIER: 1 {
+  (0, [_a-zA-Z]) -> 1;
+  (1, [_a-zA-Z0-9]) -> 1;
+};
+
+// Accepts both "impl" and "implements".
+IMPL_KEYWORD: (4, 10) {
+  (0, 'i') -> 1;
+  (1, 'm') -> 2;
+  (2, 'p') -> 3;
+  (3, 'l') -> 4;
+  (4, 'e') -> 5;
+  (5, 'm') -> 6;
+  (6, 'e') -> 7;
+  (7, 'n') -> 8;
+  (8, 't') -> 9;
+  (9, 's') -> 10;
+};
+

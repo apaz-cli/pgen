@@ -1,0 +1,24 @@
+# Full file
+TokenFile <- (_ TokenDef _ / _)+
+
+# Comments
+WS <- [ \t\r\n]+
+ML_COMMENT <- "/*" (.*)? "*/"
+SL_COMMENT <- "//" [^\n]*
+_ <- (WS / ML_COMMENT / SL_COMMENT)*
+
+# Basics
+num <- '-'?[0-9]+ # must be convertable to int
+tokident <- [A-Z][_A-Z]+[A-Z]
+char <- '\\' [nrt'"\[\]\\] / '\\' [0-2][0-7][0-7] / '\\' [0-7][0-7]? / !'\\'
+
+# Groupings
+numset <- num / '(' _ num _ "-" _ num _ ')' / '(' _ (numset "," _ )* numset _ ')'
+charset <- "'" char "'" / '[' '^'? (!']' (char '-' char / char))* ']'
+pair <- '(' numset ', ' charset ')'
+
+# Definitions
+TokenDef <- tokident ':' _ (LitDef / SMDef)
+LitDef <- '"' [!'"' .]+ '"' ';'
+SMDef <- numset _ '{' ( _ pair _ '->' _ num (';' / [\n]+) _)+ "};"
+
