@@ -1,0 +1,7 @@
+#!/bin/sh
+
+rm tok.c tok.h a.out
+clear
+packcc tok.peg
+gcc tok.c
+./a.out

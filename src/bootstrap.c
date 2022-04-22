@@ -5,6 +5,7 @@
 #endif
 
 #include "util.h"
+#include "tokparser.h"
 
 struct {
   char* tokenizerTarget;

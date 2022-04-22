@@ -1,24 +1,107 @@
 # Full file
-TokenFile <- (_ TokenDef _ / _)+
+TokenFile <- (_ TokenDef _)*
 
 # Comments
 WS <- [ \t\r\n]+
-ML_COMMENT <- "/*" (.*)? "*/"
+ML_COMMENT <- "/*" (!"*/" .)* "*/"
 SL_COMMENT <- "//" [^\n]*
 _ <- (WS / ML_COMMENT / SL_COMMENT)*
 
 # Basics
 num <- '-'?[0-9]+ # must be convertable to int
-tokident <- [A-Z][_A-Z]+[A-Z]
+tokident <- [_A-Z]+
 char <- '\\' [nrt'"\[\]\\] / '\\' [0-2][0-7][0-7] / '\\' [0-7][0-7]? / !'\\'
 
 # Groupings
 numset <- num / '(' _ num _ "-" _ num _ ')' / '(' _ (numset "," _ )* numset _ ')'
-charset <- "'" char "'" / '[' '^'? (!']' (char '-' char / char))* ']'
+charset <- "'" char "'" / '[' '^'? ((!']' char !']' '-' !']' char) / !']' char)* ']'
 pair <- '(' numset ', ' charset ')'
 
 # Definitions
 TokenDef <- tokident ':' _ (LitDef / SMDef)
-LitDef <- '"' [!'"' .]+ '"' ';'
+LitDef <- '"' (!'"' .)* '";'
 SMDef <- numset _ '{' ( _ pair _ '->' _ num (';' / [\n]+) _)+ "};"
 
+
+%prefix "tok"
+%value "ASTNode*"
+%auxil "auxil_t*"
+
+%header {
+#include "pccast.h"
+#include "util.h"
+
+// #define PCC_BUFFERSIZE (4096 * 64)
+
+typedef struct {
+  String_View target;
+  size_t pos;
+  void* ctx;
+} auxil_t;
+
+#define PCC_GETCHAR(auxil) nextChar(auxil)
+static inline char nextChar(auxil_t* auxil) {
+  if (auxil->target.str[auxil->pos] == '\0') {
+    return EOF;
+  } else {
+    char ret = auxil->target.str[auxil->pos];
+    auxil->pos++;
+    return ret;
+  }
+}
+
+#define PCC_DEBUG(auxil, event, rule, level, pos, buffer, length) debugVisit(auxil, event, rule, level, (size_t)pos, buffer, (size_t)length)
+static inline void debugVisit(auxil_t* auxil, int event, char* rule, size_t level, size_t pos, char* buffer, size_t length) {
+  for (size_t i = 0; i < level; i++) printf("%c%c", ' ', ' ');
+  /* Color eval, accept, reject */
+  char* color =  event ? event == 1 ? "\x1b[32m" : "\x1b[31m" : "\x1b[34m";
+  printf("%s%s%s\n", color, rule, "\x1b[0m");
+
+/*
+  if (event == 1) {
+    String_View sv;
+    sv.str = buffer;
+    sv.len = length;
+    printf("%s", color);
+    printStringView(sv);
+    printf("%s", "\x1b[0m");
+  }
+*/
+}
+
+#define PCC_ERROR(auxil) debugError(auxil)
+static inline void debugError(auxil_t* auxil) {
+    puts("Syntax error:");
+    puts(auxil->target.str + auxil->pos);
+}
+
+}
+
+
+%%
+
+int main(int argc, char** argv) {
+
+  // Load target file
+  char* filename = argc == 2 ? argv[1] : "../example.tok";
+  auxil_t auxil;
+  auxil.target = readFile(filename);
+  if (!auxil.target.str) {
+    puts("Failed to read the input file.");
+    exit(1);
+  }
+  auxil.pos = 0;
+
+  // Initialize parser
+  ASTNode* ast;
+  tok_context_t* ctx = tok_create(&auxil);
+  auxil.ctx = ctx;
+
+  // Parse ast
+  int parser_ret = tok_parse(ctx, &ast);
+
+  printStringView(auxil.target);
+
+  tok_destroy(ctx);
+  return 0;
+}
