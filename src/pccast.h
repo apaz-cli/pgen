@@ -28,7 +28,7 @@
 struct ASTNode;
 typedef struct ASTNode ASTNode;
 struct ASTNode {
-    char* name;
+    const char* name;
     ASTNode* parent;
     ASTNode** children;
     size_t num_children;
@@ -38,7 +38,7 @@ struct ASTNode {
 #define PCCAST_OOM() do { fprintf(stderr, "Out of memory.\n"); exit(1); } while(0)
 
 static inline ASTNode*
-ASTNode_new(char* name) {
+ASTNode_new(const char* name) {
     ASTNode* node = (ASTNode*)malloc(sizeof(ASTNode));
     node->name = name;
     node->parent = NULL;

@@ -2,24 +2,27 @@
 A PEG tokenizer/parser-generator.
 
 This is the program that generates the tokenizer and parser for the [Daisho](https://github.com/apaz-cli/Daisho)
-programming language. Right now, it's a WIP.
+programming language. Right now, it's a WIP. The project is not usable.
 
 The syntax of pgen is based on the paper ["Parsing Expression Grammars: A Recognition-Based Syntactic Foundation"](https://bford.info/pub/lang/peg.pdf)
-by [Bryan Ford](https://scholar.google.com/citations?hl=en&user=TwyzQP4AAAAJ). It's bootstrapped from and
-inspired by [packcc](https://github.com/arithy/packcc) by [Arihiro Yoshida](https://github.com/arithy).
+by [Bryan Ford](https://scholar.google.com/citations?hl=en&user=TwyzQP4AAAAJ).
+It's inspired by [packcc](https://github.com/arithy/packcc) by [Arihiro Yoshida](https://github.com/arithy).
 However, its purpose is completely different.
 
-Whereas parser-generators like `yacc` and `packcc` allow you to execute actions when code is matched (which
-could be used to tediously build an AST), `pgen` is essentially a virtual machine that generates an AST for
-you. It can execute your actions not only at the beginning or end of matching a rule, but at any time. Also,
-unlike `packcc` (but like `yacc`), `pgen` builds a tokenizer for you and operates on those, instead of raw
-text. This means that if your language has a preprocessor (like C), you can run it inbetween, combining token streams from multiple files in any way you want before stringing them together into your
-abstract syntax tree.
+The one difference is that peg grammars like the ones you would
+write for `packcc` operate on individual characters of the input. For
+`pgen`, you define both a tokenizer and a parser. The tokenizer
+recognizes and groups together sequences of characters into tokens.
+It uses the [maximal munch](https://en.wikipedia.org/wiki/Maximal_munch)
+heuristic and throws an error if there are ambiguities. Then the parser
+strings together the token stream coming from the tokenizer into an
+[abstract syntax tree](https://en.wikipedia.org/wiki/Abstract_syntax_tree).
 
+The other difference is that unlike other parser-generators such as
+`yacc` or `packcc`, `pgen` doesn't hide the fact that it's a virtual
+machine, and arguably its own programming language. Embracing this fact
+opens up the ability to effortlessly generate Abstract Syntax Trees.
 
-It also implements some extra custom extensions for constructing ASTs
-([Abstract Syntax Trees](https://en.wikipedia.org/wiki/Abstract_syntax_tree)) effortlessly, since that's
-notably lacking in packcc.
 
 ## Roadmap
 
@@ -34,47 +37,12 @@ notably lacking in packcc.
 - [ ] `pgen` is self-hosting
 
 
-## Tips on writing grammars
+## Tips on writing tokenizers and grammars
 
-While pgen solves the grammar production determinism problem with its abstract machine, it does not excempt
+This section is TODO.
+
+* While pgen solves the grammar production determinism problem with its abstract machine, it does not excempt
 the user from thinking about the problem. Otherwise, it may just do the wrong thing every time.
-
-The common thing to do is to think about the beginning of
-
-
-
-## Bootstrapping
-
-First, build the latest version of [packcc](https://github.com/arithy/packcc). Put the binary in
-`packcc/packcc`. The code should already be included in this repo at `packcc/packcc.c`. A linux x86_64
-ELF binary is also included. Overwrite it if you're on another platform. Compiling packcc should not
-require any special flags. To update/refetch and recompile packcc, it should just be:
-```sh
-cd packcc/
-
-wget https://raw.githubusercontent.com/arithy/packcc/master/src/packcc.c
-
-cc packcc.c -o packcc
-
-cd ..
-```
-
-Once you have your `packcc` binary, you should be able to just put it in the main project folder and type:
-```sh
-./build
-```
-
-In order, this will:
-1. Use `packcc` to generate a parser for pgen grammar from a packcc grammar.
-2. Combine the `.h` and `.c` files that were generated.
-3. Compile the combined file into a bootstrap pgen version.
-4. Use the bootstrap pgen version to generate a new tokenizer and parser from a grammar written in pgen itself.
-5. Compile the new tokenizer and parser into a new pgen version.
-6. Use the new pgen version to parse its own syntax and regenerate the tokenizer and parser for its own binary.
-7. Recompile using the new tokenizer and parser.
-
-At the end of it, you should be left with the final `pgen` binary at the root of the project folder.
-
 
 
 

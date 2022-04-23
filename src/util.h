@@ -1,12 +1,15 @@
 #ifndef PGEN_INCLUDE_UTIL
 #define PGEN_INCLUDE_UTIL
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -103,7 +106,8 @@ static inline Codepoint_String_View readFileCodepoints(char *filePath) {
   }
 }
 
-/* Open the file as utf8, converting to utf32 and returning each line in a list. */
+/* Open the file as utf8, converting to utf32 and returning each line in a list.
+ */
 /* Returns an empty list on UTF8 parsing error or OOM. */
 /* The list must be destroyed, and list.get(0).str must be freed. */
 static inline list_Codepoint_String_View
@@ -113,7 +117,8 @@ readFileCodepointLines(char *filePath) {
   Codepoint_String_View target = readFileCodepoints(filePath);
 
   list_Codepoint_String_View lines = list_Codepoint_String_View_new();
-  if (!target.str) return lines; // return empty list on error
+  if (!target.str)
+    return lines; // return empty list on error
 
   // Split into lines.
   for (size_t i = 0, last = 0; i < target.len; i++) {
@@ -130,8 +135,7 @@ readFileCodepointLines(char *filePath) {
   return lines;
 }
 
-static inline list_size_t
-find_sv_newlines(String_View sv) {
+static inline list_size_t find_sv_newlines(String_View sv) {
   list_size_t l = list_size_t_new();
 
   for (size_t i = 0; i < sv.len; i++) {
@@ -142,8 +146,7 @@ find_sv_newlines(String_View sv) {
   return l;
 }
 
-static inline list_size_t
-find_cpsv_newlines(Codepoint_String_View cpsv) {
+static inline list_size_t find_cpsv_newlines(Codepoint_String_View cpsv) {
   list_size_t l = list_size_t_new();
 
   for (size_t i = 0; i < cpsv.len; i++) {
@@ -151,6 +154,42 @@ find_cpsv_newlines(Codepoint_String_View cpsv) {
       list_size_t_add(&l, i);
   }
 
+  return l;
+}
+
+static inline unsigned long long
+codepoint_atoull_nosigns(const codepoint_t *a, size_t len, size_t *read) {
+
+  unsigned long long parsing = 0;
+  size_t chars = 0;
+  for (size_t i = 0; i < len; i++) {
+    codepoint_t c = a[i];
+    if (!((c >= 48) && (c <= 57)))
+      break;
+    parsing *= 10; // TODO overflow/underflow checks.
+    parsing += (c - 48);
+    chars++;
+  }
+
+  *read = chars;
+  return parsing;
+}
+
+static inline int codepoint_atoi(const codepoint_t *a, size_t len,
+                                 size_t *read) {
+
+  int neg = a[0] == '-';
+  int consumed = (neg | (a[0] == '+'));
+  a += consumed;
+  len -= consumed;
+
+  size_t ullread;
+  unsigned long long ull = codepoint_atoull_nosigns(a, len, &ullread);
+  if (neg ? -ull < INT_MIN : ull > INT_MAX)
+    return *read = 0, 0;
+  int l = (int)(neg ? -ull : ull);
+
+  *read = ullread + consumed;
   return l;
 }
 
