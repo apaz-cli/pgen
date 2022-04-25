@@ -47,7 +47,7 @@
     size_t prev = self->len;                                                   \
     self->len++;                                                               \
     if (self->cap <= self->len) {                                              \
-      self->cap = self->len * 2 + 30;                                          \
+      self->cap = self->len * 2 + 8;                                          \
       self->buf = (type *)realloc(self->buf, sizeof(list_##type) * self->cap); \
       if (!self->buf)                                                          \
         return 1;                                                              \
@@ -79,7 +79,7 @@
     return self->len == 0;                                                     \
   }                                                                            \
   static inline void list_##type##_clear(list_##type *self) {                  \
-    free(self->buf);                                                           \
+    if (self->buf) free(self->buf);                                            \
     self->buf = NULL;                                                          \
     self->len = 0;                                                             \
     self->cap = 0;                                                             \
