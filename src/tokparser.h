@@ -9,47 +9,66 @@ typedef struct {
   size_t pos;
 } tokparser_ctx;
 
-#define LOOP(times) for (size_t __lctr = 0; __lctr < (times); __lctr++)
-#define CURRENT() ctx->str[ctx->pos]
-#define REMAINING() (ctx->len - ctx->pos)
-#define NEXT() ctx->pos++
-#define ADVANCE(num) ctx->pos += (num)
-#define IS_NEXT(str) comp_next_str(ctx, str)
-#define RECORD(n) size_t rewind_to_##n = ctx->pos
-#define REWIND(n) ctx->pos = rewind_to_##n
-
-static inline int comp_next_str(tokparser_ctx *ctx, char *s) {
-  size_t idx = ctx->pos;
-  size_t len = strlen(s);
-
-  if (len > (ctx->len - ctx->pos))
-    return 0;
-
-  for (size_t i = 0; i < len; i++, idx++)
-    if ((codepoint_t)s[i] != ctx->str[idx])
-      return 0;
-  return 1;
+static inline void tokparser_ctx_init(tokparser_ctx *ctx,
+                                      Codepoint_String_View cpsv) {
+  ctx->str = cpsv.str;
+  ctx->len = cpsv.len;
+  ctx->pos = 0;
 }
 
-static inline void tok_skip_ws(tokparser_ctx *ctx) {
-  char dslsh[3] = {'/', '/', '\0'};
-  char fcom[3] = {'/', '*', '\0'};
-  char ecom[3] = {'*', '/', '\0'};
+#define CURRENT() (ctx->str[ctx->pos])
+#define NEXT() (ctx->pos++)
+#define REMAINING() (ctx->len - ctx->pos) // Includes CURRENT()
+#define HAS_CURRENT() (REMAINING() >= 1)
+#define HAS_NEXT() (REMAINING() >= 2)
+#define HAS_REMAINING(num) (REMAINING() >= (num))
+#define ADVANCE(num) (ctx->pos += (num))
+#define IS_NEXT(str) comp_next_str(ctx, str)
+#define RECORD(id) size_t _rewind_to_##id = ctx->pos
+#define REWIND(id) (ctx->pos = _rewind_to_##id)
+#define INIT(name) ASTNode *node = ASTNode_new(name)
 
-  codepoint_t c = CURRENT();
-  bool cont = 0;
-  while (cont) {
-    // TODO EOF
+static inline size_t comp_next_str(tokparser_ctx *ctx, const char *s) {
+  size_t len = strlen(s);
+  if (HAS_REMAINING(len))
+    return 0;
+
+  size_t idx = ctx->pos;
+  for (size_t i = 0; i < len; i++)
+    if ((codepoint_t)s[i] != ctx->str[idx++])
+      return 0;
+  return len;
+}
+
+static inline void tok_skip_comments_ws(tokparser_ctx *ctx) {
+  const char dslsh[3] = {'/', '/', '\0'};
+  const char fcom[3] = {'/', '*', '\0'};
+  const char ecom[3] = {'*', '/', '\0'};
+
+  // Eat all the whitespace you can.
+  while (1) {
+    if (!HAS_CURRENT())
+      return;
+    codepoint_t c = CURRENT();
+
+    // Whitespace
     if ((c == ' ') | (c == '\t') | (c == '\r') | (c == '\n')) {
       NEXT();
-    } else if (IS_NEXT(dslsh)) {
-      while (CURRENT() != '\n')
+    } else if (IS_NEXT(dslsh)) { // Single line comment
+      while (HAS_CURRENT() && CURRENT() != '\n')
         NEXT();
-    } else if (IS_NEXT(fcom)) {
+    } else if (IS_NEXT(fcom)) { // Multi line comment
+      ADVANCE(strlen(fcom));
       while (!IS_NEXT(ecom))
         NEXT();
-    } else
-      cont = 1;
+      // Found "*/"
+      if (HAS_REMAINING(strlen(ecom))) {
+        ADVANCE(strlen(ecom));
+      } else { // EOF
+        ERROR("Unterminated multi-line comment.");
+      }
+    } else // No more whitespace to munch
+      return;
   }
 }
 
@@ -72,27 +91,109 @@ static inline ASTNode *tok_parse_num(tokparser_ctx *ctx) {
 }
 
 static inline ASTNode *tok_parse_ident(tokparser_ctx *ctx) {
-  bool cont = true;
-  do {
+  if (!HAS_CURRENT())
+    return NULL;
 
-  } while (cont);
-}
+  codepoint_t *beginning = &CURRENT();
 
-static inline ASTNode *tok_parse_char(tokparser_ctx *ctx) {}
-
-static inline void tokparser_parse(tokparser_ctx *ctx,
-                                   Codepoint_String_View cpsv) {
-  ctx->str = cpsv.str;
-  ctx->len = cpsv.len;
-  ctx->pos = 0;
-
-  ASTNode *rule;
-  while (true) {
-    tok_skip_ws(ctx);
+  while (1) {
+    codepoint_t c = CURRENT();
+    if ((c != '_') & ('A' <= c) & (c <= 'Z'))
+      break;
+    else {
+      if (!HAS_NEXT())
+        break;
+      NEXT();
+    }
   }
+
+  if (&CURRENT() == beginning)
+    return NULL;
+
+  INIT("ident");
+  Codepoint_String_View *cpsv;
+  node->extra = cpsv =
+      (Codepoint_String_View *)malloc(sizeof(Codepoint_String_View));
+  if (!cpsv)
+    OOM();
+  cpsv->len = &CURRENT() - beginning;
+  cpsv->str = beginning;
+  return node;
 }
 
-#undef CURRENT
-#undef NEXT
-#undef IS_NEXT
+static inline ASTNode *tok_parse_char(tokparser_ctx *ctx) {
+  const char escstart = '\\';
+  const char escends[] = "nrt'\"\\v";
+  codepoint_t escs[] = {'\n', '\r', '\t', '\'', '"', '\\', '\v'};
+
+  codepoint_t parsed = 0;
+  // Escape sequences
+  if (IS_NEXT("\\")) {
+    ADVANCE(strlen("\\"));
+
+    if (!HAS_CURRENT())
+      return NULL;
+    for (size_t i = 0; i < strlen(escends); i++) {
+      if (CURRENT() == escends[i]) {
+        parsed = escs[i];
+        goto end;
+      }
+    }
+    ERROR("Invalid escape sequence \"\\%c\" (%lld) in tokenizer file.",
+          (char)CURRENT(), (long long)CURRENT());
+    return NULL;
+  }
+  // Normal characters
+  else {
+    if (!HAS_CURRENT())
+      return NULL;
+    parsed = CURRENT();
+  }
+
+end:
+  NEXT();
+  INIT("char");
+  node->extra = malloc(sizeof(codepoint_t));
+  if (!node->extra)
+    OOM();
+  *(codepoint_t *)node->extra = parsed;
+  NEXT();
+
+  return NULL;
+}
+
+static inline ASTNode* tok_parse_numset(tokparser_ctx *ctx) {
+
+}
+
+static inline ASTNode* tok_parse_charset(tokparser_ctx *ctx) {
+
+}
+
+static inline ASTNode* tok_parse_pair(tokparser_ctx *ctx) {
+  ASTNode* left_numset;
+  ASTNode* left_charset;
+  RECORD(begin);
+
+  if (!IS_NEXT("(")) {
+    return NULL;
+  }
+
+  if (!IS_NEXT(",")) {
+    return NULL;
+  }
+
+  return NULL;
+}
+
+static inline ASTNode* tok_parse_LitDef(tokparser_ctx *ctx) {}
+
+static inline ASTNode* tok_parse_SMDef(tokparser_ctx *ctx) {}
+
+static inline ASTNode* tok_parse_TokenDef(tokparser_ctx *ctx) {}
+
+static inline ASTNode* tok_parse_TokenFile(tokparser_ctx *ctx) {}
+
+
+
 #endif /* PGEN_INCLUDE_PARSER */

@@ -6,16 +6,6 @@
 #include <limits.h>
 #include <stdio.h>
 
-/* Create a new ASTNode for this rule, with the given key. */
-#define INIT(name) ASTNode* node = ASTNode_new(name)
-/* Adds a key/value pair to the current node. */
-#define SET(type, key, value)
-/* Gets a key/value pair from the current node. */
-#define GET(type, key) _GET(type, key, __)
-#define _GET(type, key, node)
-/* Clear the children of the current node.*/
-#define CLEAR() ASTNode_clearChildren(__)
-
 
 /**********************/
 /* AST Implementation */

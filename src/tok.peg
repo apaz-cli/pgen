@@ -1,13 +1,13 @@
 # Full file
-TokenFile <- (_ TokenDef)*
+TokenFile <- (_ TokenDef)* _
 
 # Comments
-_ <- ([ \t\r\n]+ / "/*" (!"*/" .)* "*/" / "//" [^\n]*)*
+_ <- ([ \t\r\n\v]+ / "/*" (!"*/" .)* "*/" / "//" [^\n]*)*
 
 # Basics
 num <- '-'?[0-9]+ # must be convertable to int
 ident <- [_A-Z]+
-char <- '\\' [nrt'"\[\]\\] / '\\' [0-2][0-7][0-7] / '\\' [0-7][0-7]? / !'\\' .
+char <- '\\' [nrt'"\[\]\\] / !'\\' .
 
 # Groupings
 numset <- num / '(' _ num _ "-" _ num _ ')' / '(' _ (numset "," _ )* numset _ ')'
@@ -15,9 +15,9 @@ charset <- "'" char "'" / '[' '^'? ((!']' char !']' '-' !']' char) / !']' char)*
 pair <- '(' numset ', ' charset ')'
 
 # Definitions
-TokenDef <- ident ':' _ (LitDef / SMDef)
 LitDef <- '"' (!'"' .)* '";'
 SMDef <- numset _ '{' ( _ pair _ '->' _ num (';' / [\n]+) _)+ "};"
+TokenDef <- ident ':' _ (LitDef / SMDef)
 
 ####################################################################################
 
