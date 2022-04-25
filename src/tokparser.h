@@ -1,6 +1,6 @@
 #ifndef PGEN_INCLUDE_PARSER
 #define PGEN_INCLUDE_PARSER
-#include "pccast.h"
+#include "ast.h"
 #include "util.h"
 
 typedef struct {
