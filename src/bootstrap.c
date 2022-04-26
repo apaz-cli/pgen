@@ -35,13 +35,15 @@ void argparse(int argc, char** argv) {
         ERROR("-o requires an argument.");
       }
     } else {
+      const char errmsg[] = " file does not end in ";
+      const char errend[] = ". Consider renaming it. Proceeding anyway.\n";
       if (!args.tokenizerTarget) {
-        if (strlen(a) < 4 || !strcmp(a + strlen(a) - 4, ".tok") == 0)
-          fprintf(stderr, "Tokenizer file does not end in .tok. Consider renaming it.\n");
+        if (strlen(a) < 4 || strcmp(a + strlen(a) - 4, ".tok") != 0)
+          fprintf(stderr, "%s%s%s%s", "Tokenizer", errmsg, ".tok", errend);
         args.tokenizerTarget = a;
       } else if (!args.grammarTarget) {
-        if (strlen(a) < 4 || !strcmp(a + strlen(a) - 4, ".peg") == 0)
-          fprintf(stderr, "Grammar file does not end in .peg. Consider renaming it.\n");
+        if (strlen(a) < 4 || strcmp(a + strlen(a) - 4, ".peg") != 0)
+          fprintf(stderr, "%s%s%s%s",  "Grammar", errmsg, ".peg", errend);
         args.grammarTarget = a;
       } else {
         ERROR("Too many targets specified.");

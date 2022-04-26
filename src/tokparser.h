@@ -3,6 +3,9 @@
 #include "ast.h"
 #include "util.h"
 
+LIST_DECLARE(codepoint_t);
+LIST_DEFINE(codepoint_t);
+
 typedef struct {
   codepoint_t *str;
   size_t len;
@@ -81,7 +84,7 @@ static inline void tok_parse_ws(tokparser_ctx *ctx) {
 // The same as codepoint_atoi, but also advances by the amount read.
 static inline int tok_parse_num(tokparser_ctx *ctx, size_t* read) {
   int i = codepoint_atoi(&CURRENT(), REMAINING(), read);
-  ADVANCE(*read)
+  ADVANCE(*read);
   return i;
 }
 
@@ -215,7 +218,7 @@ static inline ASTNode* tok_parse_numset(tokparser_ctx *ctx) {
   }
 
   INIT("numsetlist");
-  ASTNode_addChild(first);
+  ASTNode_addChild(node, first);
 
   WS();
 
@@ -223,7 +226,7 @@ static inline ASTNode* tok_parse_numset(tokparser_ctx *ctx) {
 
     RECORD(kleene);
 
-    if (!IS_NEXT(",")
+    if (!IS_NEXT(","))
       break;
 
     NEXT();
@@ -236,7 +239,7 @@ static inline ASTNode* tok_parse_numset(tokparser_ctx *ctx) {
       ASTNode_destroy(node);
       return node;
     }
-    ASTNode_addChild(next);
+    ASTNode_addChild(node, next);
 
     WS();
   }
@@ -274,7 +277,7 @@ static inline ASTNode* tok_parse_charset(tokparser_ctx *ctx) {
     return NULL;
   }
 
-
+  return NULL;
 }
 
 static inline ASTNode* tok_parse_pair(tokparser_ctx *ctx) {
@@ -289,7 +292,7 @@ static inline ASTNode* tok_parse_pair(tokparser_ctx *ctx) {
 
   WS();
 
-  left_numset = tok_parse_numset();
+  left_numset = tok_parse_numset(ctx);
   if (!left_numset) {
     REWIND(begin);
     return NULL;
@@ -305,7 +308,7 @@ static inline ASTNode* tok_parse_pair(tokparser_ctx *ctx) {
 
   WS();
 
-  right_charset = tok_parse_charset();
+  right_charset = tok_parse_charset(ctx);
   if (!right_charset) {
     REWIND(begin);
     return NULL;
@@ -321,8 +324,8 @@ static inline ASTNode* tok_parse_pair(tokparser_ctx *ctx) {
 
 
   INIT("pair");
-  ASTNode_addChild(left_numset);
-  ASTNode_addChild(right_charset);
+  ASTNode_addChild(node, left_numset);
+  ASTNode_addChild(node, right_charset);
 
   return node;
 }
@@ -345,12 +348,12 @@ static inline ASTNode* tok_parse_LitDef(tokparser_ctx *ctx) {
 
     codepoint_t c = tok_parse_char(ctx);
     if (!c) {
-      list_codepoint_t_clear(cps);
+      list_codepoint_t_clear(&cps);
       REWIND(begin);
       return NULL;
     }
 
-    list_codepoint_t_append(&cps, c);
+    list_codepoint_t_add(&cps, c);
 
   }
 
@@ -359,7 +362,7 @@ static inline ASTNode* tok_parse_LitDef(tokparser_ctx *ctx) {
   WS();
 
   if (!IS_NEXT(";")) {
-    list_codepoint_t_clear(cps);
+    list_codepoint_t_clear(&cps);
     REWIND(begin);
     return NULL;
   }
@@ -374,7 +377,7 @@ static inline ASTNode* tok_parse_LitDef(tokparser_ctx *ctx) {
 }
 
 static inline ASTNode* tok_parse_SMDef(tokparser_ctx *ctx) {
-
+  return NULL;
 }
 
 static inline ASTNode* tok_parse_TokenDef(tokparser_ctx *ctx) {
@@ -417,7 +420,7 @@ static inline ASTNode* tok_parse_TokenDef(tokparser_ctx *ctx) {
 
 static inline ASTNode* tok_parse_TokenFile(tokparser_ctx *ctx) {
 
-  INIT();
+  INIT("TokenFile");
 
   while(1) {
     WS();
