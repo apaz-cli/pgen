@@ -1,25 +1,45 @@
+# Note - This is written in normal PEG fashion, for my own understanding.
+# This is not an example of the usage of pgen, it is different.
 
 ##########
 # PARSER #
 ##########
 
-# Hierarchical syntax
-Grammar         <- Definition* EOF
+# Rules
+Grammar         <- (_ Definition)* _ EOF
 
-Definition      <- FragDef / CommDef / TokenDef / RuleDef
-FragDef         <- FRAG TOKIDENT  LEFTARROW RightSide
-CommDef         <- COMM TOKIDENT  LEFTARROW RightSide
-TokenDef        <-      TOKIDENT  LEFTARROW RightSide
-RuleDef         <-      RULEIDENT LEFTARROW RightSide
+Definition      <- RuleIdent _ '<-' _ SlashExpr
 
-RightSide       <- (ExprMod+) (SLASH ExprMod+)*
-ExprMod         <- (AND / NOT)* ExprBase (QUESTION / STAR / PLUS)*
-ExprBase        <- TOKIDENT  !LEFTARROW
-                 / RULEIDENT !LEFTARROW
-                 / STRLIT
-                 / OPEN RightSide CLOSE
-                 / CHARCLASS
-                 / DOT
-                 / BBrack
+# Operators:
+# /  - Try to match the left side, then try to match the right side.
+# &  - Try to parse, match but rewind.
+# !  - Try to parse, match if doesn't match.
+# ?  - Optionally match. Failure to match does not cause the rule to fail.
+# *  - Match zero or more. Returns a list of matches.
+# +  - Match one or more. Returns a list of matches.
+# () - Matches if all expressions within match.
 
-BBrack          <- LBRACK (&LBRACK BBrack / !RBRACK .)* RBRACK
+SlashExpr       <- ModExpr+ (SLASH ExprMod+)*
+
+ModExpr         <- MatchExpr _ ('?' / '*' / '+')?
+
+MatchExpr       <- ('&' / '!') _ BaseExpr
+
+BaseExpr        <- TokIdent
+                 / RuleIdent
+                 / CodeExpr
+                 / '(' _ SlashExpr _ ')'
+
+
+# To parse your grammar, pgen assumes that brackets inside of a code expression are balanced.
+# Then it copy/pastes the contents into the parser inside a function. How exactly that happens is TBD.
+
+# Instead of using an unbalancing { or }, use LB or RB instead.
+# Instead of using "{" and "}" use the macros LBSTR and RBSTR.
+# This will keep the parser happy.
+CodeExpr        <- '{' _ (&'{' CodeExpr / !'}' .)* _ '}'
+
+
+# Misc
+TokIdent        <- [_A-Z]+
+RuleIdent       <- [_a-z]+ !'<-'
