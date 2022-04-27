@@ -34,7 +34,7 @@ BaseExpr        <- TokIdent
 # To parse your grammar, pgen assumes that brackets inside of a code expression are balanced.
 # Then it copy/pastes the contents into the parser inside a function. How exactly that happens is TBD.
 
-# Instead of using an unbalancing { or }, use LB or RB instead.
+# Instead of using an unbalancing { or }, use the macros LB or RB.
 # Instead of using "{" and "}" use the macros LBSTR and RBSTR.
 # This will keep the parser happy.
 CodeExpr        <- '{' _ (&'{' CodeExpr / !'}' .)* _ '}'
