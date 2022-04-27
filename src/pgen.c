@@ -65,19 +65,19 @@ int main(int argc, char **argv) {
 
   argparse(argc, argv);
 
-  // Read the file into lines.
-  list_Codepoint_String_View lines = readFileCodepointLines(args.tokenizerTarget);
-
-  if (list_Codepoint_String_View_isEmpty(&lines)) {
-    ERROR("Tokenizer target file does not exist or is empty.");
+  // Read the file
+  Codepoint_String_View tokenFile = readFileCodepoints(args.tokenizerTarget);
+  if (!tokenFile.str) {
+    ERROR("Could not read the token file.");
   }
 
-  for (size_t i = 0; i < lines.len; i++) {
-    printCodepointStringView(list_Codepoint_String_View_get(&lines, i));
+  // Parse the AST
+  tokparser_ctx tpctx;
+  tokparser_ctx_init(&tpctx, tokenFile);
+  ASTNode* ast = tok_parse_TokenFile(&tpctx);
+  if (!ast) {
+    ERROR("Could not parse the token file.");
   }
-
-  free(list_Codepoint_String_View_get(&lines, 0).str);
-  list_Codepoint_String_View_clear(&lines);
 
   return 0;
 }

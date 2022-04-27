@@ -10,19 +10,19 @@ _ <- ([ \t\r\n\v]+ / "/*" (!"*/" .)* "*/" / "//" [^\n]*)*
 # Basics
 num <- '-'?[0-9]+ # must be convertable to int
 ident <- [_A-Z]+
-char <- '\\' [nrt'"\[\]\\] / !'\\' .
+char <- '\\'? .
 
 # Groupings
 numset <- num /
           '(' _ num _ "-" _ num _ ')' /
-          '(' _ numset _ ("," _ numset _)* ')'
+          '(' _ numset _ ("," _ numset _)* ')' # TODO fix
 charset <- "'" char "'" /
-           '[' '^'? ((!']' char '-' !']' char) / !']' char)+ ']'
+           '[' '^'? (!']' char ('-' !']' char)?)+ ']'
 pair <- '(' _ numset _ ',' _ charset _ ')'
 
 # Definitions
 LitDef <- '"' (!'"' char)* '"'
-SMDef <- numset _ '{' ( _ pair _ '->' _ num (';' / [\n]+) _)+ '}'
+SMDef <- numset _ '{' ( _ pair _ '->' _ num (';' / ' '+? [\n]) _)+ '}'
 TokenDef <- ident _ ':' _ (LitDef / SMDef) _ ';'
 
 ######################################################################################
