@@ -67,17 +67,18 @@ int main(int argc, char **argv) {
 
   // Read the file
   Codepoint_String_View tokenFile = readFileCodepoints(args.tokenizerTarget);
-  if (!tokenFile.str) {
+  if (!tokenFile.str)
     ERROR("Could not read the token file.");
-  }
 
   // Parse the AST
   tokparser_ctx tpctx;
   tokparser_ctx_init(&tpctx, tokenFile);
   ASTNode* ast = tok_parse_TokenFile(&tpctx);
   if (!ast) {
-    ERROR("Could not parse the token file.");
+    ERROR("Failed to parset the AST.");
   }
+
+  AST_print(ast);
 
   return 0;
 }

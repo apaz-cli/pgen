@@ -77,9 +77,8 @@ AST_print_helper(ASTNode* current, size_t depth) {
     puts(current->name);
 
     /* Print children. */
-    if (!current->children)
-        for (size_t i = 0; i < current->num_children; i++)
-            AST_print_helper(current->children[i], depth + 1);
+    for (size_t i = 0; i < current->num_children; i++)
+      AST_print_helper(current->children[i], depth + 1);
 }
 
 static inline void

@@ -1,7 +1,6 @@
 #!/bin/sh
 
-rm tok.c tok.h a.out
+rm a.out
 clear
-packcc tok.peg
-gcc tok.c
-./a.out
+gcc pgen.c
+./a.out ../example.tok

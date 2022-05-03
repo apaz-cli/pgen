@@ -38,3 +38,31 @@ IMPL_KEYWORD: (4, 10) {
   (9, 's') -> 10;
 };
 
+/*
+Parsing a token looks something like:
+
+
+
+int state = 0;
+while (1) {
+  codepoint_t character = next_char(ctx);
+
+  step_all_DFAs(dfas, next_char(ctx));
+
+  int possibly = count_possibly_accpeting_DFAs(dfas);
+  int currently = count_accepting_DFAs(dfas);
+
+  if (!possibly) {
+    ERROR("Could not parse tokens.");
+  }
+
+  if ((currently == 1)) {
+    resetDFAs(dfas);
+    return new_token(ctx);
+  }
+}
+*/
+
+ANOTHER_EXAMPLE: 20 {
+  ((40-50), 'q') -> 0;
+};
