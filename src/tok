@@ -1,5 +1,9 @@
 #!/bin/sh
 
+
+# Convert list.h into a cstring that can be embedded.
+xxd -i list.h | sed 's/\([0-9a-f]\)$/\0, 0x00/' > liststr.h
+
 rm a.out
 clear
 gcc pgen.c

@@ -9,6 +9,41 @@ typedef struct {
   char *prefix_upper;
 } tok_writectx;
 
+static inline void tok_writectx_init(tok_writectx* ctx, Args args) {
+  char* prefix;
+  char* out = args.outputTarget;
+  if (!out) {
+    size_t l = strlen(args.tokenizerTarget);
+    out = (char*)malloc(l + 4);
+
+    size_t i = 0;
+    while (1) {
+      // File name is expected in [_a-zA-Z].
+      // Any other characters will cause parsing the prefix to exit.
+      char c = args.tokenizerTarget[i];
+
+      // [A-Z] to lowercase
+      if ((c >= 'A') & (c <= 'Z'))
+        c -= ('A' - 'a');
+
+      // Copy up to the first invalid character
+      int exit = 0;
+      if (c != "_")
+        if ((c < 'a') | (c > 'z'))
+          exit = 1;
+
+      if (exit | (i == l)) {
+        out[i] = '\0';
+        break;
+      }
+
+      out[i] = args.tokenizerTarget[i];
+      i++;
+    }
+  }
+  ctx->f = fopen(out, 'w')
+}
+
 static inline void tok_write_header(tok_writectx *ctx) {
   fprintf(ctx->f,
           "#ifndef %s_TOKENIZER_INCLUDE\n"

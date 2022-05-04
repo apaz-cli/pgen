@@ -4,9 +4,9 @@
 #include "util.h"
 
 typedef struct  {
-  char *tokenizerTarget;
-  char *grammarTarget;
-  char *outputTarget;
+  char *tokenizerTarget; // May not be null
+  char *grammarTarget;   // May be null
+  char *outputTarget;    // prefix.h
   bool h;
   bool g;
 } Args;
@@ -48,12 +48,13 @@ static inline Args argparse(int argc, char **argv) {
     }
   }
 
+  // Help message
   if (args.h) {
     puts("pgen - A tokenizer and parser generator.\n"
          "    pgen [-h] [-g] INPUT_TOK [INPUT_PEG] [-o OUTPUT_PATH]\n");
     exit(0);
   }
-  
+
   if (!args.tokenizerTarget) {
     puts("Please provide a tokenizer file as an argument.");
     exit(1);
