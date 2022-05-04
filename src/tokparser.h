@@ -79,7 +79,7 @@ static inline void tok_rule_debug(int status, const char *rulename,
 
   puts("");
 
-#if 1
+#if 0
   print_unconsumed(ctx);
   getchar();
   printf("\x1b[2J"); // clear screen
@@ -171,7 +171,7 @@ static inline ASTNode *tok_parse_ident(tokparser_ctx *ctx) {
 
   RULE_BEGIN("ident");
 
-  codepoint_t *beginning = &CURRENT();
+  size_t startpos = ctx->pos;
 
   while (1) {
     if (!HAS_CURRENT()) {
@@ -184,17 +184,21 @@ static inline ASTNode *tok_parse_ident(tokparser_ctx *ctx) {
       NEXT();
   }
 
-  if (&CURRENT() == beginning)
+  if (ctx->pos == startpos)
     RETURN(NULL);
 
   INIT("ident");
-  Codepoint_String_View *cpsv;
-  node->extra = cpsv =
-      (Codepoint_String_View *)malloc(sizeof(Codepoint_String_View));
-  if (!cpsv)
+  char *idstr;
+  size_t idstrsize = ctx->pos - startpos;
+  node->extra = idstr = (char *)malloc(idstrsize + 1);
+  if (!idstr)
     OOM();
-  cpsv->len = &CURRENT() - beginning;
-  cpsv->str = beginning;
+
+  // Copy as cstring
+  for (size_t i = 0, j = startpos; j < ctx->pos; i++, j++)
+    idstr[i] = (char)ctx->str[j];
+  idstr[idstrsize] = '\0';
+
   RETURN(node);
 }
 
@@ -707,6 +711,13 @@ static inline ASTNode *tok_parse_TokenFile(tokparser_ctx *ctx) {
   }
 
   WS();
+
+  // Make sure we parsed at least one definition and all the
+  // input has been consumed.
+  if ((!node->num_children) | HAS_CURRENT()) {
+    ASTNode_destroy(node);
+    RETURN(NULL);
+  }
 
   RETURN(node);
 }

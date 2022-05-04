@@ -27,7 +27,7 @@ LIST_DECLARE(pgen_token);
 LIST_DEFINE(pgen_token);
 
 typedef struct {
-  
+  /* ... */
 } pgen_tokenizer_dfa;
 
 typedef struct {
