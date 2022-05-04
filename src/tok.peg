@@ -8,7 +8,7 @@ TokenFile <- (_ TokenDef)* _ EOF
 _ <- ([ \t\r\n\v]+ / "/*" (!"*/" .)* "*/" / "//" [^\n]*)*
 
 # Basics
-num <- '-'?[0-9]+ # must be convertable to int
+num <- '-'?[0-9]+ # Convertable to int
 ident <- [_A-Z]+
 char <- '\\'? .
 

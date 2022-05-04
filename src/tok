@@ -4,3 +4,4 @@ rm a.out
 clear
 gcc pgen.c
 ./a.out ../example.tok
+rm a.out

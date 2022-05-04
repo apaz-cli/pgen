@@ -65,7 +65,8 @@ static inline void print_unconsumed(tokparser_ctx *ctx) {
 static inline void tok_rule_debug(int status, const char *rulename,
                                   tokparser_ctx *ctx) {
 
-  if (strcmp(rulename, "ws") == 0) return;
+  if (strcmp(rulename, "ws") == 0)
+    return;
 
   if (status == 0) {
     printf("\x1b[34m"); // Blue
@@ -78,11 +79,11 @@ static inline void tok_rule_debug(int status, const char *rulename,
 
   puts("");
 
-#if 0
+#if 1
   print_unconsumed(ctx);
   getchar();
   printf("\x1b[2J"); // clear screen
-  printf("\x1b[H"); // cursor to top left corner
+  printf("\x1b[H");  // cursor to top left corner
 #endif
 }
 #else
@@ -111,6 +112,7 @@ static inline bool tok_is_current(tokparser_ctx *ctx, const char *s) {
 /* Parser Implementation */
 /*************************/
 
+// Advances past any whitespace at the start of the context.
 static inline void tok_parse_ws(tokparser_ctx *ctx) {
   const char dslsh[3] = {'/', '/', '\0'};
   const char fcom[3] = {'/', '*', '\0'};
@@ -147,7 +149,8 @@ static inline void tok_parse_ws(tokparser_ctx *ctx) {
   RULE_SUCCESS();
 }
 
-// The same as codepoint_atoi, but also advances by the amount read.
+// The same as codepoint_atoi, but also advances by the amount read and has
+// debug info.
 static inline int tok_parse_num(tokparser_ctx *ctx, size_t *read) {
 
   RULE_BEGIN("num");
@@ -163,6 +166,7 @@ static inline int tok_parse_num(tokparser_ctx *ctx, size_t *read) {
   return i;
 }
 
+// ident->extra is a codepoint string view of the identifier.
 static inline ASTNode *tok_parse_ident(tokparser_ctx *ctx) {
 
   RULE_BEGIN("ident");
@@ -194,6 +198,7 @@ static inline ASTNode *tok_parse_ident(tokparser_ctx *ctx) {
   RETURN(node);
 }
 
+// returns 0 on EOF.
 static inline codepoint_t tok_parse_char(tokparser_ctx *ctx) {
 
   RULE_BEGIN("char");
@@ -213,6 +218,9 @@ static inline codepoint_t tok_parse_char(tokparser_ctx *ctx) {
   RETURN(0);
 }
 
+// num->extra = int
+// or
+// num->children
 static inline ASTNode *tok_parse_numset(tokparser_ctx *ctx) {
 
   RULE_BEGIN("numset");
@@ -222,10 +230,11 @@ static inline ASTNode *tok_parse_numset(tokparser_ctx *ctx) {
   int simple = tok_parse_num(ctx, &advanced_by);
   if (advanced_by) {
     INIT("num");
-    node->extra = malloc(sizeof(codepoint_t));
+    int *iptr;
+    node->extra = iptr = (int *)malloc(sizeof(int));
     if (!node->extra)
       OOM();
-    *(int *)(node->extra) = simple;
+    *iptr = simple;
     RETURN(node);
   }
 
@@ -250,8 +259,8 @@ static inline ASTNode *tok_parse_numset(tokparser_ctx *ctx) {
 
       int range2 = tok_parse_num(ctx, &advanced_by);
       if (!advanced_by) {
-          REWIND(begin);
-          RETURN(NULL);
+        REWIND(begin);
+        RETURN(NULL);
       }
 
       WS();
@@ -265,7 +274,8 @@ static inline ASTNode *tok_parse_numset(tokparser_ctx *ctx) {
       INIT("numrange");
       int *iptr;
       node->extra = iptr = (int *)malloc(sizeof(int) * 2);
-      if (!iptr) OOM();
+      if (!iptr)
+        OOM();
       *iptr = range1;
       *(iptr + 1) = range2;
       RETURN(node);
@@ -301,7 +311,7 @@ static inline ASTNode *tok_parse_numset(tokparser_ctx *ctx) {
     if (!next) {
       REWIND(kleene);
       ASTNode_destroy(node);
-      RETURN(NULL); // TODO check this.
+      RETURN(NULL);
     }
     ASTNode_addChild(node, next);
 
@@ -318,6 +328,11 @@ static inline ASTNode *tok_parse_numset(tokparser_ctx *ctx) {
   RETURN(node);
 }
 
+// If the charset is a single quoted char, char->extra is that character's
+// codepoint. If the charset is of the form [^? ...] then charset->extra is a
+// bool of whether the ^ is present, and charset->children has the range's
+// contents. The children are of the form char->extra = codepoint or
+// charrange->extra = codepoint[2].
 static inline ASTNode *tok_parse_charset(tokparser_ctx *ctx) {
 
   RULE_BEGIN("charset");
@@ -358,9 +373,10 @@ static inline ASTNode *tok_parse_charset(tokparser_ctx *ctx) {
     NEXT();
 
   INIT("charset");
-  bool* bptr;
-  node->extra = bptr = (bool*)malloc(sizeof(bool));
-  if (!bptr) OOM();
+  bool *bptr;
+  node->extra = bptr = (bool *)malloc(sizeof(bool));
+  if (!bptr)
+    OOM();
   *bptr = is_inverted;
 
   int times = 0;
@@ -394,9 +410,10 @@ static inline ASTNode *tok_parse_charset(tokparser_ctx *ctx) {
     }
 
     // Parsed a single char
-    ASTNode* cld = ASTNode_new("char");
-    codepoint_t* cpptr;
-    cld->extra = cpptr = (codepoint_t*)malloc(sizeof(codepoint_t) * (c2 ? 2 : 1));
+    ASTNode *cld = !c2 ? ASTNode_new("char") : ASTNode_new("charrange");
+    codepoint_t *cpptr;
+    cld->extra = cpptr =
+        (codepoint_t *)malloc(sizeof(codepoint_t) * (c2 ? 2 : 1));
     if (!cpptr)
       OOM();
     *cpptr = c1;
@@ -423,6 +440,8 @@ static inline ASTNode *tok_parse_charset(tokparser_ctx *ctx) {
   RETURN(node);
 }
 
+// pair->children[0] is the numset of starting states.
+// pair->children[1] is the charset of consumable characters.
 static inline ASTNode *tok_parse_pair(tokparser_ctx *ctx) {
   ASTNode *left_numset;
   ASTNode *right_charset;
@@ -472,6 +491,7 @@ static inline ASTNode *tok_parse_pair(tokparser_ctx *ctx) {
   RETURN(node);
 }
 
+// litdef->extra is a list of codepoints.
 static inline ASTNode *tok_parse_LitDef(tokparser_ctx *ctx) {
 
   RULE_BEGIN("litdef");
@@ -517,6 +537,8 @@ static inline ASTNode *tok_parse_LitDef(tokparser_ctx *ctx) {
   RETURN(node);
 }
 
+// smdef->children is a list of rules.
+// rule->children[0] is a pair.
 static inline ASTNode *tok_parse_SMDef(tokparser_ctx *ctx) {
 
   RULE_BEGIN("smdef");
@@ -548,6 +570,7 @@ static inline ASTNode *tok_parse_SMDef(tokparser_ctx *ctx) {
       break;
     }
     ASTNode_addChild(rule, pair);
+    ASTNode_addChild(node, rule);
 
     WS();
 
@@ -617,6 +640,8 @@ static inline ASTNode *tok_parse_SMDef(tokparser_ctx *ctx) {
   RETURN(node);
 }
 
+// tokendef->children[0] is an ident
+// tokendef->children[1] is a litdef or smdef.
 static inline ASTNode *tok_parse_TokenDef(tokparser_ctx *ctx) {
 
   RULE_BEGIN("tokendef");
@@ -627,9 +652,10 @@ static inline ASTNode *tok_parse_TokenDef(tokparser_ctx *ctx) {
     RETURN(NULL);
   }
 
-  WS(); // TODO leaks
+  WS();
 
   if (!IS_CURRENT(":")) {
+    ASTNode_destroy(id);
     REWIND(begin);
     RETURN(NULL);
   }
@@ -641,6 +667,7 @@ static inline ASTNode *tok_parse_TokenDef(tokparser_ctx *ctx) {
   if (!rule) {
     rule = tok_parse_SMDef(ctx);
     if (!rule) {
+      ASTNode_destroy(id);
       REWIND(begin);
       RETURN(NULL);
     }
@@ -649,6 +676,8 @@ static inline ASTNode *tok_parse_TokenDef(tokparser_ctx *ctx) {
   WS();
 
   if (!IS_CURRENT(";")) {
+    ASTNode_destroy(id);
+    ASTNode_destroy(rule);
     REWIND(begin);
     RETURN(NULL);
   }
@@ -660,11 +689,12 @@ static inline ASTNode *tok_parse_TokenDef(tokparser_ctx *ctx) {
   RETURN(node);
 }
 
+// TokenFile->children are tokendefs.
 static inline ASTNode *tok_parse_TokenFile(tokparser_ctx *ctx) {
 
-  RULE_BEGIN("TokenFile");
+  RULE_BEGIN("tokenfile");
 
-  INIT("TokenFile");
+  INIT("tokenfile");
 
   while (1) {
     WS();
