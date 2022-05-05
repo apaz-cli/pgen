@@ -28,12 +28,13 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args args) {
         c -= ('A' - 'a');
 
       // Copy up to the first invalid character
-      int exit = 0;
+      // If it's been hit, copy the null terminator.
+      int exit = (i == l);
       if (c != '_')
         if ((c < 'a') | (c > 'z'))
           exit = 1;
 
-      if (exit | (i == l)) {
+      if (exit) {
         out[i] = '\0';
         break;
       }
