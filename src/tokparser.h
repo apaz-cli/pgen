@@ -7,43 +7,6 @@
 /* Parser Implementation */
 /*************************/
 
-// Advances past any whitespace at the start of the context.
-static inline void tok_parse_ws(parser_ctx *ctx) {
-  const char dslsh[3] = {'/', '/', '\0'};
-  const char fcom[3] = {'/', '*', '\0'};
-  const char ecom[3] = {'*', '/', '\0'};
-
-  RULE_BEGIN("ws");
-
-  // Eat all the whitespace you can.
-  while (1) {
-    if (!HAS_CURRENT())
-      break;
-    codepoint_t c = CURRENT();
-
-    // Whitespace
-    if ((c == ' ') | (c == '\t') | (c == '\r') | (c == '\n')) {
-      NEXT();
-    } else if (IS_CURRENT(dslsh)) { // Single line comment
-      while (HAS_CURRENT() && CURRENT() != '\n')
-        NEXT();
-    } else if (IS_CURRENT(fcom)) { // Multi line comment
-      ADVANCE(strlen(fcom));
-      while (!IS_CURRENT(ecom))
-        NEXT();
-      // Found "*/"
-      if (HAS_REMAINING(strlen(ecom))) {
-        ADVANCE(strlen(ecom));
-      } else { // EOF
-        ERROR("Unterminated multi-line comment.");
-      }
-    } else // No more whitespace to munch
-      break;
-  }
-
-  RULE_SUCCESS();
-}
-
 // The same as codepoint_atoi, but also advances by the amount read and has
 // debug info.
 static inline int tok_parse_num(parser_ctx *ctx, size_t *read) {
@@ -64,7 +27,8 @@ static inline int tok_parse_num(parser_ctx *ctx, size_t *read) {
 // ident->extra is a codepoint string view of the identifier.
 static inline ASTNode *tok_parse_ident(parser_ctx *ctx) {
 
-  RULE_BEGIN("ident");
+  // This is a lot like peg_parse_ruleident().
+  RULE_BEGIN("tokident");
 
   size_t startpos = ctx->pos;
 
@@ -73,16 +37,15 @@ static inline ASTNode *tok_parse_ident(parser_ctx *ctx) {
       break;
     }
     codepoint_t c = CURRENT();
-    if ((c < 'A' || c > 'Z') && c != '_')
+    if (((c < 'A') || (c > 'Z')) & (c != '_'))
       break;
-    else
-      NEXT();
+    NEXT();
   }
 
   if (ctx->pos == startpos)
     RETURN(NULL);
 
-  INIT("ident");
+  INIT("tokident");
   char *idstr;
   size_t idstrsize = ctx->pos - startpos;
   node->extra = idstr = (char *)malloc(idstrsize + 1);
@@ -322,8 +285,6 @@ static inline ASTNode *tok_parse_charset(parser_ctx *ctx) {
 
     times++;
   }
-
-  printf("Exited. Parsed %i times.\n", times);
 
   if (!times) {
     REWIND(begin);

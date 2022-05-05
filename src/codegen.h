@@ -52,7 +52,6 @@ static inline void tok_write_header(codegen_ctx *ctx) {
           "#define %s_TOKENIZER_INCLUDE\n"
           "#include \"utf8.h\"\n\n",
           ctx->prefix_upper, ctx->prefix_upper);
-  fputs_unlocked("", ctx->f);
 }
 
 static inline void tok_write_toklist(codegen_ctx *ctx) {

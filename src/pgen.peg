@@ -6,7 +6,7 @@
 ##########
 
 # Rules
-Grammar         <- (_ Definition)* _ EOF
+GrammarFile     <- (_ Definition)* _ EOF
 
 Definition      <- RuleIdent _ '<-' _ SlashExpr
 
@@ -42,4 +42,4 @@ CodeExpr        <- '{' _ (&'{' CodeExpr / !'}' .)* _ '}'
 
 # Misc
 TokIdent        <- [_A-Z]+
-RuleIdent       <- [_a-z]+ !'<-'
+RuleIdent       <- [_a-z]+ _ !'<-'

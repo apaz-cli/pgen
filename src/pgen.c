@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
 
   // Parse the tokenizer's AST
   parser_ctx tpctx;
-  tokparser_ctx_init(&tpctx, tokenFile);
+  parser_ctx_init(&tpctx, tokenFile);
   ASTNode *ast = tok_parse_TokenFile(&tpctx);
   if (!ast) {
     ERROR("Syntax error. No valid tokens.");
