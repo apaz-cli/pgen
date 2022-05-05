@@ -1,6 +1,7 @@
-#ifndef PGEN_INCLUDE_PARSER
-#define PGEN_INCLUDE_PARSER
+#ifndef PGEN_INCLUDE_PEGPARSER
+#define PGEN_INCLUDE_PEGPARSER
 #include "parserctx.h"
+#include "tokparser.h" // TODO remove this.
 
 static inline ASTNode* peg_parse_GrammarFile(parser_ctx* ctx);
 static inline ASTNode* peg_parse_Definition(parser_ctx* ctx);
@@ -47,7 +48,7 @@ static inline ASTNode* peg_parse_Definition(parser_ctx* ctx) {
 
   RULE_BEGIN("Definition");
 
-  ASTNode* id = peg_parse_ruleIdent(ctx);
+  ASTNode* id = peg_parse_RuleIdent(ctx);
   if (!id) {
     RETURN(NULL);
   }
@@ -105,7 +106,7 @@ static inline ASTNode* peg_parse_SlashExpr(parser_ctx* ctx) {
       break;
     }
 
-    ASTNode_add(node, l2)
+    ASTNode_addChild(node, l2);
   }
 
   RETURN(node);
@@ -121,7 +122,7 @@ static inline ASTNode* peg_parse_ModExprList(parser_ctx* ctx) {
   while (1) {
     WS();
 
-    ASTNode* me = peg_parseModExpr();
+    ASTNode* me = peg_parse_ModExpr(ctx);
     if (!me)
       break;
 
@@ -149,7 +150,7 @@ static inline ASTNode* peg_parse_ModExpr(parser_ctx* ctx) {
 
   WS();
 
-  INIT();
+  INIT("ModExpr");
   ASTNode_addChild(node, mat);
 
   char mod = '\0';
@@ -269,7 +270,7 @@ static inline ASTNode* peg_parse_CodeExpr(parser_ctx* ctx) {
     // Escape anything starting with \.
     // If a { or } is escaped, don't count it.
     codepoint_t c;
-    if (CURRENT() == "\\") {
+    if (CURRENT() == '\\') {
       ADVANCE(strlen("\\"));
       if (!HAS_CURRENT()) {
          list_codepoint_t_clear(&content);
@@ -304,18 +305,48 @@ static inline ASTNode* peg_parse_CodeExpr(parser_ctx* ctx) {
 }
 
 static inline ASTNode* peg_parse_TokIdent(parser_ctx* ctx) {
-  return tok_parse_ident(ctx);
+  // This is a lot like peg_parse_ruleident().
+  RULE_BEGIN("TokIdent");
+
+  size_t startpos = ctx->pos;
+
+  while (1) {
+    if (!HAS_CURRENT()) {
+      break;
+    }
+    codepoint_t c = CURRENT();
+    if (((c < 'A') || (c > 'Z')) & (c != '_'))
+      break;
+    NEXT();
+  }
+
+  if (ctx->pos == startpos)
+    RETURN(NULL);
+
+  INIT("TokIdent");
+  char *idstr;
+  size_t idstrsize = ctx->pos - startpos;
+  node->extra = idstr = (char *)malloc(idstrsize + 1);
+  if (!idstr)
+    OOM();
+
+  // Copy as cstring
+  for (size_t i = 0, j = startpos; j < ctx->pos; i++, j++)
+    idstr[i] = (char)ctx->str[j];
+  idstr[idstrsize] = '\0';
+
+  RETURN(node);
 }
 
 static inline ASTNode* peg_parse_RuleIdent(parser_ctx* ctx) {
 
   // This is a lot like tok_parse_ident().
-  RULE_BEGIN("RuleIdent")
+  RULE_BEGIN("RuleIdent");
 
   size_t startpos = ctx->pos;
 
   while (1) {
-    if (!HAS_CURRENT)
+    if (!HAS_CURRENT())
       break;
     codepoint_t c = CURRENT();
     if (((c < 'a') || (c > 'z')) & (c != '_'))
@@ -349,4 +380,4 @@ static inline ASTNode* peg_parse_RuleIdent(parser_ctx* ctx) {
 }
 
 
-#endif /* PGEN_INCLUDE_PARSER */
+#endif /* PGEN_INCLUDE_PEGPARSER */
