@@ -1,119 +1,14 @@
 #ifndef PGEN_INCLUDE_PARSER
 #define PGEN_INCLUDE_PARSER
-#include "ast.h"
-#include "util.h"
 
-LIST_DECLARE(codepoint_t);
-LIST_DEFINE(codepoint_t);
-
-typedef struct {
-  codepoint_t *str;
-  size_t len;
-  size_t pos;
-} tokparser_ctx;
-
-static inline void tokparser_ctx_init(tokparser_ctx *ctx,
-                                      Codepoint_String_View cpsv) {
-  ctx->str = cpsv.str;
-  ctx->len = cpsv.len;
-  ctx->pos = 0;
-}
-
-/*****************/
-/* Helper Macros */
-/*****************/
-
-#define CURRENT() (ctx->str[ctx->pos])
-#define NEXT() (ctx->pos++)
-#define REMAINING() (ctx->len - ctx->pos) // Includes CURRENT()
-#define HAS_CURRENT() (REMAINING() >= 1)
-#define HAS_NEXT() (REMAINING() >= 2)
-#define HAS_REMAINING(num) (REMAINING() >= (num))
-#define ADVANCE(num) (ctx->pos += (num))
-#define IS_CURRENT(str) tok_is_current(ctx, str)
-#define RECORD(id) size_t _rew_to_##id = ctx->pos
-#define REWIND(id) (ctx->pos = _rew_to_##id)
-#define WS() tok_parse_ws(ctx)
-#define INIT(name) ASTNode *node = ASTNode_new(name)
-
-#define RULE_BEGIN(rulename)                                                   \
-  /* Can't be in a do block. Oh well. */                                       \
-  tok_rule_debug(0, (rulename), ctx);                                          \
-  RECORD(begin);                                                               \
-  const char *_rulename = (rulename)
-#define RULE_SUCCESS() tok_rule_debug(1, _rulename, ctx)
-#define RULE_FAIL() tok_rule_debug(-1, _rulename, ctx)
-
-#define RETURN(ret)                                                            \
-  do {                                                                         \
-    if (ret)                                                                   \
-      RULE_SUCCESS();                                                          \
-    else                                                                       \
-      RULE_FAIL();                                                             \
-    return (ret);                                                              \
-  } while (0)
-
-#define DEBUG 1
-#if DEBUG
-static inline void print_unconsumed(tokparser_ctx *ctx) {
-  Codepoint_String_View cpsv;
-  cpsv.str = ctx->str + ctx->pos;
-  cpsv.len = ctx->len - ctx->pos;
-  printCodepointStringView(cpsv);
-}
-
-static inline void tok_rule_debug(int status, const char *rulename,
-                                  tokparser_ctx *ctx) {
-
-  if (strcmp(rulename, "ws") == 0)
-    return;
-
-  if (status == 0) {
-    printf("\x1b[34m"); // Blue
-  } else if (status == 1) {
-    printf("\x1b[32m"); // Green
-  } else {
-    printf("\x1b[31m"); // Red
-  }
-  printf("%s\x1b[0m", rulename); // Rule name, clear coloring.
-
-  puts("");
-
-#if 0
-  print_unconsumed(ctx);
-  getchar();
-  printf("\x1b[2J"); // clear screen
-  printf("\x1b[H");  // cursor to top left corner
-#endif
-}
-#else
-static inline void tok_rule_debug(int status, const char *rulename,
-                                  tokparser_ctx *ctx) {
-  (void)status;
-  (void)rulename;
-  (void)ctx;
-}
-#endif
-
-static inline bool tok_is_current(tokparser_ctx *ctx, const char *s) {
-  size_t len = strlen(s);
-  if (!HAS_REMAINING(len))
-    return 0;
-
-  size_t idx = ctx->pos;
-  for (size_t i = 0; i < len; i++)
-    if ((codepoint_t)s[i] != ctx->str[idx++])
-      return 0;
-
-  return 1;
-}
+#include "parserctx.h"
 
 /*************************/
 /* Parser Implementation */
 /*************************/
 
 // Advances past any whitespace at the start of the context.
-static inline void tok_parse_ws(tokparser_ctx *ctx) {
+static inline void tok_parse_ws(parser_ctx *ctx) {
   const char dslsh[3] = {'/', '/', '\0'};
   const char fcom[3] = {'/', '*', '\0'};
   const char ecom[3] = {'*', '/', '\0'};
@@ -151,7 +46,7 @@ static inline void tok_parse_ws(tokparser_ctx *ctx) {
 
 // The same as codepoint_atoi, but also advances by the amount read and has
 // debug info.
-static inline int tok_parse_num(tokparser_ctx *ctx, size_t *read) {
+static inline int tok_parse_num(parser_ctx *ctx, size_t *read) {
 
   RULE_BEGIN("num");
 
@@ -167,7 +62,7 @@ static inline int tok_parse_num(tokparser_ctx *ctx, size_t *read) {
 }
 
 // ident->extra is a codepoint string view of the identifier.
-static inline ASTNode *tok_parse_ident(tokparser_ctx *ctx) {
+static inline ASTNode *tok_parse_ident(parser_ctx *ctx) {
 
   RULE_BEGIN("ident");
 
@@ -203,7 +98,7 @@ static inline ASTNode *tok_parse_ident(tokparser_ctx *ctx) {
 }
 
 // returns 0 on EOF.
-static inline codepoint_t tok_parse_char(tokparser_ctx *ctx) {
+static inline codepoint_t tok_parse_char(parser_ctx *ctx) {
 
   RULE_BEGIN("char");
 
@@ -225,7 +120,7 @@ static inline codepoint_t tok_parse_char(tokparser_ctx *ctx) {
 // num->extra = int
 // or
 // num->children
-static inline ASTNode *tok_parse_numset(tokparser_ctx *ctx) {
+static inline ASTNode *tok_parse_numset(parser_ctx *ctx) {
 
   RULE_BEGIN("numset");
 
@@ -337,7 +232,7 @@ static inline ASTNode *tok_parse_numset(tokparser_ctx *ctx) {
 // bool of whether the ^ is present, and charset->children has the range's
 // contents. The children are of the form char->extra = codepoint or
 // charrange->extra = codepoint[2].
-static inline ASTNode *tok_parse_charset(tokparser_ctx *ctx) {
+static inline ASTNode *tok_parse_charset(parser_ctx *ctx) {
 
   RULE_BEGIN("charset");
 
@@ -446,7 +341,7 @@ static inline ASTNode *tok_parse_charset(tokparser_ctx *ctx) {
 
 // pair->children[0] is the numset of starting states.
 // pair->children[1] is the charset of consumable characters.
-static inline ASTNode *tok_parse_pair(tokparser_ctx *ctx) {
+static inline ASTNode *tok_parse_pair(parser_ctx *ctx) {
   ASTNode *left_numset;
   ASTNode *right_charset;
   RULE_BEGIN("pair");
@@ -496,7 +391,7 @@ static inline ASTNode *tok_parse_pair(tokparser_ctx *ctx) {
 }
 
 // litdef->extra is a list of codepoints.
-static inline ASTNode *tok_parse_LitDef(tokparser_ctx *ctx) {
+static inline ASTNode *tok_parse_LitDef(parser_ctx *ctx) {
 
   RULE_BEGIN("litdef");
 
@@ -543,7 +438,7 @@ static inline ASTNode *tok_parse_LitDef(tokparser_ctx *ctx) {
 
 // smdef->children is a list of rules.
 // rule->children[0] is a pair.
-static inline ASTNode *tok_parse_SMDef(tokparser_ctx *ctx) {
+static inline ASTNode *tok_parse_SMDef(parser_ctx *ctx) {
 
   RULE_BEGIN("smdef");
 
@@ -646,7 +541,7 @@ static inline ASTNode *tok_parse_SMDef(tokparser_ctx *ctx) {
 
 // tokendef->children[0] is an ident
 // tokendef->children[1] is a litdef or smdef.
-static inline ASTNode *tok_parse_TokenDef(tokparser_ctx *ctx) {
+static inline ASTNode *tok_parse_TokenDef(parser_ctx *ctx) {
 
   RULE_BEGIN("tokendef");
 
@@ -694,7 +589,7 @@ static inline ASTNode *tok_parse_TokenDef(tokparser_ctx *ctx) {
 }
 
 // TokenFile->children are tokendefs.
-static inline ASTNode *tok_parse_TokenFile(tokparser_ctx *ctx) {
+static inline ASTNode *tok_parse_TokenFile(parser_ctx *ctx) {
 
   RULE_BEGIN("tokenfile");
 

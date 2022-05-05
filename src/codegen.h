@@ -1,20 +1,21 @@
 #ifndef TOKCODEGEN_INCLUDE
 #define TOKCODEGEN_INCLUDE
-#include "tokparser.h"
+#include "argparse.h"
+#include "parserctx.h"
 
 typedef struct {
   ASTNode *ast;
   FILE *f;
   char *prefix_lower;
   char *prefix_upper;
-} tok_writectx;
+} codegen_ctx;
 
-static inline void tok_writectx_init(tok_writectx* ctx, Args args) {
-  char* prefix;
-  char* out = args.outputTarget;
+static inline void codegen_ctx_init(codegen_ctx *ctx, Args args) {
+  char *prefix;
+  char *out = args.outputTarget;
   if (!out) {
     size_t l = strlen(args.tokenizerTarget);
-    out = (char*)malloc(l + 4);
+    out = (char *)malloc(l + 4);
 
     size_t i = 0;
     while (1) {
@@ -28,7 +29,7 @@ static inline void tok_writectx_init(tok_writectx* ctx, Args args) {
 
       // Copy up to the first invalid character
       int exit = 0;
-      if (c != "_")
+      if (c != '_')
         if ((c < 'a') | (c > 'z'))
           exit = 1;
 
@@ -41,10 +42,10 @@ static inline void tok_writectx_init(tok_writectx* ctx, Args args) {
       i++;
     }
   }
-  ctx->f = fopen(out, 'w')
+  ctx->f = fopen(out, "w");
 }
 
-static inline void tok_write_header(tok_writectx *ctx) {
+static inline void tok_write_header(codegen_ctx *ctx) {
   fprintf(ctx->f,
           "#ifndef %s_TOKENIZER_INCLUDE\n"
           "#define %s_TOKENIZER_INCLUDE\n"
@@ -53,7 +54,7 @@ static inline void tok_write_header(tok_writectx *ctx) {
   fputs_unlocked("", ctx->f);
 }
 
-static inline void tok_write_toklist(tok_writectx *ctx) {
+static inline void tok_write_toklist(codegen_ctx *ctx) {
   size_t num_defs = ctx->ast->num_children; // >= 1
   fprintf(ctx->f, "#define %s_TOKENS ", ctx->prefix_upper);
   for (size_t i = 0; i < num_defs; i++) {
@@ -61,11 +62,11 @@ static inline void tok_write_toklist(tok_writectx *ctx) {
   }
 }
 
-static inline void tok_write_footer(tok_writectx *ctx) {
+static inline void tok_write_footer(codegen_ctx *ctx) {
   fprintf(ctx->f, "#endif /* %s_TOKENIZER_INCLUDE */\n", ctx->prefix_upper);
 }
 
-static inline void tok_write_tokenizerFile(tok_writectx *ctx) {
+static inline void tok_write_tokenizerFile(codegen_ctx *ctx) {
   tok_write_header(ctx);
   tok_write_toklist(ctx);
   tok_write_footer(ctx);

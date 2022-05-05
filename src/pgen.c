@@ -6,7 +6,8 @@
 
 #include "argparse.h"
 #include "tokparser.h"
-#include "util.h"
+#include "pegparser.h"
+#include "codegen.h"
 
 int main(int argc, char **argv) {
 
@@ -17,8 +18,8 @@ int main(int argc, char **argv) {
   if (!tokenFile.str)
     ERROR("Could not read the token file.");
 
-  // Parse the AST
-  tokparser_ctx tpctx;
+  // Parse the tokenizer's AST
+  parser_ctx tpctx;
   tokparser_ctx_init(&tpctx, tokenFile);
   ASTNode *ast = tok_parse_TokenFile(&tpctx);
   if (!ast) {
@@ -26,7 +27,9 @@ int main(int argc, char **argv) {
   }
   // AST_print(ast);
 
-  // Write the tokenizer file
+  // Parse the parser's AST
+
+  // Write the file
 
   return 0;
 }

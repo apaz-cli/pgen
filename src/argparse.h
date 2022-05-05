@@ -3,10 +3,10 @@
 
 #include "util.h"
 
-typedef struct  {
+typedef struct {
   char *tokenizerTarget; // May not be null
   char *grammarTarget;   // May be null
-  char *outputTarget;    // prefix.h
+  char *outputTarget;    // May be null
   bool h;
   bool g;
 } Args;
