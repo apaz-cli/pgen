@@ -19,11 +19,13 @@ Definition      <- RuleIdent _ '<-' _ SlashExpr
 # +  - Match one or more. Returns a list of matches.
 # () - Matches if all expressions within match.
 
-SlashExpr       <- ModExpr+ (SLASH ExprMod+)*
+SlashExpr       <- ModExprList (_ '/' ModExprList)*
+
+ModExprList     <- (_ ModExpr)+
 
 ModExpr         <- MatchExpr _ ('?' / '*' / '+')?
 
-MatchExpr       <- ('&' / '!') _ BaseExpr
+MatchExpr       <- ('&' / '!')? _ BaseExpr
 
 BaseExpr        <- TokIdent
                  / RuleIdent
