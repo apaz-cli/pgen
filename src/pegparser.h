@@ -345,6 +345,7 @@ static inline ASTNode* peg_parse_RuleIdent(parser_ctx* ctx) {
     idstr[i] = (char)ctx->str[j];
   idstr[idstrsize] = '\0';
 
+  RETURN(node);
 }
 
 
