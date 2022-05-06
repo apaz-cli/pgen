@@ -531,6 +531,7 @@ static inline ASTNode *tok_parse_TokenDef(parser_ctx *ctx) {
   WS();
 
   if (!IS_CURRENT(":")) {
+    printf("%c\n", (char)CURRENT());
     ASTNode_destroy(id);
     REWIND(begin);
     RETURN(NULL);

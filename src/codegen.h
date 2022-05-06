@@ -56,6 +56,7 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
     // Copy up to the first invalid character
     // If it's been hit, copy the null terminator.
     if ((low != '_') & ((low < 'a') | (low > 'z')))
+      if ((low < '0' | low > '9'))
         break;
 
     ctx->prefix_lower[i] = low;
@@ -64,10 +65,18 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
   ctx->prefix_lower[i] = '\0';
   ctx->prefix_upper[i] = '\0';
 
-  char namebuf[PGEN_PREFIX_LEN + 2];
-  sprintf(namebuf, "%s.h", ctx->prefix_lower);
+  // Create/open the file prefix.h if -o was not an argument,
+  // otherwise the -o target.
+  char namebuf[PGEN_PREFIX_LEN + 2]; // Doesn't overflow.
+  char* write_to;
+  if (!args.outputTarget) {
+    sprintf(namebuf, "%s.h", ctx->prefix_lower);
+    write_to = namebuf;
+  } else {
+    write_to = args.outputTarget;
+  }
 
-  ctx->f = fopen(namebuf, "w");
+  ctx->f = fopen(write_to, "w");
   if (!ctx->f) {
     ERROR("Could not write to %s.", namebuf);
   }

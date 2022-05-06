@@ -1,0 +1,36 @@
+
+EQ: "=";
+SEMI: ";";
+DOT: ".";
+COMMA: ",";
+QUEST: "?";
+EXCL: "!";
+OPEN: "(";
+CLOSE: ")";
+HASH: "#";
+LT: "<";
+LEQ: "<=";
+GT: ">";
+GEQ: ">=";
+PLUS: "+";
+MINUS: "-";
+STAR: "*";
+DIV: "/";
+
+
+VAR: "var";
+PROC: "procedure";
+CONST: "const";
+BEGIN: "begin";
+END: "end";
+IF: "if";
+THEN: "then";
+WHILE: "while";
+DO: "do";
+ODD: "odd";
+
+
+IDENT: (1, 2) {
+  (0, [_a-zA-Z]) -> 1;
+  ((1, 2), [_a-zA-Z]) -> 2;
+};
