@@ -51,6 +51,16 @@ static inline Args argparse(int argc, char **argv) {
     }
   }
 
+#if 0
+  printf("Args:\n");
+  printf("tokenizerTarget: %s\n", args.tokenizerTarget);
+  printf("grammarTarget: %s\n", args.grammarTarget);
+  printf("outputTarget: %s\n", args.outputTarget);
+  printf("g: %i\n", (int)args.g);
+  printf("h: %i\n", (int)args.h);
+  fflush(stdout);
+#endif
+
   // Help message
   if (args.h) {
     puts("pgen - A tokenizer and parser generator.\n"
@@ -61,13 +71,6 @@ static inline Args argparse(int argc, char **argv) {
   if (!args.tokenizerTarget) {
     puts("Please provide a tokenizer file as an argument.");
     exit(1);
-  }
-
-
-  if (1) {
-    printf("tokenizerTarget: %s\n", args.tokenizerTarget);
-    printf("grammarTarget: %s\n", args.grammarTarget);
-    printf("outputTarget: %s\n", args.outputTarget);
   }
 
   return args;
