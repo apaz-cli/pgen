@@ -43,7 +43,11 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args args) {
       i++;
     }
   }
+  
   ctx->f = fopen(out, "w");
+  if (!ctx->f) {
+    ERROR("Could not write to %s.", out);
+  }
 }
 
 static inline void tok_write_header(codegen_ctx *ctx) {

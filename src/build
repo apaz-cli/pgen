@@ -5,5 +5,5 @@
 #xxd -i list.h | sed 's/\([0-9a-f]\)$/\0, 0x00/' > liststr.h
 
 rm a.out 2>/dev/null
-gcc pgen.c
+gcc pgen.c -O3 -march=native
 #./a.out ../example.tok
