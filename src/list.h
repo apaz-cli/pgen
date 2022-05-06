@@ -69,7 +69,7 @@
     if ((idx >= self->len) | (idx < 0))                                        \
       ERROR("List index out of range.");                                       \
     type ret = self->buf[idx];                                                 \
-    size_t nlen = MAX(nlen - 1, 0);                                            \
+    size_t nlen = self->len ? self->len - 1 : 0;                               \
     for (size_t i = idx; i < nlen; i++)                                        \
       self->buf[i] = self->buf[i + 1];                                         \
     self->len = nlen;                                                          \

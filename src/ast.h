@@ -59,14 +59,11 @@ static inline void ASTNode_destroy(ASTNode *self) {
   free(self->children);
   free(self->extra);
   free(self);
-  self->children = NULL;
-  self->extra = NULL;
 }
 
 static inline void ASTNode_clearChildren(ASTNode *self) {
-  for (size_t i = 0; i < self->num_children; i++) {
+  for (size_t i = 0; i < self->num_children; i++)
     ASTNode_destroy(self->children[i]);
-  }
   free(self->children);
   free(self->extra);
   self->children = NULL;

@@ -21,6 +21,7 @@ static inline Args argparse(int argc, char **argv) {
 
   for (int i = 1; i < argc; i++) {
     char *a = argv[i];
+    // Flags
     if (strcmp(a, "-h") == 0 || strcmp(a, "--help") == 0) {
       args.h = 1;
     } else if (strcmp(a, "-g") == 0) {
@@ -31,7 +32,9 @@ static inline Args argparse(int argc, char **argv) {
       } else {
         ERROR("-o requires an argument.");
       }
-    } else {
+    }
+    // Targets
+    else {
       const char errmsg[] = " file does not end in ";
       const char errend[] = ". Consider renaming it. Proceeding anyway.\n";
       if (!args.tokenizerTarget) {
@@ -58,6 +61,13 @@ static inline Args argparse(int argc, char **argv) {
   if (!args.tokenizerTarget) {
     puts("Please provide a tokenizer file as an argument.");
     exit(1);
+  }
+
+
+  if (1) {
+    printf("tokenizerTarget: %s\n", args.tokenizerTarget);
+    printf("grammarTarget: %s\n", args.grammarTarget);
+    printf("outputTarget: %s\n", args.outputTarget);
   }
 
   return args;

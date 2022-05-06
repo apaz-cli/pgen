@@ -3,52 +3,86 @@
 #include "argparse.h"
 #include "parserctx.h"
 
+/*******/
+/* ctx */
+/*******/
+
+#define PGEN_PREFIX_LEN 8
 typedef struct {
-  ASTNode *ast;
   FILE *f;
-  char *prefix_lower;
-  char *prefix_upper;
+  ASTNode *tokast;
+  ASTNode *pegast;
+  char prefix_lower[PGEN_PREFIX_LEN];
+  char prefix_upper[PGEN_PREFIX_LEN];
 } codegen_ctx;
 
-static inline void codegen_ctx_init(codegen_ctx *ctx, Args args) {
-  char *prefix;
-  char *out = args.outputTarget;
-  if (!out) {
-    size_t l = strlen(args.tokenizerTarget);
-    out = (char *)malloc(l + 4);
+static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
+                                    ASTNode *tokast, ASTNode *pegast) {
 
-    size_t i = 0;
-    while (1) {
-      // File name is expected in [_a-zA-Z].
-      // Any other characters will cause parsing the prefix to exit.
-      char c = args.tokenizerTarget[i];
+  ctx->tokast = tokast;
+  ctx->pegast = pegast;
 
-      // [A-Z] to lowercase
-      if ((c >= 'A') & (c <= 'Z'))
-        c -= ('A' - 'a');
+  // Parse prefix from tokenizer file name.
+  char* pref_start = args.tokenizerTarget;
+  size_t tokstart = strlen(args.tokenizerTarget);
 
-      // Copy up to the first invalid character
-      // If it's been hit, copy the null terminator.
-      int exit = (i == l);
-      if (c != '_')
-        if ((c < 'a') | (c > 'z'))
-          exit = 1;
-
-      if (exit) {
-        out[i] = '\0';
-        break;
-      }
-
-      out[i] = args.tokenizerTarget[i];
-      i++;
+  // Figure out where to start parsing from.
+  // Backtrack to the last /.
+  while (1) {
+    if (!tokstart)
+      break;
+    if (args.tokenizerTarget[--tokstart] == '/') {
+      pref_start = &(args.tokenizerTarget[tokstart + 1]);
+      break;
     }
   }
-  
-  ctx->f = fopen(out, "w");
+
+  // Parse the prefix
+  size_t i = 0;
+  for (; i < PGEN_PREFIX_LEN - 1; i++) {
+    // File name is expected in [_a-zA-Z].
+    // Any other characters will cause parsing the prefix to exit.
+    char low = pref_start[i];
+    char up = pref_start[i];
+
+    // [_a-zA-Z] to [_a-z].
+    if ((low >= 'A') & (low <= 'Z'))
+      low -= ('A' - 'a');
+
+    // [_a-zA-Z] to [_A-Z].
+    if ((up >= 'a') & (up <= 'z'))
+      up += ('A' - 'a');
+
+    // Copy up to the first invalid character
+    // If it's been hit, copy the null terminator.
+    if ((low != '_') & ((low < 'a') | (low > 'z')))
+        break;
+
+    ctx->prefix_lower[i] = low;
+    ctx->prefix_upper[i] = up;
+  }
+  ctx->prefix_lower[i] = '\0';
+  ctx->prefix_upper[i] = '\0';
+
+  char namebuf[PGEN_PREFIX_LEN + 2];
+  sprintf(namebuf, "%s.h", ctx->prefix_lower);
+
+  ctx->f = fopen(namebuf, "w");
   if (!ctx->f) {
-    ERROR("Could not write to %s.", out);
+    ERROR("Could not write to %s.", namebuf);
   }
 }
+
+static inline void codegen_ctx_destroy(codegen_ctx *ctx) {
+  fclose(ctx->f);
+  ASTNode_destroy(ctx->tokast);
+  if (ctx->pegast)
+    ASTNode_destroy(ctx->pegast);
+}
+
+/*************/
+/* Tokenizer */
+/*************/
 
 static inline void tok_write_header(codegen_ctx *ctx) {
   fprintf(ctx->f,
@@ -59,21 +93,78 @@ static inline void tok_write_header(codegen_ctx *ctx) {
 }
 
 static inline void tok_write_toklist(codegen_ctx *ctx) {
-  size_t num_defs = ctx->ast->num_children; // >= 1
+  size_t num_defs = ctx->tokast->num_children;
   fprintf(ctx->f, "#define %s_TOKENS ", ctx->prefix_upper);
   for (size_t i = 0; i < num_defs; i++) {
-    fprintf(ctx->f, "%s, ", (char *)(ctx->ast->children[i]->extra));
+    fprintf(ctx->f, "%s, ", (char *)(ctx->tokast->children[i]->children[0]->extra));
   }
+  fprintf(ctx->f, "\n\n");
+}
+
+static inline void tok_write_enum(codegen_ctx *ctx) {
+  fprintf(ctx->f, "typedef enum { %s_TOKENS } %s_token_id;\n",
+          ctx->prefix_upper, ctx->prefix_lower);
+
+  fprintf(ctx->f, "static %s_token_id _%s_num_tokids[] = { %s_TOKENS };\n",
+          ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_upper);
+
+  fprintf(ctx->f,
+          "static size_t %s_num_tokids = sizeof(_%s_num_tokids)"
+          " / sizeof(%s_token_id);\n\n",
+          ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_lower);
+}
+
+static inline void tok_write_tokenstruct(codegen_ctx *ctx) {
+  fprintf(ctx->f,
+          "typedef struct {\n"
+          "  %s_token_id lexeme;\n"
+          "  codepoint_t* start;\n"
+          "  size_t len;\n"
+          "  size_t line;\n"
+          "  size_t col;"
+          "  char* sourceFile;\n"
+          "} %s_token;\n\n",
+          ctx->prefix_lower, ctx->prefix_lower);
+}
+
+static inline void tok_write_tokenizerstruct(codegen_ctx* ctx) {
+  fprintf(ctx->f,
+          "typedef struct {\n"
+          "} %s_tokenizer;\n\n",
+          ctx->prefix_lower);
 }
 
 static inline void tok_write_footer(codegen_ctx *ctx) {
   fprintf(ctx->f, "#endif /* %s_TOKENIZER_INCLUDE */\n", ctx->prefix_upper);
 }
 
-static inline void tok_write_tokenizerFile(codegen_ctx *ctx) {
+static inline void codegen_write_tokenizer(codegen_ctx *ctx) {
   tok_write_header(ctx);
+
   tok_write_toklist(ctx);
+
+  tok_write_enum(ctx);
+
+  tok_write_tokenstruct(ctx);
+
   tok_write_footer(ctx);
+}
+
+/**********/
+/* Parser */
+/**********/
+
+static inline void codegen_write_parser(codegen_ctx *ctx) {}
+
+/**************/
+/* Everything */
+/**************/
+
+static inline void codegen_write(codegen_ctx *ctx) {
+  if (ctx->tokast)
+    codegen_write_tokenizer(ctx);
+  if (ctx->pegast)
+    codegen_write_parser(ctx);
 }
 
 #endif /* TOKCODEGEN_INCLUDE */

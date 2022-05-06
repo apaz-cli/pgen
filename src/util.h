@@ -96,13 +96,15 @@ static inline void printCodepointStringView(Codepoint_String_View cpsv) {
 static inline Codepoint_String_View readFileCodepoints(char *filePath) {
   /* Read the file. */
   String_View view = readFile(filePath);
+  Codepoint_String_View cpsv;
   if (!view.str) {
-    Codepoint_String_View cpsv;
     cpsv.str = NULL;
     cpsv.len = view.len;
     return cpsv;
   } else {
-    return UTF8_decode_view(view);
+    cpsv = UTF8_decode_view(view);
+    free(view.str);
+    return cpsv;
   }
 }
 
@@ -185,7 +187,7 @@ static inline int codepoint_atoi(const codepoint_t *a, size_t len,
 
   size_t ullread;
   unsigned long long ull = codepoint_atoull_nosigns(a, len, &ullread);
-  if (neg ? -ull < INT_MIN : ull > INT_MAX)
+  if (neg ? ull > (unsigned long long)-(long long)INT_MIN : ull > (unsigned long long)INT_MAX)
     return *read = 0, 0;
   int l = (int)(neg ? -ull : ull);
 

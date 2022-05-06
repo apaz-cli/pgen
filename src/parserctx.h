@@ -76,9 +76,7 @@ static inline void ctx_rule_debug(int status, const char *rulename,
   } else {
     printf("\x1b[31m"); // Red
   }
-  printf("%s\x1b[0m", rulename); // Rule name, clear coloring.
-
-  puts("");
+  printf("%s\x1b[0m\n", rulename); // Rule name, clear coloring.
 
 #if 0
   print_unconsumed(ctx);

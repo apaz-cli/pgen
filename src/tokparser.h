@@ -323,6 +323,7 @@ static inline ASTNode *tok_parse_pair(parser_ctx *ctx) {
   WS();
 
   if (!IS_CURRENT(",")) {
+    ASTNode_destroy(left_numset);
     REWIND(begin);
     RETURN(NULL);
   }
@@ -332,6 +333,7 @@ static inline ASTNode *tok_parse_pair(parser_ctx *ctx) {
 
   right_charset = tok_parse_charset(ctx);
   if (!right_charset) {
+    ASTNode_destroy(left_numset);
     REWIND(begin);
     RETURN(NULL);
   }
@@ -339,6 +341,8 @@ static inline ASTNode *tok_parse_pair(parser_ctx *ctx) {
   WS();
 
   if (!IS_CURRENT(")")) {
+    ASTNode_destroy(left_numset);
+    ASTNode_destroy(right_charset);
     REWIND(begin);
     RETURN(NULL);
   }
@@ -351,7 +355,7 @@ static inline ASTNode *tok_parse_pair(parser_ctx *ctx) {
   RETURN(node);
 }
 
-// litdef->extra is a list of codepoints.
+// litdef->extra is a null terminated codepoint string.
 static inline ASTNode *tok_parse_LitDef(parser_ctx *ctx) {
 
   RULE_BEGIN("litdef");
@@ -388,16 +392,26 @@ static inline ASTNode *tok_parse_LitDef(parser_ctx *ctx) {
     RETURN(NULL);
   }
 
-  // Return a node with the list of codepoints
+  // Return a null terminated codepoint string.
   INIT("litdef");
-  node->extra = malloc(sizeof(list_codepoint_t));
-  if (!node->extra)
+  codepoint_t* cpstr;
+  node->extra = cpstr = (codepoint_t*)malloc(sizeof(codepoint_t) + cps.len * sizeof(codepoint_t));
+  if (!cpstr)
     OOM();
-  *(list_codepoint_t *)(node->extra) = cps;
+
+  // Copy it in
+  for (size_t i = 0; i < cps.len; i++)
+    cpstr[i] = list_codepoint_t_get(&cps, i);
+  cpstr[cps.len] = 0;
+
+  // Clean up the list
+  list_codepoint_t_clear(&cps);
+
   RETURN(node);
 }
 
-// smdef->children is a list of rules.
+// smdef->children[0] is the set of accepting states.
+// smdef->children[1] and onward is a list of rules.
 // rule->children[0] is a pair.
 static inline ASTNode *tok_parse_SMDef(parser_ctx *ctx) {
 
@@ -407,15 +421,17 @@ static inline ASTNode *tok_parse_SMDef(parser_ctx *ctx) {
   if (!accepting_states)
     RETURN(NULL);
 
+  INIT("smdef");
+  ASTNode_addChild(node, accepting_states);
+
   WS();
 
   if (!IS_CURRENT("{")) {
+    ASTNode_destroy(node);
     REWIND(begin);
     RETURN(NULL);
   }
   NEXT();
-
-  INIT("smdef");
 
   int times = 0;
   while (1) {

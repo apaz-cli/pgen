@@ -11,13 +11,15 @@
 
 int main(int argc, char **argv) {
 
-  Args args = argparse(argc, argv);
 
   ASTNode* tokast = NULL, *pegast = NULL;
 
   Codepoint_String_View tokenFile, parserFile;
   tokenFile.str = parserFile.str = NULL;
   tokenFile.len = parserFile.len = 0;
+
+  // Parse command line arguments
+  Args args = argparse(argc, argv);
 
   // Read the tokenizer file
   tokenFile = readFileCodepoints(args.tokenizerTarget);
@@ -49,13 +51,11 @@ int main(int argc, char **argv) {
 
   // Write the file
   codegen_ctx cctx;
-  codegen_ctx_init(&cctx, args);
+  codegen_ctx_init(&cctx, args, tokast, pegast);
+  codegen_write(&cctx);
+  codegen_ctx_destroy(&cctx);
 
   // Clean up memory
-  if (tokast)
-    ASTNode_destroy(tokast);
-  if (pegast)
-    ASTNode_destroy(pegast);
   free(tokenFile.str);
   free(parserFile.str);
 

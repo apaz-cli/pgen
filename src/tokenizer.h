@@ -9,22 +9,20 @@
 
 typedef enum { PGEN_TOKENS } pgen_token_id;
 
-static pgen_token_id _pgen_num_toktypes[] = {PGEN_TOKENS};
-static size_t pgen_num_toktypes =
-    sizeof(_pgen_num_toktypes) / sizeof(pgen_token_id) - 1;
+static pgen_token_id _pgen_num_tokids[] = {PGEN_TOKENS};
+static size_t pgen_num_tokids =
+    sizeof(_pgen_num_tokids) / sizeof(pgen_token_id) - 1;
 
 #undef PGEN_TOKENS
 
 typedef struct {
   pgen_token_id lexeme;
-  Codepoint_String_View view;
+  codepoint_t* start;
+  size_t len;
   size_t line;
   size_t col;
   char *sourceFile;
 } pgen_token;
-
-LIST_DECLARE(pgen_token);
-LIST_DEFINE(pgen_token);
 
 typedef struct {
   /* ... */
@@ -61,7 +59,7 @@ static inline pgen_token pgen_tokenizer_next(pgen_tokenizer *tokenizer) {
   Codepoint_String_View view;
   view.str = tokenizer->input.str + tokenizer->resume_at;
   view.len = tokenizer->input.len - tokenizer->resume_at;
-  
+
   // Exec DFA
   pgen_token tok;
 
