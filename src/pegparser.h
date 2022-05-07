@@ -3,18 +3,18 @@
 #include "parserctx.h"
 #include "tokparser.h" // TODO remove this.
 
-static inline ASTNode* peg_parse_GrammarFile(parser_ctx* ctx);
-static inline ASTNode* peg_parse_Definition(parser_ctx* ctx);
-static inline ASTNode* peg_parse_SlashExpr(parser_ctx* ctx);
-static inline ASTNode* peg_parse_ModExprList(parser_ctx* ctx);
-static inline ASTNode* peg_parse_ModExpr(parser_ctx* ctx);
-static inline ASTNode* peg_parse_MatchExpr(parser_ctx* ctx);
-static inline ASTNode* peg_parse_BaseExpr(parser_ctx* ctx);
-static inline ASTNode* peg_parse_CodeExpr(parser_ctx* ctx);
-static inline ASTNode* peg_parse_TokIdent(parser_ctx* ctx);
-static inline ASTNode* peg_parse_RuleIdent(parser_ctx* ctx);
+static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx);
+static inline ASTNode *peg_parse_Definition(parser_ctx *ctx);
+static inline ASTNode *peg_parse_SlashExpr(parser_ctx *ctx);
+static inline ASTNode *peg_parse_ModExprList(parser_ctx *ctx);
+static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx);
+static inline ASTNode *peg_parse_MatchExpr(parser_ctx *ctx);
+static inline ASTNode *peg_parse_BaseExpr(parser_ctx *ctx);
+static inline ASTNode *peg_parse_CodeExpr(parser_ctx *ctx);
+static inline ASTNode *peg_parse_TokIdent(parser_ctx *ctx);
+static inline ASTNode *peg_parse_RuleIdent(parser_ctx *ctx);
 
-static inline ASTNode* peg_parse_GrammarFile(parser_ctx* ctx) {
+static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx) {
 
   // This rule looks a lot like tok_parse_TokenFile().
   RULE_BEGIN("GrammarFile");
@@ -24,7 +24,7 @@ static inline ASTNode* peg_parse_GrammarFile(parser_ctx* ctx) {
   while (1) {
     WS();
 
-    ASTNode* def = peg_parse_Definition(ctx);
+    ASTNode *def = peg_parse_Definition(ctx);
     if (!def)
       break;
 
@@ -41,14 +41,13 @@ static inline ASTNode* peg_parse_GrammarFile(parser_ctx* ctx) {
   }
 
   RETURN(node);
-
 }
 
-static inline ASTNode* peg_parse_Definition(parser_ctx* ctx) {
+static inline ASTNode *peg_parse_Definition(parser_ctx *ctx) {
 
   RULE_BEGIN("Definition");
 
-  ASTNode* id = peg_parse_RuleIdent(ctx);
+  ASTNode *id = peg_parse_RuleIdent(ctx);
   if (!id) {
     RETURN(NULL);
   }
@@ -60,10 +59,11 @@ static inline ASTNode* peg_parse_Definition(parser_ctx* ctx) {
     REWIND(begin);
     RETURN(NULL);
   }
+  ADVANCE(strlen("<-"));
 
   WS();
 
-  ASTNode* slash = peg_parse_SlashExpr(ctx);
+  ASTNode *slash = peg_parse_SlashExpr(ctx);
   if (!slash) {
     ASTNode_destroy(id);
     REWIND(begin);
@@ -76,14 +76,13 @@ static inline ASTNode* peg_parse_Definition(parser_ctx* ctx) {
   RETURN(node);
 }
 
-static inline ASTNode* peg_parse_SlashExpr(parser_ctx* ctx) {
+static inline ASTNode *peg_parse_SlashExpr(parser_ctx *ctx) {
 
   RULE_BEGIN("SlashExpr");
 
-  ASTNode* l1 = peg_parse_ModExprList(ctx);
+  ASTNode *l1 = peg_parse_ModExprList(ctx);
   if (!l1)
     RETURN(NULL);
-
 
   INIT("SlashExpr");
   ASTNode_addChild(node, l1);
@@ -100,7 +99,7 @@ static inline ASTNode* peg_parse_SlashExpr(parser_ctx* ctx) {
     NEXT();
 
     // ModExprList consumes starting WS
-    ASTNode* l2 = peg_parse_ModExprList(ctx);
+    ASTNode *l2 = peg_parse_ModExprList(ctx);
     if (!l2) {
       REWIND(kleene);
       break;
@@ -112,7 +111,7 @@ static inline ASTNode* peg_parse_SlashExpr(parser_ctx* ctx) {
   RETURN(node);
 }
 
-static inline ASTNode* peg_parse_ModExprList(parser_ctx* ctx) {
+static inline ASTNode *peg_parse_ModExprList(parser_ctx *ctx) {
 
   RULE_BEGIN("ModExprList");
 
@@ -122,7 +121,7 @@ static inline ASTNode* peg_parse_ModExprList(parser_ctx* ctx) {
   while (1) {
     WS();
 
-    ASTNode* me = peg_parse_ModExpr(ctx);
+    ASTNode *me = peg_parse_ModExpr(ctx);
     if (!me)
       break;
 
@@ -139,75 +138,57 @@ static inline ASTNode* peg_parse_ModExprList(parser_ctx* ctx) {
   RETURN(node);
 }
 
-static inline ASTNode* peg_parse_ModExpr(parser_ctx* ctx) {
+static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
 
   RULE_BEGIN("ModExpr");
 
-  ASTNode* mat = peg_parse_MatchExpr(ctx);
-  if (!mat) {
+  if (!HAS_CURRENT())
+    RETURN(NULL);
+
+  char prefix = '\0';
+  if ((CURRENT() == '&') | (CURRENT() == '!')) {
+    prefix = (char)CURRENT();
+    NEXT();
+  }
+
+  WS();
+
+  ASTNode *bex = peg_parse_BaseExpr(ctx);
+  if (!bex) {
+    REWIND(begin);
     RETURN(NULL);
   }
 
   WS();
 
   INIT("ModExpr");
-  ASTNode_addChild(node, mat);
+  ASTNode_addChild(node, bex);
 
-  char mod = '\0';
-
+  char suffix = '\0';
   if (HAS_CURRENT()) {
-    mod = (char)CURRENT();
-    if (!((mod == '?') | (mod == '*') | (mod == '+')))
-      mod = '\0';
+    suffix = (char)CURRENT();
+    if (!((suffix == '?') | (suffix == '*') | (suffix == '+')))
+      suffix = '\0';
   }
 
-  if (mod) {
+  if (suffix) {
     NEXT();
 
-    char* cptr;
-    node->extra = cptr = (char*)malloc(sizeof(char));
-    *cptr = mod;
+    char *cptr;
+    node->extra = cptr = (char *)malloc(sizeof(char) * 2);
+    *(cptr + 0) = prefix;
+    *(cptr + 1) = suffix;
+
   }
 
   RETURN(node);
 }
 
-static inline ASTNode* peg_parse_MatchExpr(parser_ctx* ctx) {
-
-  RULE_BEGIN("MatchExpr");
-
-  if (!HAS_CURRENT())
-    RETURN(NULL);
-
-  codepoint_t c = CURRENT();
-  if ((c == '&') | (c == '!')) {
-    NEXT();
-  } else {
-    c = '\0';
-  }
-
-  WS();
-
-  ASTNode* bex = peg_parse_BaseExpr(ctx);
-  if (!bex) {
-    REWIND(begin);
-    RETURN(NULL);
-  }
-
-  INIT("MatchExpr");
-  if (c) {
-    char* cptr;
-    node->extra = cptr = (char*)malloc(sizeof(char));
-    *cptr = c;
-  }
-  RETURN(node);
-}
-
-static inline ASTNode* peg_parse_BaseExpr(parser_ctx* ctx) {
+static inline ASTNode *peg_parse_BaseExpr(parser_ctx *ctx) {
 
   RULE_BEGIN("BaseExpr");
 
-  ASTNode* n = peg_parse_TokIdent(ctx);
+  ASTNode *n = peg_parse_TokIdent(ctx);
   if (n) {
     INIT("BaseExpr");
     ASTNode_addChild(node, n);
@@ -216,6 +197,18 @@ static inline ASTNode* peg_parse_BaseExpr(parser_ctx* ctx) {
 
   n = peg_parse_RuleIdent(ctx);
   if (n) {
+    RECORD(before_ws);
+
+    WS();
+
+    if (IS_CURRENT("<-")) {
+      puts("Arrow.");
+      ASTNode_destroy(n);
+      REWIND(begin);
+      RETURN(NULL);
+    }
+
+    REWIND(before_ws);
     INIT("BaseExpr");
     ASTNode_addChild(node, n);
     RETURN(node);
@@ -248,14 +241,14 @@ static inline ASTNode* peg_parse_BaseExpr(parser_ctx* ctx) {
     REWIND(begin);
     RETURN(NULL);
   }
-
+  NEXT();
 
   INIT("BaseExpr");
   ASTNode_addChild(node, n);
   RETURN(node);
 }
 
-static inline ASTNode* peg_parse_CodeExpr(parser_ctx* ctx) {
+static inline ASTNode *peg_parse_CodeExpr(parser_ctx *ctx) {
 
   RULE_BEGIN("CodeExpr");
 
@@ -273,9 +266,9 @@ static inline ASTNode* peg_parse_CodeExpr(parser_ctx* ctx) {
     if (CURRENT() == '\\') {
       ADVANCE(strlen("\\"));
       if (!HAS_CURRENT()) {
-         list_codepoint_t_clear(&content);
-         REWIND(begin);
-         RETURN(NULL);
+        list_codepoint_t_clear(&content);
+        REWIND(begin);
+        RETURN(NULL);
       }
 
       c = CURRENT();
@@ -296,15 +289,15 @@ static inline ASTNode* peg_parse_CodeExpr(parser_ctx* ctx) {
   }
 
   INIT("CodeExpr");
-  list_codepoint_t* lcpp;
-  node->extra = lcpp = (list_codepoint_t*)malloc(sizeof(list_codepoint_t));
+  list_codepoint_t *lcpp;
+  node->extra = lcpp = (list_codepoint_t *)malloc(sizeof(list_codepoint_t));
   if (!lcpp)
     OOM();
   *lcpp = content;
   RETURN(node);
 }
 
-static inline ASTNode* peg_parse_TokIdent(parser_ctx* ctx) {
+static inline ASTNode *peg_parse_TokIdent(parser_ctx *ctx) {
   // This is a lot like peg_parse_ruleident().
   RULE_BEGIN("TokIdent");
 
@@ -338,7 +331,7 @@ static inline ASTNode* peg_parse_TokIdent(parser_ctx* ctx) {
   RETURN(node);
 }
 
-static inline ASTNode* peg_parse_RuleIdent(parser_ctx* ctx) {
+static inline ASTNode *peg_parse_RuleIdent(parser_ctx *ctx) {
 
   // This is a lot like tok_parse_ident().
   RULE_BEGIN("RuleIdent");
@@ -354,15 +347,8 @@ static inline ASTNode* peg_parse_RuleIdent(parser_ctx* ctx) {
     NEXT();
   }
 
-  // Unlike peg_parse_ident(), check here if a <- is next up.
-  // If it is, don't match.
-  WS();
-
-  if (IS_CURRENT("<-")) {
-    REWIND(begin);
+  if (ctx->pos == startpos)
     RETURN(NULL);
-  }
-
 
   INIT("RuleIdent");
   char *idstr;
@@ -378,6 +364,5 @@ static inline ASTNode* peg_parse_RuleIdent(parser_ctx* ctx) {
 
   RETURN(node);
 }
-
 
 #endif /* PGEN_INCLUDE_PEGPARSER */

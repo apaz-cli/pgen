@@ -78,7 +78,7 @@ static inline void ctx_rule_debug(int status, const char *rulename,
   }
   printf("%s\x1b[0m\n", rulename); // Rule name, clear coloring.
 
-#if 0
+#if 1
   print_unconsumed(ctx);
   getchar();
   printf("\x1b[2J"); // clear screen

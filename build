@@ -1,30 +1,4 @@
 #!/bin/sh
 
-# Clean
-
-# Generate the documentation.
-#pandoc pgen_man.md -s -tman
-
-
 # Build the bootstrap parser
-gcc src/bootstrap.c -o pgen
-
-
-# Generate the bootstrap parser from its packcc grammar.
-
-
-# Build pgen
-
-# Bootstrap pgen with its own grammar.
-
-#if test -f "pgen.h"; then
-#  :;
-#  cc -O0 pgen.c
-#else
-#  printf "\033[0;31mPackcc failed to build pgen from its grammar.\033[0m\n"
-#  exit 1
-#fi
-
-# Have pgen regenerate itself.
-
-#./pgen pgen.peg
+cc src/pgen.c -o pgen

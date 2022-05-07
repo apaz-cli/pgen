@@ -27,12 +27,12 @@ int main(int argc, char **argv) {
     ERROR("Could not read the token file.");
 
   // Parse the tokenizer's AST
-  parser_ctx tpctx;
-  parser_ctx_init(&tpctx, tokenFile);
-  tokast = tok_parse_TokenFile(&tpctx);
-  if (!tokast) {
-    ERROR("Tokenizer file syntax error.");
-  }
+  //parser_ctx tpctx;
+  //parser_ctx_init(&tpctx, tokenFile);
+  //tokast = tok_parse_TokenFile(&tpctx);
+  //if (!tokast) {
+  //  ERROR("Tokenizer file syntax error.");
+  //}
 
   // Read the parser's file
   if (args.grammarTarget) {

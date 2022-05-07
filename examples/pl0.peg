@@ -1,0 +1,25 @@
+
+program <- block DOT
+
+block <- CONST IDENT EQ NUM (COMMA IDENT EQ NUM)* SEMI /
+         VAR IDENT (COMMA IDENT)* SEMI /
+         (PROC IDENT SEMI block SEMI)* statement
+
+statement <- IDENT CEQ expression /
+             CALL IDENT /
+             BEGIN statement (SEMI statement)* END /
+             IF condition THEN statement /
+             WHILE condition DO statement
+
+condition <- ODD expression /
+             expression (EQ / HASH / LT / LEQ / GT / GEQ) expression
+
+expression <- (PLUS / MINUS)? term ((PLUS / MINUS) term)*
+
+term <- factor ((STAR / DIV) factor)*
+
+factor <- ident /
+          number /
+          OPEN expression CLOSE
+
+
