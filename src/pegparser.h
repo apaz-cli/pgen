@@ -14,6 +14,10 @@ static inline ASTNode *peg_parse_CodeExpr(parser_ctx *ctx);
 static inline ASTNode *peg_parse_TokIdent(parser_ctx *ctx);
 static inline ASTNode *peg_parse_RuleIdent(parser_ctx *ctx);
 
+/*****************************/
+/* PEG Parser Implementation */
+/*****************************/
+
 static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx) {
 
   // This rule looks a lot like tok_parse_TokenFile().
@@ -202,7 +206,6 @@ static inline ASTNode *peg_parse_BaseExpr(parser_ctx *ctx) {
     WS();
 
     if (IS_CURRENT("<-")) {
-      puts("Arrow.");
       ASTNode_destroy(n);
       REWIND(begin);
       RETURN(NULL);
@@ -308,7 +311,7 @@ static inline ASTNode *peg_parse_TokIdent(parser_ctx *ctx) {
       break;
     }
     codepoint_t c = CURRENT();
-    if (((c < 'A') || (c > 'Z')) & (c != '_'))
+    if (((c < 'A') | (c > 'Z')) & (c != '_'))
       break;
     NEXT();
   }

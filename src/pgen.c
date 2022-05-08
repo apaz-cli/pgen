@@ -1,6 +1,7 @@
-#if 0 // Memory debugging.
-#define MEMDEBUG 1
-#define PRINT_MEMALLOCS 1
+
+#define MEMDEBUG 0
+#if MEMDEBUG // Memory debugging.
+#define PRINT_MEMALLOCS 0
 #include <apaz-libc/memdebug.h>
 #endif
 
@@ -27,12 +28,12 @@ int main(int argc, char **argv) {
     ERROR("Could not read the token file.");
 
   // Parse the tokenizer's AST
-  //parser_ctx tpctx;
-  //parser_ctx_init(&tpctx, tokenFile);
-  //tokast = tok_parse_TokenFile(&tpctx);
-  //if (!tokast) {
-  //  ERROR("Tokenizer file syntax error.");
-  //}
+  parser_ctx tpctx;
+  parser_ctx_init(&tpctx, tokenFile);
+  tokast = tok_parse_TokenFile(&tpctx);
+  if (!tokast) {
+    ERROR("Tokenizer file syntax error.");
+  }
 
   // Read the parser's file
   if (args.grammarTarget) {
@@ -58,6 +59,10 @@ int main(int argc, char **argv) {
   // Clean up memory
   free(tokenFile.str);
   free(parserFile.str);
+
+#if MEMDEBUG
+  print_heap();
+#endif
 
   return 0;
 }

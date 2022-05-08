@@ -54,7 +54,7 @@ static inline void parser_ctx_init(parser_ctx *ctx,
     return (ret);                                                              \
   } while (0)
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 static inline void print_unconsumed(parser_ctx *ctx) {
   Codepoint_String_View cpsv;

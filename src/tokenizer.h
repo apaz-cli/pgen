@@ -65,8 +65,8 @@ static inline pgen_token pgen_tokenizer_next(pgen_tokenizer *tokenizer) {
 
   // TODO remove
   tok.lexeme = TOK_END;
-  tok.view.str = NULL;
-  tok.view.len = 0;
+  tok.start = NULL;
+  tok.len = 0;
   tok.sourceFile = NULL;
   tok.line = 0;
   tok.col = 0;
