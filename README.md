@@ -30,10 +30,11 @@ effortlessly generate Abstract Syntax Trees.
 - [x] Completed `peg` grammar
 - [x] Handwritten `tok` parser
 - [x] Handwritten `peg` parser
-- [ ] AST rewriting passes
+- [ ] Automaton construction and minimization
 - [ ] Tokenizer codegen
-- [ ] Parser codegen
+- [ ] PEG AST rewriting pass
 - [ ] Optimizations
+- [ ] Parser codegen
 - [ ] Finishing polish
 
 
