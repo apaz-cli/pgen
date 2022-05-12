@@ -5,28 +5,44 @@
 #include "list.h"
 #include "ast.h"
 
+// https://gitlab.science.ru.nl/eveen/Bachelor-Thesis/-/blob/master/Implementations/DFA.hpp
+
 struct DFANode;
 typedef struct DFANode DFANode;
 
 typedef struct {
-  ASTNode* charset;
+  ASTNode* on_charset; // NULL is eps.
   int from;
   int to;
 } DFATransition;
+
 LIST_DECLARE(DFATransition);
 LIST_DEFINE(DFATransition);
-
 LIST_DECLARE(int);
 LIST_DEFINE(int);
 
+// Both NFA and DFA. No epsilon transitions.
 typedef struct {
-  list_int accepting_states;
+  list_int           accepting_states;
   list_DFATransition transitions;
-} NFA;
+} Automaton;
 
-typedef struct {
+LIST_DECLARE(Automaton);
+LIST_DEFINE(Automaton);
 
-} DFA
 
+static inline Automaton combineAutomata(list_Automaton automata);
+
+static inline Automaton reverseTransitions(Automaton aut);
+
+static inline Automaton powersetConstruction(Automaton aut);
+
+static inline Automaton brzozowskiAlgorithm(Automaton aut) {
+  aut = reverseTransitions(aut);
+  aut = powersetConstruction(aut);
+  aut = reverseTransitions(aut);
+  aut = powersetConstruction(aut);
+  return aut;
+}
 
 #endif /* PGEN_AUTOMATA_INCLUDE */
