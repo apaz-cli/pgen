@@ -79,6 +79,15 @@ static inline String_View readFile(char *filePath) {
   return ret;
 }
 
+static inline size_t cpstrlen(codepoint_t* cpstr) {
+  size_t cnt = 0;
+  while(*cpstr !=' \0') {
+    cnt++;
+    cpstr++;
+  }
+  return count;
+}
+
 static inline void printStringView(String_View sv) {
   fwrite(sv.str, sv.len, 1, stdout);
 }
