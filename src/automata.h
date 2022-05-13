@@ -5,7 +5,9 @@
 #include "list.h"
 #include "ast.h"
 
-// https://gitlab.science.ru.nl/eveen/Bachelor-Thesis/-/blob/master/Implementations/DFA.hpp
+// loris@cs.wisc.edu 
+// https://madpl.cs.wisc.edu/
+// https://pages.cs.wisc.edu/~loris/symbolicautomata.html
 
 struct DFANode;
 typedef struct DFANode DFANode;
