@@ -23,18 +23,10 @@ LIST_DEFINE(Codepoint_String_View);
 LIST_DECLARE(size_t);
 LIST_DEFINE(size_t);
 
-/*
- * Returns SIZE_MAX on error. There's no worry of that being a legitimate value.
- * Since Stilts only works on 64 bit, we know that size_t is 64 bits.
- * That's over 18 Exabytes.
- */
-static inline size_t fileSize(char *filePath) {
-  struct stat st;
-  return (!stat(filePath, &st)) ? (size_t)st.st_size : SIZE_MAX;
-}
 
 /* Open the file and returns its contents in a string. */
-/* Returns {.str = NULL, .len = 0} on UTF8 parsing error. */
+/* Returns {.str = NULL, .len = 0} on error, and errno is set to indicate the
+ * error. */
 /* Returns {.str = NULL, .len = 1} on OOM. */
 /* {.str} must be freed. */
 static inline String_View readFile(char *filePath) {
@@ -46,9 +38,10 @@ static inline String_View readFile(char *filePath) {
   oom.len = 1;
 
   /* Ask for the length of the file */
-  size_t fsize = fileSize(filePath);
-  if (fsize == SIZE_MAX)
+  struct stat st;
+  if (stat(filePath, &st) == -1)
     return err;
+  size_t fsize = st.st_size;
 
   /* Open the file */
   int fd = open(filePath, O_RDONLY);
@@ -79,13 +72,13 @@ static inline String_View readFile(char *filePath) {
   return ret;
 }
 
-static inline size_t cpstrlen(codepoint_t* cpstr) {
+static inline size_t cpstrlen(codepoint_t *cpstr) {
   size_t cnt = 0;
-  while(*cpstr !=' \0') {
+  while (*cpstr != '\0') {
     cnt++;
     cpstr++;
   }
-  return count;
+  return cnt;
 }
 
 static inline void printStringView(String_View sv) {
@@ -196,7 +189,8 @@ static inline int codepoint_atoi(const codepoint_t *a, size_t len,
 
   size_t ullread;
   unsigned long long ull = codepoint_atoull_nosigns(a, len, &ullread);
-  if (neg ? ull > (unsigned long long)-(long long)INT_MIN : ull > (unsigned long long)INT_MAX)
+  if (neg ? ull > (unsigned long long)-(long long)INT_MIN
+          : ull > (unsigned long long)INT_MAX)
     return *read = 0, 0;
   int l = (int)(neg ? -ull : ull);
 
