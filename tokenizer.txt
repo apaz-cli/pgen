@@ -1,5 +1,6 @@
 # This is not meant to run. It's pseudocode.
 
+# Autonaton evaluation.
 def getToken(ctx, auts):
   # Initialize
   for aut in auts:
