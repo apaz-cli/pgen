@@ -2,3 +2,4 @@
 
 # Build the bootstrap parser
 cc src/pgen.c -o pgen
+./pgen examples/pl0.tok examples/pl0.peg

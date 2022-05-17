@@ -91,7 +91,7 @@ static inline codepoint_t tok_parse_Char(parser_ctx *ctx) {
   RETURN(0);
 }
 
-// num->extra = int
+// num->extra = int(int?)
 // or
 // num->children
 static inline ASTNode *tok_parse_NumSet(parser_ctx *ctx) {
@@ -149,8 +149,8 @@ static inline ASTNode *tok_parse_NumSet(parser_ctx *ctx) {
       node->extra = iptr = (int *)malloc(sizeof(int) * 2);
       if (!iptr)
         OOM();
-      *iptr = range1;
-      *(iptr + 1) = range2;
+      *iptr = MIN(range1, range2);
+      *(iptr + 1) = MAX(range1, range2);
       RETURN(node);
     }
   }
@@ -425,6 +425,7 @@ static inline ASTNode *tok_parse_LitDef(parser_ctx *ctx) {
 // smdef->children[0] is the set of accepting states.
 // smdef->children[1] and onward is a list of rules.
 // rule->children[0] is a pair.
+// rule->extra is the next state.
 static inline ASTNode *tok_parse_SMDef(parser_ctx *ctx) {
 
   RULE_BEGIN("SMDef");

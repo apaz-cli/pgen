@@ -8,10 +8,11 @@
 #include "argparse.h"
 #include "tokparser.h"
 #include "pegparser.h"
+#include "automata.h"
 #include "codegen.h"
 
-int main(int argc, char **argv) {
 
+int main(int argc, char **argv) {
 
   ASTNode* tokast = NULL, *pegast = NULL;
 
@@ -49,6 +50,10 @@ int main(int argc, char **argv) {
       ERROR("Parser file syntax error.");
     }
   }
+
+  // Create the automata.
+  list_Automaton auts = createAutomata(tokast);
+
 
   // Write the file
   codegen_ctx cctx;

@@ -103,7 +103,7 @@ static inline void tok_write_header(codegen_ctx *ctx) {
 
 static inline void tok_write_toklist(codegen_ctx *ctx) {
   size_t num_defs = ctx->tokast->num_children;
-  fprintf(ctx->f, "#define %s_TOKENS ", ctx->prefix_upper);
+  fprintf(ctx->f, "#define %s_TOKENS %s_END ", ctx->prefix_upper);
   for (size_t i = 0; i < num_defs; i++) {
     fprintf(ctx->f, "%s, ", (char *)(ctx->tokast->children[i]->children[0]->extra));
   }
