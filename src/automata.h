@@ -73,7 +73,7 @@ static inline list_Automaton createAutomata(ASTNode *tokast) {
   Automaton trie;
   trie.trans = list_Transition_new();
   trie.accepting = list_State_new();
-  // For each token literal in the AST, convert it to a trie SFT,
+  // For each token literal in the AST, add it as a path to the trie.
   int state_num = 1; // 0 is the trie root.
   for (size_t n = 0; n < tokast->num_children; n++) {
 
@@ -119,17 +119,17 @@ static inline list_Automaton createAutomata(ASTNode *tokast) {
         list_Transition_add(&trie.trans, trans);
         printf("Created a transition from %i to %i on '%c'.\n", trans.from,
                trans.to, (char)trans.on.c);
+      }
 
-        // If the state we just created is the last character in the string,
-        // it's accepting.
-        if (i == (cplen - 1)) {
-          State s;
-          s.rule = rule;
-          s.num = trans.to;
-          list_State_add(&trie.accepting, s);
-          printf("Marked %i as an accepting state for rule %s.\n", s.num,
-                 identstr);
-        }
+      // If the state we just created is the last character in the string,
+      // it's accepting.
+      if (i == (cplen - 1)) {
+        State s;
+        s.rule = rule;
+        s.num = trans.to;
+        list_State_add(&trie.accepting, s);
+        printf("Marked %i as an accepting state for rule %s.\n", s.num,
+               identstr);
       }
 
       // Traverse over the transition.
@@ -190,16 +190,16 @@ static inline list_Automaton createAutomata(ASTNode *tokast) {
         list_Transition_add(&aut.trans, t);
       } // starting state in rule
     }   // rule in smdef
-
     list_Automaton_add(&auts, aut);
-  } // smdef in tokast
+  } // automaton for smdef in tokast
 
   // TODO remove test print
   for (size_t k = 0; k < auts.len; k++) {
     Automaton aut = list_Automaton_get(&auts, k);
     for (size_t i = 0; i < aut.accepting.len; i++) {
       State s = list_State_get(&aut.accepting, i);
-      printf("Accepting state: (%i, %s)\n", s.num, (char*)s.rule->children[0]->extra);
+      printf("Accepting state: (%i, %s)\n", s.num,
+             (char *)s.rule->children[0]->extra);
     }
     for (size_t i = 0; i < aut.trans.len; i++) {
       Transition t = list_Transition_get(&aut.trans, i);

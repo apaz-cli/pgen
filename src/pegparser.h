@@ -1,7 +1,6 @@
 #ifndef PGEN_INCLUDE_PEGPARSER
 #define PGEN_INCLUDE_PEGPARSER
 #include "parserctx.h"
-#include "tokparser.h" // TODO remove this.
 
 static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx);
 static inline ASTNode *peg_parse_Definition(parser_ctx *ctx);
