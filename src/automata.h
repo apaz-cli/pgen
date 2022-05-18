@@ -5,6 +5,8 @@
 #include "utf8.h"
 #include "util.h"
 
+#define AUT_PRINT 0
+
 // loris@cs.wisc.edu
 // https://madpl.cs.wisc.edu/
 // https://pages.cs.wisc.edu/~loris/symbolicautomata.html
@@ -62,14 +64,63 @@ static inline list_int numset_to_list(ASTNode *numset) {
   return l;
 }
 
-// TODO make sure no duplicate LitDefs in the tokast.
-// Make sure none of the tokens are named _END or END.
+static inline void validateTokast(ASTNode *tokast) {
+  // Cross compare for duplicate rules.
+  // Also make sure that there's no token named STREAMEND.
+  for (size_t n = 0; n < tokast->num_children; n++) {
+    ASTNode *rule1 = tokast->children[n];
+    ASTNode *def1 = rule1->children[1];
+    codepoint_t *cpstr1 = (codepoint_t *)def1->extra;
+    char *identstr1 = (char *)rule1->children[0]->extra;
+    if (strcmp(identstr1, "STREAMEND") == 0) {
+      fprintf(stderr, "Error: Tokenizer rules cannot be named STREAMEND, "
+                      "because it's reserved for end of token stream.\n");
+      exit(1);
+    }
+    if (strcmp(def1->name, "LitDef") != 0)
+      continue;
+
+    for (size_t j = 0; j < tokast->num_children; j++) {
+      if (j == n)
+        continue;
+
+      ASTNode *rule2 = tokast->children[j];
+      ASTNode *def2 = rule2->children[1];
+      codepoint_t *cpstr2 = (codepoint_t *)def2->extra;
+      char *identstr2 = (char *)rule2->children[0]->extra;
+      if (strcmp(def2->name, "LitDef") != 0)
+        continue;
+
+      {
+        if (strcmp(identstr1, identstr2) == 0) {
+          fprintf(stderr, "Error: There are two or more rules named %s.\n",
+                  identstr1);
+          exit(1);
+        }
+
+        if (cpstr_equals(cpstr1, cpstr2)) {
+          fprintf(stderr, "Error: Tokenizer literals %s and %s are equal.\n",
+                  identstr1, identstr2);
+          Codepoint_String_View cpsv;
+          cpsv.str = cpstr1;
+          cpsv.len = cpstrlen(cpstr1);
+          String_View sv = UTF8_encode_view(cpsv);
+          fprintf(stderr, "str: %s\n", sv.str);
+          exit(1);
+        }
+      }
+    }
+  }
+}
 
 static inline list_Automaton createAutomata(ASTNode *tokast) {
+  validateTokast(tokast);
+
   list_Automaton auts = list_Automaton_new();
 
   // Build the trie automaton.
-  puts("Building the Trie automaton.");
+  if (AUT_PRINT)
+    puts("Building the Trie automaton.");
   Automaton trie;
   trie.trans = list_Transition_new();
   trie.accepting = list_State_new();
@@ -91,7 +142,8 @@ static inline list_Automaton createAutomata(ASTNode *tokast) {
     size_t cplen = cpstrlen(cpstr);
     for (size_t i = 0; i < cplen; i++) {
       codepoint_t c = cpstr[i];
-      printf("Current: %c\n", (char)c);
+      if (AUT_PRINT)
+        printf("Current: %c\n", (char)c);
 
       // Try to find the next state after the transition of c.
       // See if we've already created a transition from where we are in the trie
@@ -103,8 +155,9 @@ static inline list_Automaton createAutomata(ASTNode *tokast) {
         if ((t.from == prev_state) & (t.on.c == c)) {
           found = true;
           trans = t;
-          printf("Found a transition from %i to %i on '%c'.\n", trans.from,
-                 trans.to, (char)trans.on.c);
+          if (AUT_PRINT)
+            printf("Found a transition from %i to %i on '%c'.\n", trans.from,
+                   trans.to, (char)trans.on.c);
           break;
         }
       }
@@ -117,8 +170,9 @@ static inline list_Automaton createAutomata(ASTNode *tokast) {
         trans.is_act = 0;
         trans.on.c = c;
         list_Transition_add(&trie.trans, trans);
-        printf("Created a transition from %i to %i on '%c'.\n", trans.from,
-               trans.to, (char)trans.on.c);
+        if (AUT_PRINT)
+          printf("Created a transition from %i to %i on '%c'.\n", trans.from,
+                 trans.to, (char)trans.on.c);
       }
 
       // If the state we just created is the last character in the string,
@@ -128,8 +182,9 @@ static inline list_Automaton createAutomata(ASTNode *tokast) {
         s.rule = rule;
         s.num = trans.to;
         list_State_add(&trie.accepting, s);
-        printf("Marked %i as an accepting state for rule %s.\n", s.num,
-               identstr);
+        if (AUT_PRINT)
+          printf("Marked %i as an accepting state for rule %s.\n", s.num,
+                 identstr);
       }
 
       // Traverse over the transition.
@@ -154,7 +209,8 @@ static inline list_Automaton createAutomata(ASTNode *tokast) {
     if (strcmp(def->name, "SMDef") != 0)
       continue;
 
-    printf("Building automaton %zu.\n", auts.len);
+    if (AUT_PRINT)
+      printf("Building automaton %zu.\n", auts.len);
 
     // Grab the accepting states.
     ASTNode *accepting = def->children[0];
@@ -176,7 +232,8 @@ static inline list_Automaton createAutomata(ASTNode *tokast) {
       ASTNode *startingStates = pair->children[0];
       ASTNode *onCharset = pair->children[1];
       int toState = *(int *)rule->extra;
-      printf("Parsing rule %zu.\n", k);
+      if (AUT_PRINT)
+        printf("Parsing rule %zu.\n", k);
 
       // For each starting state, make a transition to the end state on the
       // charset.
@@ -193,22 +250,23 @@ static inline list_Automaton createAutomata(ASTNode *tokast) {
     list_Automaton_add(&auts, aut);
   } // automaton for smdef in tokast
 
-  // TODO remove test print
-  for (size_t k = 0; k < auts.len; k++) {
-    Automaton aut = list_Automaton_get(&auts, k);
-    for (size_t i = 0; i < aut.accepting.len; i++) {
-      State s = list_State_get(&aut.accepting, i);
-      printf("Accepting state: (%i, %s)\n", s.num,
-             (char *)s.rule->children[0]->extra);
+  if (AUT_PRINT) {
+    for (size_t k = 0; k < auts.len; k++) {
+      Automaton aut = list_Automaton_get(&auts, k);
+      for (size_t i = 0; i < aut.accepting.len; i++) {
+        State s = list_State_get(&aut.accepting, i);
+        printf("Accepting state: (%i, %s)\n", s.num,
+               (char *)s.rule->children[0]->extra);
+      }
+      for (size_t i = 0; i < aut.trans.len; i++) {
+        Transition t = list_Transition_get(&aut.trans, i);
+        if (t.is_act)
+          printf("Transition: (%i, %p) -> (%i)\n", t.from, t.on.act, t.to);
+        else
+          printf("Transition: (%i, '%c') -> (%i)\n", t.from, t.on.c, t.to);
+      }
+      fflush(stdout);
     }
-    for (size_t i = 0; i < aut.trans.len; i++) {
-      Transition t = list_Transition_get(&aut.trans, i);
-      if (t.is_act)
-        printf("Transition: (%i, %p) -> (%i)\n", t.from, t.on.act, t.to);
-      else
-        printf("Transition: (%i, '%c') -> (%i)\n", t.from, t.on.c, t.to);
-    }
-    fflush(stdout);
   }
 
   return auts;

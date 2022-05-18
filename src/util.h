@@ -23,7 +23,6 @@ LIST_DEFINE(Codepoint_String_View);
 LIST_DECLARE(size_t);
 LIST_DEFINE(size_t);
 
-
 /* Open the file and returns its contents in a string. */
 /* Returns {.str = NULL, .len = 0} on error, and errno is set to indicate the
  * error. */
@@ -79,6 +78,12 @@ static inline size_t cpstrlen(codepoint_t *cpstr) {
     cpstr++;
   }
   return cnt;
+}
+
+static inline bool cpstr_equals(codepoint_t *str1, codepoint_t *str2) {
+  while (*str1 && (*str1 == *str2))
+    str1++, str2++;
+  return *str1 == *str2;
 }
 
 static inline void printStringView(String_View sv) {

@@ -1,6 +1,5 @@
-#pragma once
-#ifndef STDLIB_UTF8
-#define STDLIB_UTF8
+#ifndef PGEN_UTF8
+#define PGEN_UTF8
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -245,4 +244,4 @@ static inline String_View UTF8_encode_view(Codepoint_String_View view) {
   return UTF8_encode(view.str, view.len);
 }
 
-#endif /* STDLIB_UTF8 */
+#endif /* PGEN_UTF8 */

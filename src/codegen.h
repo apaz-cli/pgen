@@ -23,7 +23,7 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
   ctx->pegast = pegast;
 
   // Parse prefix from tokenizer file name.
-  char* pref_start = args.tokenizerTarget;
+  char *pref_start = args.tokenizerTarget;
   size_t tokstart = strlen(args.tokenizerTarget);
 
   // Figure out where to start parsing from.
@@ -56,7 +56,7 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
     // Copy up to the first invalid character
     // If it's been hit, copy the null terminator.
     if ((low != '_') & ((low < 'a') | (low > 'z')))
-      if ((low < '0' | low > '9'))
+      if ((low<'0' | low> '9'))
         break;
 
     ctx->prefix_lower[i] = low;
@@ -68,7 +68,7 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
   // Create/open the file prefix.h if -o was not an argument,
   // otherwise the -o target.
   char namebuf[PGEN_PREFIX_LEN + 2]; // Doesn't overflow.
-  char* write_to;
+  char *write_to;
   if (!args.outputTarget) {
     sprintf(namebuf, "%s.h", ctx->prefix_lower);
     write_to = namebuf;
@@ -97,15 +97,21 @@ static inline void tok_write_header(codegen_ctx *ctx) {
   fprintf(ctx->f,
           "#ifndef %s_TOKENIZER_INCLUDE\n"
           "#define %s_TOKENIZER_INCLUDE\n"
-          "#include \"utf8.h\"\n\n",
-          ctx->prefix_upper, ctx->prefix_upper);
+          "#include \"utf8.h\"\n\n"
+          "#ifndef %s_TOKENIZER_SOURCEINFO\n"
+          "#define %s_TOKENIZER_SOURCEINFO 1\n"
+          "#endif\n\n",
+          ctx->prefix_upper, ctx->prefix_upper, ctx->prefix_upper,
+          ctx->prefix_upper);
 }
 
 static inline void tok_write_toklist(codegen_ctx *ctx) {
   size_t num_defs = ctx->tokast->num_children;
-  fprintf(ctx->f, "#define %s_TOKENS %s_END ", ctx->prefix_upper);
+  fprintf(ctx->f, "#define %s_TOKENS %s_TOK_STREAMEND ", ctx->prefix_upper,
+          ctx->prefix_upper);
   for (size_t i = 0; i < num_defs; i++) {
-    fprintf(ctx->f, "%s, ", (char *)(ctx->tokast->children[i]->children[0]->extra));
+    fprintf(ctx->f, "%s_TOK_%s, ", ctx->prefix_upper,
+            (char *)(ctx->tokast->children[i]->children[0]->extra));
   }
   fprintf(ctx->f, "\n\n");
 }
@@ -136,7 +142,7 @@ static inline void tok_write_tokenstruct(codegen_ctx *ctx) {
           ctx->prefix_lower, ctx->prefix_lower);
 }
 
-static inline void tok_write_tokenizerstruct(codegen_ctx* ctx) {
+static inline void tok_write_tokenizerstruct(codegen_ctx *ctx) {
   fprintf(ctx->f,
           "typedef struct {\n"
           "} %s_tokenizer;\n\n",
