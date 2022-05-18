@@ -1,6 +1,7 @@
 #ifndef TOKCODEGEN_INCLUDE
 #define TOKCODEGEN_INCLUDE
 #include "argparse.h"
+#include "automata.h"
 #include "parserctx.h"
 
 /*******/
@@ -12,15 +13,21 @@ typedef struct {
   FILE *f;
   ASTNode *tokast;
   ASTNode *pegast;
+  TrieAutomaton trie;
+  list_SMAutomaton smauts;
   char prefix_lower[PGEN_PREFIX_LEN];
   char prefix_upper[PGEN_PREFIX_LEN];
 } codegen_ctx;
 
 static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
-                                    ASTNode *tokast, ASTNode *pegast) {
+                                    ASTNode *tokast, ASTNode *pegast,
+                                    TrieAutomaton trie,
+                                    list_SMAutomaton smauts) {
 
   ctx->tokast = tokast;
   ctx->pegast = pegast;
+  ctx->trie = trie;
+  ctx->smauts = smauts;
 
   // Parse prefix from tokenizer file name.
   char *pref_start = args.tokenizerTarget;

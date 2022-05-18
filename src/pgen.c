@@ -8,6 +8,7 @@
 #include "argparse.h"
 #include "tokparser.h"
 #include "pegparser.h"
+#include "astvalid.h"
 #include "automata.h"
 #include "codegen.h"
 
@@ -51,13 +52,17 @@ int main(int argc, char **argv) {
     }
   }
 
-  // Create the automata.
-  list_Automaton auts = createAutomata(tokast);
+  // Validate the ASTs.
+  validateTokast(tokast);
+  validatePegast(pegast);
 
+  // Create the automata (Tokenizer IR).
+  TrieAutomaton trie = createTrieAutomaton(tokast);
+  list_SMAutomaton smauts = createSMAutomata(tokast);
 
-  // Write the file
+  // Codegen
   codegen_ctx cctx;
-  codegen_ctx_init(&cctx, args, tokast, pegast);
+  codegen_ctx_init(&cctx, args, tokast, pegast, trie, smauts);
   codegen_write(&cctx);
   codegen_ctx_destroy(&cctx);
 
