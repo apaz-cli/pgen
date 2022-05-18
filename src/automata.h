@@ -4,8 +4,10 @@
 #include "list.h"
 #include "utf8.h"
 #include "util.h"
+#include <stdio.h>
 
 #define AUT_PRINT 0
+#define AUT_DEBUG 0
 
 // loris@cs.wisc.edu
 // https://madpl.cs.wisc.edu/
@@ -53,6 +55,9 @@ LIST_DEFINE(TrieAutomaton);
 LIST_DECLARE(SMAutomaton);
 LIST_DEFINE(SMAutomaton);
 
+// TODO What if there is no trie?
+// TODO How will the tokenizer consume whitespace?
+
 static inline list_int numset_to_list(ASTNode *numset) {
   list_int l = list_int_new();
   if (strcmp(numset->name, "Num") == 0) {
@@ -76,7 +81,7 @@ static inline list_int numset_to_list(ASTNode *numset) {
   return l;
 }
 
-static inline list_int int_list_sort(list_int l) {
+static inline list_int list_int_sort(list_int l) {
   int temp;
   size_t interval, i, j;
   for (interval = l.len / 2; interval > 0; interval /= 2) {
@@ -92,10 +97,20 @@ static inline list_int int_list_sort(list_int l) {
   return l;
 }
 
+static inline void list_int_print(FILE *stream, list_int l) {
+  if (!l.len)
+    return;
+
+  fprintf(stream, "(%i", l.buf[0]);
+  for (size_t i = 1; i < l.len; i++)
+    fprintf(stream, ", %i", l.buf[i]);
+  fputc(')', stream);
+}
+
 static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
 
   // Build the trie automaton.
-  if (AUT_PRINT)
+  if (AUT_DEBUG)
     puts("Building the Trie automaton.");
 
   TrieAutomaton trie;
@@ -119,7 +134,7 @@ static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
     size_t cplen = cpstrlen(cpstr);
     for (size_t i = 0; i < cplen; i++) {
       codepoint_t c = cpstr[i];
-      if (AUT_PRINT)
+      if (AUT_DEBUG)
         printf("Current: %c\n", (char)c);
 
       // Try to find the next state after the transition of c.
@@ -132,7 +147,7 @@ static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
         if ((t.from == prev_state) & (t.c == c)) {
           found = true;
           trans = t;
-          if (AUT_PRINT)
+          if (AUT_DEBUG)
             printf("Found a transition from %i to %i on '%c'.\n", trans.from,
                    trans.to, (char)trans.c);
           break;
@@ -146,7 +161,7 @@ static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
         trans.to = state_num++;
         trans.c = c;
         list_TrieTransition_add(&trie.trans, trans);
-        if (AUT_PRINT)
+        if (AUT_DEBUG)
           printf("Created a transition from %i to %i on '%c'.\n", trans.from,
                  trans.to, (char)trans.c);
       }
@@ -158,7 +173,7 @@ static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
         s.rule = rule;
         s.num = trans.to;
         list_State_add(&trie.accepting, s);
-        if (AUT_PRINT)
+        if (AUT_DEBUG)
           printf("Marked %i as an accepting state for rule %s.\n", s.num,
                  identstr);
       }
@@ -167,6 +182,9 @@ static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
       prev_state = trans.to;
     } // c in cpstr
   }   // litdef in tokast
+
+  if (AUT_DEBUG)
+    printf("Finished building the Trie automaton.\n");
 
   if (AUT_PRINT) {
     TrieAutomaton aut = trie;
@@ -177,7 +195,7 @@ static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
     }
     for (size_t i = 0; i < aut.trans.len; i++) {
       TrieTransition t = list_TrieTransition_get(&aut.trans, i);
-      printf("Transition: (%i+, %c) -> (%i)\n", t.from, t.c, t.to);
+      printf("Transition: (%i, %c) -> (%i)\n", t.from, t.c, t.to);
     }
     fflush(stdout);
   }
@@ -202,7 +220,7 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
     if (strcmp(def->name, "SMDef") != 0)
       continue;
 
-    if (AUT_PRINT)
+    if (AUT_DEBUG)
       printf("Building automaton %zu.\n", auts.len);
 
     // Grab the accepting states.
@@ -225,13 +243,13 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
       ASTNode *startingStates = pair->children[0];
       ASTNode *onCharset = pair->children[1];
       int toState = *(int *)rule->extra;
-      if (AUT_PRINT)
+      if (AUT_DEBUG)
         printf("Parsing rule %zu.\n", k);
 
       // For each starting state, make a transition to the end state on the
       // charset.
       SMTransition t;
-      t.from = int_list_sort(numset_to_list(startingStates));
+      t.from = list_int_sort(numset_to_list(startingStates));
       t.to = toState;
       t.act = onCharset;
       list_SMTransition_add(&aut.trans, t);
@@ -239,6 +257,9 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
     } // rule in smdef
     list_SMAutomaton_add(&auts, aut);
   } // automaton for smdef in tokast
+
+  if (AUT_DEBUG)
+    printf("Finished building the SM automata.\n");
 
   if (AUT_PRINT) {
     for (size_t k = 0; k < auts.len; k++) {
@@ -250,8 +271,9 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
       }
       for (size_t i = 0; i < aut.trans.len; i++) {
         SMTransition t = list_SMTransition_get(&aut.trans, i);
-        printf("Transition: (%i+, %p) -> (%i)\n", list_int_get(&t.from, 0),
-               t.act, t.to);
+        printf("Transition: (");
+        list_int_print(stdout, t.from);
+        printf(", %p) -> (%i)\n", t.act, t.to);
       }
       fflush(stdout);
     }

@@ -15,17 +15,14 @@ def getToken(ctx, auts):
     all_dead = True
     for aut, aidx in enumerate(auts):
       # No need to step what's already dead.
-      if !aut.dead:
+      if not current_states[aidx] == -1:
+        # Step automaton state, note if it accepted and where.
+        # Keep track of the last time each automata
+        # accepted before it died.
         all_dead = False
-      else:
-        continue
-
-      # Step automaton state, note if it accepted and where.
-      # Keep track of the last time each automata
-      # accepted before it died.
-      current_state[aidx] = aut.transition(c)
-      if aut.accepting:
-        last_accept[] = iidx + 1;
+        current_state[aidx] = aut.transition(c)
+        if aut.accepting:
+          last_accept[aidx] = iidx + 1
 
     if all_dead:
       break

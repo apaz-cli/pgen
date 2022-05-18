@@ -101,10 +101,11 @@ static inline void codegen_ctx_destroy(codegen_ctx *ctx) {
 /*************/
 
 static inline void tok_write_header(codegen_ctx *ctx) {
+  // TODO move utf8 include path.
   fprintf(ctx->f,
           "#ifndef %s_TOKENIZER_INCLUDE\n"
           "#define %s_TOKENIZER_INCLUDE\n"
-          "#include \"utf8.h\"\n\n"
+          "#include \"src/utf8.h\"\n\n"
           "#ifndef %s_TOKENIZER_SOURCEINFO\n"
           "#define %s_TOKENIZER_SOURCEINFO 1\n"
           "#endif\n\n",
@@ -114,7 +115,7 @@ static inline void tok_write_header(codegen_ctx *ctx) {
 
 static inline void tok_write_toklist(codegen_ctx *ctx) {
   size_t num_defs = ctx->tokast->num_children;
-  fprintf(ctx->f, "#define %s_TOKENS %s_TOK_STREAMEND ", ctx->prefix_upper,
+  fprintf(ctx->f, "#define %s_TOKENS %s_TOK_STREAMEND, ", ctx->prefix_upper,
           ctx->prefix_upper);
   for (size_t i = 0; i < num_defs; i++) {
     fprintf(ctx->f, "%s_TOK_%s, ", ctx->prefix_upper,
@@ -131,8 +132,8 @@ static inline void tok_write_enum(codegen_ctx *ctx) {
           ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_upper);
 
   fprintf(ctx->f,
-          "static size_t %s_num_tokids = sizeof(_%s_num_tokids)"
-          " / sizeof(%s_token_id);\n\n",
+          "static size_t %s_num_tokens = (sizeof(_%s_num_tokids)"
+          " / sizeof(%s_token_id)) - 1;\n\n",
           ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_lower);
 }
 
@@ -142,18 +143,111 @@ static inline void tok_write_tokenstruct(codegen_ctx *ctx) {
           "  %s_token_id lexeme;\n"
           "  codepoint_t* start;\n"
           "  size_t len;\n"
+          "#if %s_TOKENIZER_SOURCEINFO\n"
           "  size_t line;\n"
-          "  size_t col;"
+          "  size_t col;\n"
           "  char* sourceFile;\n"
+          "#endif\n"
           "} %s_token;\n\n",
-          ctx->prefix_lower, ctx->prefix_lower);
+          ctx->prefix_lower, ctx->prefix_upper, ctx->prefix_lower);
 }
 
-static inline void tok_write_tokenizerstruct(codegen_ctx *ctx) {
+static inline void tok_write_ctxstruct(codegen_ctx *ctx) {
   fprintf(ctx->f,
           "typedef struct {\n"
+          "  codepoint_t* start;\n"
+          "  size_t len;\n"
+          "  size_t pos;\n"
+          "#if %s_TOKENIZER_SOURCEINFO\n"
+          "  size_t pos_line;\n"
+          "  size_t pos_col;\n"
+          "  char* pos_sourceFile;\n"
+          "#endif\n"
           "} %s_tokenizer;\n\n",
-          ctx->prefix_lower);
+          ctx->prefix_upper, ctx->prefix_lower);
+
+  fprintf(ctx->f,
+          "static inline void %s_tokenizer_init(%s_tokenizer* tokenizer, char* "
+          "sourceFile, codepoint_t* start, size_t len) {\n"
+          "  tokenizer->start = start;\n"
+          "  tokenizer->len = len;\n"
+          "  tokenizer->pos = 0;\n"
+          "#if %s_TOKENIZER_SOURCEINFO\n"
+          "  tokenizer->pos_line = 0;\n"
+          "  tokenizer->pos_col = 0;\n"
+          "  tokenizer->pos_sourceFile = sourceFile;\n"
+          "#else\n"
+          "  (void)sourceFile;\n"
+          "#endif\n"
+          "}\n\n",
+          ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_upper);
+}
+
+static inline void tok_write_smauts(codegen_ctx *ctx) {
+  list_SMAutomaton smauts = ctx->smauts;
+  for (size_t i = 0; i < smauts.len; i++) {
+    SMAutomaton smaut = smauts.buf[i];
+  }
+}
+
+static inline void tok_write_trie(codegen_ctx *ctx) {}
+
+static inline void tok_write_nexttoken(codegen_ctx *ctx) {
+  // See tokenizer.txt.
+
+  TrieAutomaton trie = ctx->trie;
+  list_SMAutomaton smauts = ctx->smauts;
+  int has_trie = trie.accepting.len ? 1 : 0;
+  int has_smauts = smauts.len ? 1 : 0;
+
+  fprintf(ctx->f,
+          "static inline %s_token %s_nextToken(%s_tokenizer* tokenizer) {\n"
+          "  codepoint_t* current = tokenizer->start + tokenizer->pos;\n"
+          "  size_t remaining = tokenizer->len - tokenizer->pos;\n"
+          "  %s_token ret;\n"
+          "#if %s_TOKENIZER_SOURCEINFO\n"
+          "  ret.line = tokenizer->pos_line;\n"
+          "  ret.col = tokenizer->pos_col;\n"
+          "  ret.sourceFile = tokenizer->pos_sourceFile;\n"
+          "#endif\n\n",
+          ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_lower,
+          ctx->prefix_lower, ctx->prefix_upper);
+
+  fprintf(ctx->f, "  size_t last_accept[%zu];\n", smauts.len + has_trie);
+  fprintf(ctx->f, "  int current_states[%zu];\n", smauts.len + has_trie);
+  fprintf(ctx->f, "  for (size_t i = 0; i < %zu; i++)\n",
+          smauts.len + has_trie);
+  fprintf(ctx->f, "    last_accept[i] = 0, current_states[i] = 0;\n\n");
+
+  fprintf(ctx->f, "  for (size_t iidx = 0; iidx < remaining; iidx++) {\n");
+  fprintf(ctx->f, "    int all_dead = 1;\n");
+
+  // Write automaton transitions in inner loop.
+
+  // Trie aut
+  if (trie.accepting.len) {
+    fprintf(ctx->f, "    // Trie\n");
+    fprintf(ctx->f, "    if (current_states[0] != -1) {\n");
+    fprintf(ctx->f, "      all_dead = 0;\n");
+    fprintf(ctx->f, "      \n");
+    fprintf(ctx->f, "    }\n\n");
+  }
+
+  // SM auts
+  fprintf(ctx->f, "    // State Machines\n");
+  for (size_t a = 0; a < smauts.len; a++) {
+    SMAutomaton smaut = smauts.buf[a];
+    size_t aut_num = a + has_trie;
+    fprintf(ctx->f, "    if (current_states[%zu] != -1) {\n", aut_num);
+    fprintf(ctx->f, "      all_dead = 0;\n");
+    fprintf(ctx->f, "      \n");
+    fprintf(ctx->f, "    }\n\n");
+  }
+  fprintf(ctx->f, "    if (all_dead)\n      break;\n");
+
+  fprintf(ctx->f, "  }\n\n"); // For each remaining character
+  fprintf(ctx->f, "  return ret;\n");
+  fprintf(ctx->f, "}\n\n"); // end function
 }
 
 static inline void tok_write_footer(codegen_ctx *ctx) {
@@ -168,6 +262,10 @@ static inline void codegen_write_tokenizer(codegen_ctx *ctx) {
   tok_write_enum(ctx);
 
   tok_write_tokenstruct(ctx);
+
+  tok_write_ctxstruct(ctx);
+
+  tok_write_nexttoken(ctx);
 
   tok_write_footer(ctx);
 }
