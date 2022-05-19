@@ -522,7 +522,7 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         else smaut_0_current_state = -1;
       }
       else {
-        trie_current_state = -1;
+        smaut_0_current_state = -1;
       }
     }
 
@@ -540,7 +540,7 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         else smaut_1_current_state = -1;
       }
       else {
-        trie_current_state = -1;
+        smaut_1_current_state = -1;
       }
     }
 

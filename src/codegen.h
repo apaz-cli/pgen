@@ -98,9 +98,10 @@ static inline void codegen_ctx_destroy(codegen_ctx *ctx) {
     ASTNode_destroy(ctx->pegast);
 }
 
-/**/
+/****************/
+/* UTF8 Library */
+/****************/
 
-/* UTF8 */
 static inline void write_utf8_lib(codegen_ctx *ctx) {
 #include "strutf8.xxd"
   fprintf(ctx->f, "%s", (char *)src_utf8_h);
@@ -337,7 +338,7 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
       fprintf(ctx->f, "      }\n");
     }
     fprintf(ctx->f, "      else {\n");
-    fprintf(ctx->f, "        trie_current_state = -1;\n");
+    fprintf(ctx->f, "        smaut_%zu_current_state = -1;\n", a);
     fprintf(ctx->f, "      }\n");
     fprintf(ctx->f, "    }\n\n");
   }
