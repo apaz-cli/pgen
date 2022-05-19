@@ -4,9 +4,8 @@
 #include "list.h"
 #include "utf8.h"
 #include "util.h"
-#include <stdio.h>
 
-#define AUT_PRINT 0
+#define AUT_PRINT 1
 #define AUT_DEBUG 0
 
 // loris@cs.wisc.edu
@@ -107,6 +106,28 @@ static inline void list_int_print(FILE *stream, list_int l) {
   fputc(')', stream);
 }
 
+static inline int trieTransition_compare(const void *trans1,
+                                         const void *trans2) {
+  TrieTransition t1 = *(TrieTransition *)trans1, t2 = *(TrieTransition *)trans2;
+
+  if (t1.from < t2.from)
+    return -1;
+  if (t1.from > t2.from)
+    return 1;
+
+  if (t1.c < t2.c)
+    return -1;
+  if (t1.c > t2.c)
+    return 1;
+
+  if (t1.to < t2.to)
+    return -1;
+  if (t1.to > t2.to)
+    return 1;
+
+  return 0;
+}
+
 static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
 
   // Build the trie automaton.
@@ -182,6 +203,11 @@ static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
       prev_state = trans.to;
     } // c in cpstr
   }   // litdef in tokast
+
+  // Sort the trie transitions.
+  // First by from, then by to, then by char.
+  qsort(trie.trans.buf, trie.trans.len, sizeof(TrieTransition),
+        trieTransition_compare);
 
   if (AUT_DEBUG)
     printf("Finished building the Trie automaton.\n");

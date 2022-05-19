@@ -3,4 +3,4 @@
 # Build the bootstrap parser
 rm pgen 2>/dev/null
 cc src/pgen.c -o pgen
-./pgen examples/pl0.tok examples/pl0.peg
+./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h

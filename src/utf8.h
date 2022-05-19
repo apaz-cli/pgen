@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>
+
 
 #define UTF8_END -1 // 1111 1111
 #define UTF8_ERR -2 // 1111 1110
@@ -13,6 +15,8 @@
  */
 
 typedef int32_t codepoint_t;
+#define PRI_CODEPOINT PRIu32 
+
 
 typedef struct {
   char *str;

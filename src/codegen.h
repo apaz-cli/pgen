@@ -3,6 +3,7 @@
 #include "argparse.h"
 #include "automata.h"
 #include "parserctx.h"
+#include "utf8.h"
 
 /*******/
 /* ctx */
@@ -105,7 +106,7 @@ static inline void tok_write_header(codegen_ctx *ctx) {
   fprintf(ctx->f,
           "#ifndef %s_TOKENIZER_INCLUDE\n"
           "#define %s_TOKENIZER_INCLUDE\n"
-          "#include \"src/utf8.h\"\n\n"
+          "#include \"../src/utf8.h\"\n\n"
           "#ifndef %s_TOKENIZER_SOURCEINFO\n"
           "#define %s_TOKENIZER_SOURCEINFO 1\n"
           "#endif\n\n",
@@ -214,27 +215,63 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
           ctx->prefix_lower, ctx->prefix_upper);
 
   // Variables for each automaton for the current run.
-  size_t num_auts = smauts.len + has_trie;
-  fprintf(ctx->f, "  size_t last_accept[%zu] = { 0", num_auts);
-  for (size_t i = 1; i < num_auts; i++)
-    fprintf(ctx->f, ", 0");
-  fprintf(ctx->f, " };\n");
-  fprintf(ctx->f, "  int current_states[%zu] = { 0", num_auts);
-  for (size_t i = 1; i < num_auts; i++)
-    fprintf(ctx->f, ", 0");
-  fprintf(ctx->f, " };\n\n");
+
+  fprintf(ctx->f, "  int trie_current_state = 0;\n");
+  fprintf(ctx->f, "  size_t trie_last_accept = 0;\n");
+  for (size_t i = 0; i < smauts.len; i++) {
+    fprintf(ctx->f, "  int smaut_%zu_current_state = 0;\n", i);
+    fprintf(ctx->f, "  size_t smaut_%zu_last_accept = 0;\n", i);
+  }
+  fprintf(ctx->f, "\n\n");
 
   // Outer loop
   fprintf(ctx->f, "  for (size_t iidx = 0; iidx < remaining; iidx++) {\n");
-  fprintf(ctx->f, "    int all_dead = 1;\n");
+  fprintf(ctx->f, "    codepoint_t c = current[iidx];\n\n");
+  fprintf(ctx->f, "    int all_dead = 1;\n\n");
 
   // Inner loop (automaton, unrolled)
   // Trie aut
   if (trie.accepting.len) {
     fprintf(ctx->f, "    // Trie\n");
-    fprintf(ctx->f, "    if (current_states[0] != -1) {\n");
-    fprintf(ctx->f, "      all_dead = 0;\n");
-    fprintf(ctx->f, "      \n");
+    fprintf(ctx->f, "    if (trie_current_state != -1) {\n");
+    fprintf(ctx->f, "      all_dead = 0;\n\n");
+
+    // Group runs of to.
+    for (size_t i = 0; i < trie.trans.len;) {
+      int els = 0;
+      int from = trie.trans.buf[i].from;
+      fprintf(ctx->f, "      if (trie_current_state == %i) {\n", from);
+      while (i < trie.trans.len && trie.trans.buf[i].from == from) {
+        codepoint_t c = trie.trans.buf[i].c;
+        int to = trie.trans.buf[i].to;
+        const char *lse = els++ ? "else " : "";
+        if (c == '\n')
+          fprintf(ctx->f,
+                  "        %sif (c == %" PRI_CODEPOINT " /*'\\n'*/"
+                  ") trie_current_state = %i;\n",
+                  lse, c, to);
+        else if (c <= 127)
+          fprintf(ctx->f,
+                  "        %sif (c == %" PRI_CODEPOINT " /*'%c'*/"
+                  ") trie_current_state = %i;\n",
+                  lse, c, (char)c, to);
+        else
+          fprintf(ctx->f,
+                  "        %sif (c == %" PRI_CODEPOINT
+                  ") trie_current_state = %i;\n",
+                  lse, c, to);
+
+        i++;
+      }
+      fprintf(ctx->f, "        else trie_current_state = -1;\n");
+      fprintf(ctx->f, "      }\n");
+    }
+    // fprintf(ctx->f, "      if (current_states[0] == %i) {\n",
+    // trie.trans.buf[i].from);
+
+    // fprintf(ctx->f, "        if (current_states[0] == %i) {\n",
+    // trie.trans.buf[i].from);
+    // fprintf(ctx->f, "      }\n");
     fprintf(ctx->f, "    }\n\n");
   }
 
@@ -242,8 +279,7 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   fprintf(ctx->f, "    // State Machines\n");
   for (size_t a = 0; a < smauts.len; a++) {
     SMAutomaton smaut = smauts.buf[a];
-    size_t aut_num = a + has_trie;
-    fprintf(ctx->f, "    if (current_states[%zu] != -1) {\n", aut_num);
+    fprintf(ctx->f, "    if (smaut_%zu_current_state != -1) {\n", a);
     fprintf(ctx->f, "      all_dead = 0;\n");
     fprintf(ctx->f, "      \n");
     fprintf(ctx->f, "    }\n\n");
