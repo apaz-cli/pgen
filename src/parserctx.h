@@ -131,12 +131,11 @@ static inline void parse_ws(parser_ctx *ctx) {
       ADVANCE(strlen(fcom));
       while (!IS_CURRENT(ecom))
         NEXT();
-      // Found "*/"
-      if (HAS_REMAINING(strlen(ecom))) {
+      // Found "*/" or EOF
+      if (HAS_REMAINING(strlen(ecom))) { // */
         ADVANCE(strlen(ecom));
-      } else { // EOF
-        ERROR("Unterminated multi-line comment.");
       }
+      // ON EOF, we're fine running off the end.
     } else // No more whitespace to munch
       break;
   }

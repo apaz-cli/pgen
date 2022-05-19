@@ -213,17 +213,22 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
           ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_lower,
           ctx->prefix_lower, ctx->prefix_upper);
 
-  fprintf(ctx->f, "  size_t last_accept[%zu];\n", smauts.len + has_trie);
-  fprintf(ctx->f, "  int current_states[%zu];\n", smauts.len + has_trie);
-  fprintf(ctx->f, "  for (size_t i = 0; i < %zu; i++)\n",
-          smauts.len + has_trie);
-  fprintf(ctx->f, "    last_accept[i] = 0, current_states[i] = 0;\n\n");
+  // Variables for each automaton for the current run.
+  size_t num_auts = smauts.len + has_trie;
+  fprintf(ctx->f, "  size_t last_accept[%zu] = { 0", num_auts);
+  for (size_t i = 1; i < num_auts; i++)
+    fprintf(ctx->f, ", 0");
+  fprintf(ctx->f, " };\n");
+  fprintf(ctx->f, "  int current_states[%zu] = { 0", num_auts);
+  for (size_t i = 1; i < num_auts; i++)
+    fprintf(ctx->f, ", 0");
+  fprintf(ctx->f, " };\n\n");
 
+  // Outer loop
   fprintf(ctx->f, "  for (size_t iidx = 0; iidx < remaining; iidx++) {\n");
   fprintf(ctx->f, "    int all_dead = 1;\n");
 
-  // Write automaton transitions in inner loop.
-
+  // Inner loop (automaton, unrolled)
   // Trie aut
   if (trie.accepting.len) {
     fprintf(ctx->f, "    // Trie\n");
