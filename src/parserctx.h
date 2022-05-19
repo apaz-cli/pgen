@@ -4,8 +4,8 @@
 #include "ast.h"
 #include "util.h"
 
-LIST_DECLARE(codepoint_t);
-LIST_DEFINE(codepoint_t);
+LIST_DECLARE(codepoint_t)
+LIST_DEFINE(codepoint_t)
 
 typedef struct {
   codepoint_t *str;

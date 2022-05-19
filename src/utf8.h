@@ -1,3 +1,6 @@
+
+/* START OF UTF8 LIBRARY */
+
 #ifndef PGEN_UTF8
 #define PGEN_UTF8
 #include <stdint.h>
@@ -197,12 +200,12 @@ static inline String_View UTF8_encode(codepoint_t *codepoints, size_t len) {
       out_buf[characters_used++] = buf4[j];
   }
 
-  // Add the null terminator, shrink to size
+  // Add the null terminator, (optionally) shrink to size
   out_buf[characters_used] = '\0';
-  out_buf = (char *)realloc(out_buf, characters_used + 1);
+  char* new_obuf = (char *)realloc(out_buf, characters_used + 1);
 
   // Return the result
-  ret.str = out_buf;
+  ret.str = new_obuf ? new_obuf : out_buf;
   ret.len = characters_used;
   return ret;
 }
@@ -249,3 +252,5 @@ static inline String_View UTF8_encode_view(Codepoint_String_View view) {
 }
 
 #endif /* PGEN_UTF8 */
+
+/* END OF UTF8 LIBRARY */

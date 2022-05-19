@@ -1,6 +1,9 @@
 #!/bin/sh
 
-# Build the bootstrap parser
+# Generate utf8 include with xxd
+#xxd -i src/utf8.h | sed 's/\([0-9a-f]\)$/\0, 0x00/' > src/strutf8.xxd
+
+# Build pgen
 rm pgen 2>/dev/null
 cc src/pgen.c -o pgen
 ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h

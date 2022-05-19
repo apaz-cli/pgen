@@ -43,17 +43,19 @@
     return nl;                                                                 \
   }                                                                            \
   static inline int list_##type##_add(list_##type *self, type item) {          \
-    /* Grow */                                                                 \
-    size_t prev = self->len;                                                   \
-    self->len++;                                                               \
-    if (self->cap <= self->len) {                                              \
-      self->cap = self->len * 2 + 8;                                           \
-      self->buf = (type *)realloc(self->buf, sizeof(list_##type) * self->cap); \
-      if (!self->buf)                                                          \
+    size_t next_len = self->len + 1;                                           \
+    /* Grow the buffer if there's not enough space. */                         \
+    if (self->cap <= next_len) {                                               \
+      size_t next_cap = next_len * 2 + 8;                                      \
+      type *reall = (type *)realloc(self->buf, sizeof(type) * next_cap);       \
+      if (!reall)                                                              \
         return 1;                                                              \
+      self->cap = next_cap;                                                    \
+      self->buf = reall;                                                       \
     }                                                                          \
     /* Insert */                                                               \
-    self->buf[prev] = item;                                                    \
+    self->buf[self->len] = item;                                               \
+    self->len = next_len;                                                      \
     return 0;                                                                  \
   }                                                                            \
   static inline type list_##type##_get(list_##type *self, size_t idx) {        \

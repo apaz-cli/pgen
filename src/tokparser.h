@@ -201,10 +201,11 @@ static inline ASTNode *tok_parse_NumSet(parser_ctx *ctx) {
   RETURN(node);
 }
 
-// If the charset is a single quoted char, char->extra is that character's
-// codepoint. If the charset is of the form [^? ...] then charset->extra is a
-// bool of whether the ^ is present, and charset->children has the range's
-// contents. The children are of the form char->extra = codepoint or
+// If the charset is a single quoted char, then char->num_children is 0 and
+// char->extra is that character's codepoint. If the charset is of
+// the form [^? ...] then charset->extra is a bool* of whether
+// the ^ is present, and charset->children has the range's contents.
+// The children are of the form char->extra = codepoint or
 // charrange->extra = codepoint[2].
 static inline ASTNode *tok_parse_CharSet(parser_ctx *ctx) {
 
@@ -391,6 +392,7 @@ static inline ASTNode *tok_parse_LitDef(parser_ctx *ctx) {
       RETURN(NULL);
     }
 
+    printf("%p, %p\n", &cps, cps.buf);
     list_codepoint_t_add(&cps, c);
   }
   NEXT(); // '\"' b/c out of while

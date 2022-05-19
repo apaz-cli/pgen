@@ -1,6 +1,7 @@
 #ifndef TOKCODEGEN_INCLUDE
 #define TOKCODEGEN_INCLUDE
 #include "argparse.h"
+#include "ast.h"
 #include "automata.h"
 #include "parserctx.h"
 #include "utf8.h"
@@ -97,16 +98,24 @@ static inline void codegen_ctx_destroy(codegen_ctx *ctx) {
     ASTNode_destroy(ctx->pegast);
 }
 
+/**/
+
+/* UTF8 */
+static inline void write_utf8_lib(codegen_ctx *ctx) {
+#include "strutf8.xxd"
+  fprintf(ctx->f, "%s", (char *)src_utf8_h);
+  fprintf(ctx->f, "\n\n");
+}
+
 /*************/
 /* Tokenizer */
 /*************/
 
 static inline void tok_write_header(codegen_ctx *ctx) {
-  // TODO move utf8 include path.
   fprintf(ctx->f,
           "#ifndef %s_TOKENIZER_INCLUDE\n"
           "#define %s_TOKENIZER_INCLUDE\n"
-          "#include \"../src/utf8.h\"\n\n"
+          "\n"
           "#ifndef %s_TOKENIZER_SOURCEINFO\n"
           "#define %s_TOKENIZER_SOURCEINFO 1\n"
           "#endif\n\n",
@@ -184,14 +193,46 @@ static inline void tok_write_ctxstruct(codegen_ctx *ctx) {
           ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_upper);
 }
 
-static inline void tok_write_smauts(codegen_ctx *ctx) {
-  list_SMAutomaton smauts = ctx->smauts;
-  for (size_t i = 0; i < smauts.len; i++) {
-    SMAutomaton smaut = smauts.buf[i];
+static inline void tok_write_charsetcheck(codegen_ctx *ctx, ASTNode *charset) {
+  AST_print(charset);
+
+  // Single char
+  if (!charset->num_children) {
+    codepoint_t c = *(codepoint_t *)charset->extra;
+    fprintf(ctx->f, "c == %" PRI_CODEPOINT "", c);
+  }
+
+  // Charset
+  else {
+    bool inverted = *(bool *)charset->extra;
+    if (inverted)
+      fprintf(ctx->f, "!(");
+
+    for (size_t i = 0; i < charset->num_children; i++) {
+      ASTNode *child = charset->children[i];
+      if (strcmp(child->name, "Char")) {
+        codepoint_t c = *(codepoint_t *)child->extra;
+        if (charset->num_children == 1) {
+          fprintf(ctx->f, "c == %" PRI_CODEPOINT, c);
+        } else {
+          fprintf(ctx->f, "(c == %" PRI_CODEPOINT ")", c);
+        }
+      } else {
+        codepoint_t *cpptr = (codepoint_t *)child->extra;
+        codepoint_t r1 = *cpptr, r2 = *(cpptr + 1);
+        codepoint_t c1 = MIN(r1, r2), c2 = MAX(r1, r2);
+        fprintf(ctx->f,
+                "((c >= %" PRI_CODEPOINT ") & (c <= %" PRI_CODEPOINT "))", c1,
+                c2);
+      }
+      if (i != charset->num_children - 1)
+        fprintf(ctx->f, " | ");
+    }
+
+    if (inverted)
+      fprintf(ctx->f, ")");
   }
 }
-
-static inline void tok_write_trie(codegen_ctx *ctx) {}
 
 static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   // See tokenizer.txt.
@@ -215,7 +256,6 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
           ctx->prefix_lower, ctx->prefix_upper);
 
   // Variables for each automaton for the current run.
-
   fprintf(ctx->f, "  int trie_current_state = 0;\n");
   fprintf(ctx->f, "  size_t trie_last_accept = 0;\n");
   for (size_t i = 0; i < smauts.len; i++) {
@@ -237,42 +277,41 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
     fprintf(ctx->f, "      all_dead = 0;\n\n");
 
     // Group runs of to.
+    int eels = 0;
     for (size_t i = 0; i < trie.trans.len;) {
       int els = 0;
       int from = trie.trans.buf[i].from;
-      fprintf(ctx->f, "      if (trie_current_state == %i) {\n", from);
+      fprintf(ctx->f, "      %sif (trie_current_state == %i) {\n",
+              eels++ ? "else " : "", from);
       while (i < trie.trans.len && trie.trans.buf[i].from == from) {
         codepoint_t c = trie.trans.buf[i].c;
         int to = trie.trans.buf[i].to;
-        const char *lse = els++ ? "else " : "";
+        const char *lsee = els++ ? "else " : "";
         if (c == '\n')
           fprintf(ctx->f,
                   "        %sif (c == %" PRI_CODEPOINT " /*'\\n'*/"
                   ") trie_current_state = %i;\n",
-                  lse, c, to);
+                  lsee, c, to);
         else if (c <= 127)
           fprintf(ctx->f,
                   "        %sif (c == %" PRI_CODEPOINT " /*'%c'*/"
                   ") trie_current_state = %i;\n",
-                  lse, c, (char)c, to);
+                  lsee, c, (char)c, to);
         else
           fprintf(ctx->f,
                   "        %sif (c == %" PRI_CODEPOINT
                   ") trie_current_state = %i;\n",
-                  lse, c, to);
+                  lsee, c, to);
 
         i++;
       }
       fprintf(ctx->f, "        else trie_current_state = -1;\n");
       fprintf(ctx->f, "      }\n");
     }
-    // fprintf(ctx->f, "      if (current_states[0] == %i) {\n",
-    // trie.trans.buf[i].from);
-
-    // fprintf(ctx->f, "        if (current_states[0] == %i) {\n",
-    // trie.trans.buf[i].from);
-    // fprintf(ctx->f, "      }\n");
-    fprintf(ctx->f, "    }\n\n");
+    fprintf(ctx->f, "      else {\n");
+    fprintf(ctx->f, "        trie_current_state = -1;\n");
+    fprintf(ctx->f, "      }\n");
+    fprintf(ctx->f, "    }\n\n"); // End of Trie aut
   }
 
   // SM auts
@@ -280,8 +319,26 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   for (size_t a = 0; a < smauts.len; a++) {
     SMAutomaton smaut = smauts.buf[a];
     fprintf(ctx->f, "    if (smaut_%zu_current_state != -1) {\n", a);
-    fprintf(ctx->f, "      all_dead = 0;\n");
-    fprintf(ctx->f, "      \n");
+    fprintf(ctx->f, "      all_dead = 0;\n\n");
+    int eels = 0;
+    for (size_t i = 0; i < smaut.trans.len; i++) {
+      int els = 0;
+      SMTransition trans = smaut.trans.buf[i];
+      fprintf(ctx->f, "      %sif (", eels++ ? "else " : "");
+      tok_write_charsetcheck(ctx, trans.act);
+      fprintf(ctx->f, ") {\n");
+      for (size_t j = 0; j < trans.from.len; j++) {
+        fprintf(ctx->f,
+                "        %sif (smaut_%zu_current_state == %i) "
+                "smaut_%zu_current_state = %i;\n",
+                els++ ? "else " : "", a, trans.from.buf[j], a, trans.to);
+      }
+      fprintf(ctx->f, "        else smaut_%zu_current_state = -1;\n", a);
+      fprintf(ctx->f, "      }\n");
+    }
+    fprintf(ctx->f, "      else {\n");
+    fprintf(ctx->f, "        trie_current_state = -1;\n");
+    fprintf(ctx->f, "      }\n");
     fprintf(ctx->f, "    }\n\n");
   }
   fprintf(ctx->f, "    if (all_dead)\n      break;\n");
@@ -296,6 +353,9 @@ static inline void tok_write_footer(codegen_ctx *ctx) {
 }
 
 static inline void codegen_write_tokenizer(codegen_ctx *ctx) {
+
+  write_utf8_lib(ctx);
+
   tok_write_header(ctx);
 
   tok_write_toklist(ctx);

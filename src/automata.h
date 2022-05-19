@@ -6,7 +6,7 @@
 #include "util.h"
 
 #define AUT_PRINT 1
-#define AUT_DEBUG 0
+#define AUT_DEBUG 1
 
 // loris@cs.wisc.edu
 // https://madpl.cs.wisc.edu/
@@ -23,12 +23,12 @@ typedef struct {
   int to;
 } TrieTransition;
 
-LIST_DECLARE(int);
-LIST_DEFINE(int);
-LIST_DECLARE(State);
-LIST_DEFINE(State);
-LIST_DECLARE(TrieTransition);
-LIST_DEFINE(TrieTransition);
+LIST_DECLARE(int)
+LIST_DEFINE(int)
+LIST_DECLARE(State)
+LIST_DEFINE(State)
+LIST_DECLARE(TrieTransition)
+LIST_DEFINE(TrieTransition)
 
 typedef struct {
   ASTNode *act;
@@ -36,8 +36,8 @@ typedef struct {
   int to;
 } SMTransition;
 
-LIST_DECLARE(SMTransition);
-LIST_DEFINE(SMTransition);
+LIST_DECLARE(SMTransition)
+LIST_DEFINE(SMTransition)
 
 typedef struct {
   list_State accepting;
@@ -49,10 +49,10 @@ typedef struct {
   list_SMTransition trans;
 } SMAutomaton;
 
-LIST_DECLARE(TrieAutomaton);
-LIST_DEFINE(TrieAutomaton);
-LIST_DECLARE(SMAutomaton);
-LIST_DEFINE(SMAutomaton);
+LIST_DECLARE(TrieAutomaton)
+LIST_DEFINE(TrieAutomaton)
+LIST_DECLARE(SMAutomaton)
+LIST_DEFINE(SMAutomaton)
 
 // TODO What if there is no trie?
 // TODO How will the tokenizer consume whitespace?
@@ -247,7 +247,7 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
       continue;
 
     if (AUT_DEBUG)
-      printf("Building automaton %zu.\n", auts.len);
+      printf("Building automaton %zu for %s.\n", auts.len, identstr);
 
     // Grab the accepting states.
     ASTNode *accepting = def->children[0];
@@ -279,7 +279,6 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
       t.to = toState;
       t.act = onCharset;
       list_SMTransition_add(&aut.trans, t);
-
     } // rule in smdef
     list_SMAutomaton_add(&auts, aut);
   } // automaton for smdef in tokast
@@ -299,7 +298,7 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
         SMTransition t = list_SMTransition_get(&aut.trans, i);
         printf("Transition: (");
         list_int_print(stdout, t.from);
-        printf(", %p) -> (%i)\n", t.act, t.to);
+        printf(", %p) -> (%i)\n", (void*)t.act, t.to);
       }
       fflush(stdout);
     }

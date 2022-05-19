@@ -16,12 +16,12 @@
 #include "list.h"
 #include "utf8.h"
 
-LIST_DECLARE(String_View);
-LIST_DEFINE(String_View);
-LIST_DECLARE(Codepoint_String_View);
-LIST_DEFINE(Codepoint_String_View);
-LIST_DECLARE(size_t);
-LIST_DEFINE(size_t);
+LIST_DECLARE(String_View)
+LIST_DEFINE(String_View)
+LIST_DECLARE(Codepoint_String_View)
+LIST_DEFINE(Codepoint_String_View)
+LIST_DECLARE(size_t)
+LIST_DEFINE(size_t)
 
 /* Open the file and returns its contents in a string. */
 /* Returns {.str = NULL, .len = 0} on error, and errno is set to indicate the
