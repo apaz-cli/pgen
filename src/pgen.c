@@ -67,6 +67,8 @@ int main(int argc, char **argv) {
   codegen_ctx_destroy(&cctx);
 
   // Clean up memory
+  destroyTrieAutomaton(trie);
+  destroySMAutomata(smauts);
   free(tokenFile.str);
   free(parserFile.str);
 

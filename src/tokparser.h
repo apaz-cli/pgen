@@ -392,7 +392,6 @@ static inline ASTNode *tok_parse_LitDef(parser_ctx *ctx) {
       RETURN(NULL);
     }
 
-    printf("%p, %p\n", &cps, cps.buf);
     list_codepoint_t_add(&cps, c);
   }
   NEXT(); // '\"' b/c out of while
@@ -546,7 +545,6 @@ static inline ASTNode *tok_parse_TokenDef(parser_ctx *ctx) {
   WS();
 
   if (!IS_CURRENT(":")) {
-    printf("%c\n", (char)CURRENT());
     ASTNode_destroy(id);
     REWIND(begin);
     RETURN(NULL);

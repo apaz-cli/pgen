@@ -5,6 +5,7 @@
 #include "automata.h"
 #include "parserctx.h"
 #include "utf8.h"
+#include <stdio.h>
 
 /*******/
 /* ctx */
@@ -195,7 +196,6 @@ static inline void tok_write_ctxstruct(codegen_ctx *ctx) {
 }
 
 static inline void tok_write_charsetcheck(codegen_ctx *ctx, ASTNode *charset) {
-  AST_print(charset);
 
   // Single char
   if (!charset->num_children) {
@@ -211,9 +211,10 @@ static inline void tok_write_charsetcheck(codegen_ctx *ctx, ASTNode *charset) {
 
     for (size_t i = 0; i < charset->num_children; i++) {
       ASTNode *child = charset->children[i];
-      if (strcmp(child->name, "Char")) {
+      if (strcmp(child->name, "Char") == 0) {
         codepoint_t c = *(codepoint_t *)child->extra;
         if (charset->num_children == 1) {
+          // If it's the only one, it doensn't need extra parens.
           fprintf(ctx->f, "c == %" PRI_CODEPOINT, c);
         } else {
           fprintf(ctx->f, "(c == %" PRI_CODEPOINT ")", c);

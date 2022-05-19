@@ -5,8 +5,8 @@
 #include "utf8.h"
 #include "util.h"
 
-#define AUT_PRINT 1
-#define AUT_DEBUG 1
+#define AUT_PRINT 0
+#define AUT_DEBUG 0
 
 // loris@cs.wisc.edu
 // https://madpl.cs.wisc.edu/
@@ -298,13 +298,29 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
         SMTransition t = list_SMTransition_get(&aut.trans, i);
         printf("Transition: (");
         list_int_print(stdout, t.from);
-        printf(", %p) -> (%i)\n", (void*)t.act, t.to);
       }
       fflush(stdout);
     }
   }
 
   return auts;
+}
+
+static inline void destroyTrieAutomaton(TrieAutomaton trie) {
+  list_TrieTransition_clear(&trie.trans);
+  list_State_clear(&trie.accepting);
+}
+
+static inline void destroySMAutomata(list_SMAutomaton smauts) {
+  for (size_t i = 0; i < smauts.len; i++) {
+    list_State_clear(&(smauts.buf[i].accepting));
+    list_SMTransition trans = smauts.buf[i].trans;
+    for (size_t j = 0; j < trans.len; j++) {
+      list_int_clear(&trans.buf[j].from);
+    }
+    list_SMTransition_clear(&trans);
+  }
+  list_SMAutomaton_clear(&smauts);
 }
 
 #endif /* PGEN_AUTOMATA_INCLUDE */

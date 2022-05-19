@@ -5,5 +5,5 @@
 
 # Build pgen
 rm pgen 2>/dev/null
-cc src/pgen.c -o pgen
+clang src/pgen.c -o pgen -fsanitize=address -g
 ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h

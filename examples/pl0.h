@@ -512,11 +512,11 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
     if (smaut_0_current_state != -1) {
       all_dead = 0;
 
-      if (((c >= 0) & (c <= 95)) | (c == 97) | (c == 65)) {
+      if ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90))) {
         if (smaut_0_current_state == 0) smaut_0_current_state = 1;
         else smaut_0_current_state = -1;
       }
-      else if (((c >= 0) & (c <= 95)) | (c == 97) | (c == 65) | (c == 48)) {
+      else if ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)) | ((c >= 48) & (c <= 57))) {
         if (smaut_0_current_state == 1) smaut_0_current_state = 2;
         else if (smaut_0_current_state == 2) smaut_0_current_state = 2;
         else smaut_0_current_state = -1;
@@ -529,11 +529,11 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
     if (smaut_1_current_state != -1) {
       all_dead = 0;
 
-      if (((c >= 0) & (c <= 45)) | ((c >= 0) & (c <= 43))) {
+      if ((c == 45) | (c == 43)) {
         if (smaut_1_current_state == 0) smaut_1_current_state = 1;
         else smaut_1_current_state = -1;
       }
-      else if (c == 48) {
+      else if (((c >= 48) & (c <= 57))) {
         if (smaut_1_current_state == 0) smaut_1_current_state = 2;
         else if (smaut_1_current_state == 1) smaut_1_current_state = 2;
         else if (smaut_1_current_state == 2) smaut_1_current_state = 2;
