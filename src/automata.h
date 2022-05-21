@@ -45,7 +45,7 @@ typedef struct {
 } TrieAutomaton;
 
 typedef struct {
-  list_State accepting;
+  list_int accepting;
   list_SMTransition trans;
 } SMAutomaton;
 
@@ -235,7 +235,7 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
   // Now, build SFAs for the state machine definitions.
   for (size_t n = 0; n < tokast->num_children; n++) {
     SMAutomaton aut;
-    aut.accepting = list_State_new();
+    aut.accepting = list_int_new();
     aut.trans = list_SMTransition_new();
 
     ASTNode *r = tokast->children[n];
@@ -253,10 +253,7 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
     ASTNode *accepting = def->children[0];
     list_int accepting_states = numset_to_list(accepting);
     for (size_t i = 0; i < accepting_states.len; i++) {
-      State s;
-      s.num = list_int_get(&accepting_states, i);
-      s.rule = r;
-      list_State_add(&aut.accepting, s);
+      list_int_add(&aut.accepting, list_int_get(&accepting_states, i));
     }
     list_int_clear(&accepting_states);
 
@@ -290,9 +287,8 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
     for (size_t k = 0; k < auts.len; k++) {
       SMAutomaton aut = list_SMAutomaton_get(&auts, k);
       for (size_t i = 0; i < aut.accepting.len; i++) {
-        State s = list_State_get(&aut.accepting, i);
-        printf("Accepting state: (%i, %s)\n", s.num,
-               (char *)s.rule->children[0]->extra);
+        int s = list_int_get(&aut.accepting, i);
+        printf("First accepting state: %i\n", s);
       }
       for (size_t i = 0; i < aut.trans.len; i++) {
         SMTransition t = list_SMTransition_get(&aut.trans, i);
@@ -313,7 +309,7 @@ static inline void destroyTrieAutomaton(TrieAutomaton trie) {
 
 static inline void destroySMAutomata(list_SMAutomaton smauts) {
   for (size_t i = 0; i < smauts.len; i++) {
-    list_State_clear(&(smauts.buf[i].accepting));
+    list_int_clear(&(smauts.buf[i].accepting));
     list_SMTransition trans = smauts.buf[i].trans;
     for (size_t j = 0; j < trans.len; j++) {
       list_int_clear(&trans.buf[j].from);

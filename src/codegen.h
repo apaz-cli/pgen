@@ -3,9 +3,9 @@
 #include "argparse.h"
 #include "ast.h"
 #include "automata.h"
+#include "list.h"
 #include "parserctx.h"
 #include "utf8.h"
-#include <stdio.h>
 
 /*******/
 /* ctx */
@@ -31,6 +31,10 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
   ctx->pegast = pegast;
   ctx->trie = trie;
   ctx->smauts = smauts;
+
+  // Check to make sure we actually have code to generate.
+  if ((!trie.accepting.len) & (!smauts.len))
+    fprintf(stderr, "Empty tokenizer file. Exiting."), exit(1);
 
   // Parse prefix from tokenizer file name.
   char *pref_start = args.tokenizerTarget;
@@ -236,6 +240,9 @@ static inline void tok_write_charsetcheck(codegen_ctx *ctx, ASTNode *charset) {
   }
 }
 
+static inline void tok_write_acceptingcheck(codegen_ctx *ctx,
+                                            list_State accepting) {}
+
 static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   // See tokenizer.txt.
 
@@ -247,24 +254,27 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   fprintf(ctx->f,
           "static inline %s_token %s_nextToken(%s_tokenizer* tokenizer) {\n"
           "  codepoint_t* current = tokenizer->start + tokenizer->pos;\n"
-          "  size_t remaining = tokenizer->len - tokenizer->pos;\n"
-          "  %s_token ret;\n"
-          "#if %s_TOKENIZER_SOURCEINFO\n"
-          "  ret.line = tokenizer->pos_line;\n"
-          "  ret.col = tokenizer->pos_col;\n"
-          "  ret.sourceFile = tokenizer->pos_sourceFile;\n"
-          "#endif\n\n",
-          ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_lower,
-          ctx->prefix_lower, ctx->prefix_upper);
+          "  size_t remaining = tokenizer->len - tokenizer->pos;\n\n",
+          ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_lower);
 
   // Variables for each automaton for the current run.
-  fprintf(ctx->f, "  int trie_current_state = 0;\n");
-  fprintf(ctx->f, "  size_t trie_last_accept = 0;\n");
-  for (size_t i = 0; i < smauts.len; i++) {
-    fprintf(ctx->f, "  int smaut_%zu_current_state = 0;\n", i);
-    fprintf(ctx->f, "  size_t smaut_%zu_last_accept = 0;\n", i);
+  if (has_trie)
+    fprintf(ctx->f, "  int trie_state = 0;\n");
+  if (has_smauts) {
+    fprintf(ctx->f, "  int smaut_states[%zu] = {0", smauts.len);
+    for (size_t i = 1; i < smauts.len; i++)
+      fprintf(ctx->f, ", 0");
+    fprintf(ctx->f, "};\n");
   }
-  fprintf(ctx->f, "\n\n");
+
+  if (has_trie)
+    fprintf(ctx->f, "  size_t trie_munch_size = 0;\n");
+  if (has_smauts) {
+    fprintf(ctx->f, "  size_t smaut_munch_size[%zu] = {0", smauts.len);
+    for (size_t i = 1; i < smauts.len; i++)
+      fprintf(ctx->f, ", 0");
+    fprintf(ctx->f, "};\n\n");
+  }
 
   // Outer loop
   fprintf(ctx->f, "  for (size_t iidx = 0; iidx < remaining; iidx++) {\n");
@@ -273,17 +283,17 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
 
   // Inner loop (automaton, unrolled)
   // Trie aut
-  if (trie.accepting.len) {
+  if (has_trie) {
     fprintf(ctx->f, "    // Trie\n");
-    fprintf(ctx->f, "    if (trie_current_state != -1) {\n");
-    fprintf(ctx->f, "      all_dead = 0;\n\n");
+    fprintf(ctx->f, "    if (trie_state != -1) {\n");
+    fprintf(ctx->f, "      all_dead = 0;\n");
 
     // Group runs of to.
     int eels = 0;
     for (size_t i = 0; i < trie.trans.len;) {
       int els = 0;
       int from = trie.trans.buf[i].from;
-      fprintf(ctx->f, "      %sif (trie_current_state == %i) {\n",
+      fprintf(ctx->f, "      %sif (trie_state == %i) {\n",
               eels++ ? "else " : "", from);
       while (i < trie.trans.len && trie.trans.buf[i].from == from) {
         codepoint_t c = trie.trans.buf[i].c;
@@ -292,60 +302,90 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
         if (c == '\n')
           fprintf(ctx->f,
                   "        %sif (c == %" PRI_CODEPOINT " /*'\\n'*/"
-                  ") trie_current_state = %i;\n",
+                  ") trie_state = %i;\n",
                   lsee, c, to);
         else if (c <= 127)
           fprintf(ctx->f,
                   "        %sif (c == %" PRI_CODEPOINT " /*'%c'*/"
-                  ") trie_current_state = %i;\n",
+                  ") trie_state = %i;\n",
                   lsee, c, (char)c, to);
         else
           fprintf(ctx->f,
-                  "        %sif (c == %" PRI_CODEPOINT
-                  ") trie_current_state = %i;\n",
+                  "        %sif (c == %" PRI_CODEPOINT ") trie_state = %i;\n",
                   lsee, c, to);
 
         i++;
       }
-      fprintf(ctx->f, "        else trie_current_state = -1;\n");
+      fprintf(ctx->f, "        else trie_state = -1;\n");
       fprintf(ctx->f, "      }\n");
     }
     fprintf(ctx->f, "      else {\n");
-    fprintf(ctx->f, "        trie_current_state = -1;\n");
+    fprintf(ctx->f, "        trie_state = -1;\n");
     fprintf(ctx->f, "      }\n");
     fprintf(ctx->f, "    }\n\n"); // End of Trie aut
   }
 
   // SM auts
-  fprintf(ctx->f, "    // State Machines\n");
-  for (size_t a = 0; a < smauts.len; a++) {
-    SMAutomaton smaut = smauts.buf[a];
-    fprintf(ctx->f, "    if (smaut_%zu_current_state != -1) {\n", a);
-    fprintf(ctx->f, "      all_dead = 0;\n\n");
-    int eels = 0;
-    for (size_t i = 0; i < smaut.trans.len; i++) {
-      int els = 0;
-      SMTransition trans = smaut.trans.buf[i];
-      fprintf(ctx->f, "      %sif (", eels++ ? "else " : "");
-      tok_write_charsetcheck(ctx, trans.act);
-      fprintf(ctx->f, ") {\n");
-      for (size_t j = 0; j < trans.from.len; j++) {
-        fprintf(ctx->f,
-                "        %sif (smaut_%zu_current_state == %i) "
-                "smaut_%zu_current_state = %i;\n",
-                els++ ? "else " : "", a, trans.from.buf[j], a, trans.to);
+  if (has_smauts) {
+    for (size_t a = 0; a < smauts.len; a++) {
+      SMAutomaton smaut = smauts.buf[a];
+      fprintf(ctx->f, "    // Transition State Machine %zu\n", a);
+      fprintf(ctx->f, "    if (smaut_states[%zu] != -1) {\n", a);
+      fprintf(ctx->f, "      all_dead = 0;\n");
+      int eels = 0;
+      for (size_t i = 0; i < smaut.trans.len; i++) {
+        int els = 0;
+        SMTransition trans = smaut.trans.buf[i];
+        fprintf(ctx->f, "      %sif (", eels++ ? "else " : "");
+        tok_write_charsetcheck(ctx, trans.act);
+        fprintf(ctx->f, ") {\n");
+        for (size_t j = 0; j < trans.from.len; j++) {
+          fprintf(ctx->f,
+                  "        %sif (smaut_states[%zu] == %i) "
+                  "smaut_states[%zu] = %i;\n",
+                  els++ ? "else " : "", a, trans.from.buf[j], a, trans.to);
+        }
+        fprintf(ctx->f, "        else smaut_states[%zu] = -1;\n", a);
+        fprintf(ctx->f, "      }\n");
       }
-      fprintf(ctx->f, "        else smaut_%zu_current_state = -1;\n", a);
-      fprintf(ctx->f, "      }\n");
-    }
-    fprintf(ctx->f, "      else {\n");
-    fprintf(ctx->f, "        smaut_%zu_current_state = -1;\n", a);
-    fprintf(ctx->f, "      }\n");
-    fprintf(ctx->f, "    }\n\n");
-  }
-  fprintf(ctx->f, "    if (all_dead)\n      break;\n");
+      fprintf(ctx->f, "      else {\n");
+      fprintf(ctx->f, "        smaut_states[%zu] = -1;\n", a);
+      fprintf(ctx->f, "      }\n\n");
+      // Check SM Accepting
+      fprintf(ctx->f, "      int accept = %s",
+              smaut.accepting.len > 1 ? "(" : "");
+      for (size_t i = 0; i < smaut.accepting.len; i++) {
+        int acc = list_int_get(&smaut.accepting, i);
+        fprintf(ctx->f, "(smaut_states[%zu] == %i)", a, acc);
+        if (i != smaut.accepting.len - 1)
+          fprintf(ctx->f, " | ");
+      }
+      fprintf(ctx->f, "%s;\n", smaut.accepting.len > 1 ? ")" : "");
+      fprintf(ctx->f, "      if (accept)\n");
+      fprintf(ctx->f, "        smaut_munch_size[%zu] = iidx + 1;\n", a);
 
+
+      fprintf(ctx->f, "    }\n\n");
+    }
+  }
+  fprintf(ctx->f, "    if (all_dead)\n");
+  fprintf(ctx->f, "      break;\n");
   fprintf(ctx->f, "  }\n\n"); // For each remaining character
+
+  fprintf(ctx->f, "  // Determine what token was accepted, if any.\n");
+  fprintf(ctx->f,
+          "  %s_token ret;\n"
+          "#if %s_TOKENIZER_SOURCEINFO\n"
+          "  ret.line = tokenizer->pos_line;\n"
+          "  ret.col = tokenizer->pos_col;\n"
+          "  ret.sourceFile = tokenizer->pos_sourceFile;\n"
+          "#endif\n\n",
+          ctx->prefix_lower, ctx->prefix_upper);
+
+  for (size_t a = 0; a < smauts.len; a++) {
+  }
+  fprintf(ctx->f, "  \n");
+
   fprintf(ctx->f, "  return ret;\n");
   fprintf(ctx->f, "}\n\n"); // end function
 }
