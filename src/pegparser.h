@@ -17,6 +17,7 @@ static inline ASTNode *peg_parse_RuleIdent(parser_ctx *ctx);
 /* PEG Parser Implementation */
 /*****************************/
 
+// grammarfile->children where each child is a Definition.
 static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx) {
 
   // This rule looks a lot like tok_parse_TokenFile().
@@ -46,6 +47,8 @@ static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx) {
   RETURN(node);
 }
 
+// definition->children[0] is a ruleident.
+// definition->children[1] is a slashexpr.
 static inline ASTNode *peg_parse_Definition(parser_ctx *ctx) {
 
   RULE_BEGIN("Definition");
@@ -79,6 +82,7 @@ static inline ASTNode *peg_parse_Definition(parser_ctx *ctx) {
   RETURN(node);
 }
 
+// Each
 static inline ASTNode *peg_parse_SlashExpr(parser_ctx *ctx) {
 
   RULE_BEGIN("SlashExpr");
@@ -114,6 +118,7 @@ static inline ASTNode *peg_parse_SlashExpr(parser_ctx *ctx) {
   RETURN(node);
 }
 
+// modexprlist->children is a list of ModExprs.
 static inline ASTNode *peg_parse_ModExprList(parser_ctx *ctx) {
 
   RULE_BEGIN("ModExprList");
@@ -181,7 +186,6 @@ static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
     node->extra = cptr = (char *)malloc(sizeof(char) * 2);
     *(cptr + 0) = prefix;
     *(cptr + 1) = suffix;
-
   }
 
   RETURN(node);

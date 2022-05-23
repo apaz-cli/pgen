@@ -14,7 +14,7 @@ typedef struct {
 } parser_ctx;
 
 static inline void parser_ctx_init(parser_ctx *ctx,
-                                      Codepoint_String_View cpsv) {
+                                   Codepoint_String_View cpsv) {
   ctx->str = cpsv.str;
   ctx->len = cpsv.len;
   ctx->pos = 0;
@@ -142,6 +142,5 @@ static inline void parse_ws(parser_ctx *ctx) {
 
   RULE_SUCCESS();
 }
-
 
 #endif /* PARSERCTX_INCLUDE */

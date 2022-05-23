@@ -17,7 +17,7 @@
   } while (0)
 #define ERROR(...)                                                             \
   do {                                                                         \
-    fprintf(stderr, "pgen has encountered an error:\n");                       \
+    fprintf(stderr, "Error:\n");                                               \
     fprintf(stderr, __VA_ARGS__);                                              \
     fprintf(stderr, "\n");                                                     \
     exit(1);                                                                   \

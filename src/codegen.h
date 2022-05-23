@@ -240,9 +240,6 @@ static inline void tok_write_charsetcheck(codegen_ctx *ctx, ASTNode *charset) {
   }
 }
 
-static inline void tok_write_acceptingcheck(codegen_ctx *ctx,
-                                            list_State accepting) {}
-
 static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   // See tokenizer.txt.
 
