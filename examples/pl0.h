@@ -309,9 +309,12 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
   size_t remaining = tokenizer->len - tokenizer->pos;
 
   int trie_state = 0;
-  int smaut_states[2] = {0, 0};
+  int smaut_state_0 = 0;
+  int smaut_state_1 = 0;
   size_t trie_munch_size = 0;
-  size_t smaut_munch_size[2] = {0, 0};
+  size_t smaut_munch_size_0 = 0;
+  size_t smaut_munch_size_1 = 0;
+
 
   for (size_t iidx = 0; iidx < remaining; iidx++) {
     codepoint_t c = current[iidx];
@@ -499,46 +502,46 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
     }
 
     // Transition State Machine 0
-    if (smaut_states[0] != -1) {
+    if (smaut_state_0 != -1) {
       all_dead = 0;
       if ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90))) {
-        if (smaut_states[0] == 0) smaut_states[0] = 1;
-        else smaut_states[0] = -1;
+        if (smaut_state_0 == 0) smaut_state_0 = 1;
+        else smaut_state_0 = -1;
       }
       else if ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)) | ((c >= 48) & (c <= 57))) {
-        if (smaut_states[0] == 1) smaut_states[0] = 2;
-        else if (smaut_states[0] == 2) smaut_states[0] = 2;
-        else smaut_states[0] = -1;
+        if (smaut_state_0 == 1) smaut_state_0 = 2;
+        else if (smaut_state_0 == 2) smaut_state_0 = 2;
+        else smaut_state_0 = -1;
       }
       else {
-        smaut_states[0] = -1;
+        smaut_state_0 = -1;
       }
 
-      int accept = ((smaut_states[0] == 1) | (smaut_states[0] == 2));
+      int accept = ((smaut_state_0 == 1) | (smaut_state_0 == 2));
       if (accept)
-        smaut_munch_size[0] = iidx + 1;
+        smaut_munch_size_0 = iidx + 1;
     }
 
     // Transition State Machine 1
-    if (smaut_states[1] != -1) {
+    if (smaut_state_1 != -1) {
       all_dead = 0;
       if ((c == 45) | (c == 43)) {
-        if (smaut_states[1] == 0) smaut_states[1] = 1;
-        else smaut_states[1] = -1;
+        if (smaut_state_1 == 0) smaut_state_1 = 1;
+        else smaut_state_1 = -1;
       }
       else if (((c >= 48) & (c <= 57))) {
-        if (smaut_states[1] == 0) smaut_states[1] = 2;
-        else if (smaut_states[1] == 1) smaut_states[1] = 2;
-        else if (smaut_states[1] == 2) smaut_states[1] = 2;
-        else smaut_states[1] = -1;
+        if (smaut_state_1 == 0) smaut_state_1 = 2;
+        else if (smaut_state_1 == 1) smaut_state_1 = 2;
+        else if (smaut_state_1 == 2) smaut_state_1 = 2;
+        else smaut_state_1 = -1;
       }
       else {
-        smaut_states[1] = -1;
+        smaut_state_1 = -1;
       }
 
-      int accept = (smaut_states[1] == 2);
+      int accept = (smaut_state_1 == 2);
       if (accept)
-        smaut_munch_size[1] = iidx + 1;
+        smaut_munch_size_1 = iidx + 1;
     }
 
     if (all_dead)

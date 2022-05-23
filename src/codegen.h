@@ -258,20 +258,17 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   if (has_trie)
     fprintf(ctx->f, "  int trie_state = 0;\n");
   if (has_smauts) {
-    fprintf(ctx->f, "  int smaut_states[%zu] = {0", smauts.len);
-    for (size_t i = 1; i < smauts.len; i++)
-      fprintf(ctx->f, ", 0");
-    fprintf(ctx->f, "};\n");
+    for (size_t i = 0; i < smauts.len; i++)
+      fprintf(ctx->f, "  int smaut_state_%zu = 0;\n", i);
   }
 
   if (has_trie)
     fprintf(ctx->f, "  size_t trie_munch_size = 0;\n");
   if (has_smauts) {
-    fprintf(ctx->f, "  size_t smaut_munch_size[%zu] = {0", smauts.len);
-    for (size_t i = 1; i < smauts.len; i++)
-      fprintf(ctx->f, ", 0");
-    fprintf(ctx->f, "};\n\n");
+    for (size_t i = 0; i < smauts.len; i++)
+      fprintf(ctx->f, "  size_t smaut_munch_size_%zu = 0;\n", i);
   }
+  fprintf(ctx->f, "\n\n");
 
   // Outer loop
   fprintf(ctx->f, "  for (size_t iidx = 0; iidx < remaining; iidx++) {\n");
@@ -327,7 +324,7 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
     for (size_t a = 0; a < smauts.len; a++) {
       SMAutomaton smaut = smauts.buf[a];
       fprintf(ctx->f, "    // Transition State Machine %zu\n", a);
-      fprintf(ctx->f, "    if (smaut_states[%zu] != -1) {\n", a);
+      fprintf(ctx->f, "    if (smaut_state_%zu != -1) {\n", a);
       fprintf(ctx->f, "      all_dead = 0;\n");
       int eels = 0;
       for (size_t i = 0; i < smaut.trans.len; i++) {
@@ -338,29 +335,28 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
         fprintf(ctx->f, ") {\n");
         for (size_t j = 0; j < trans.from.len; j++) {
           fprintf(ctx->f,
-                  "        %sif (smaut_states[%zu] == %i) "
-                  "smaut_states[%zu] = %i;\n",
+                  "        %sif (smaut_state_%zu == %i) "
+                  "smaut_state_%zu = %i;\n",
                   els++ ? "else " : "", a, trans.from.buf[j], a, trans.to);
         }
-        fprintf(ctx->f, "        else smaut_states[%zu] = -1;\n", a);
+        fprintf(ctx->f, "        else smaut_state_%zu = -1;\n", a);
         fprintf(ctx->f, "      }\n");
       }
       fprintf(ctx->f, "      else {\n");
-      fprintf(ctx->f, "        smaut_states[%zu] = -1;\n", a);
+      fprintf(ctx->f, "        smaut_state_%zu = -1;\n", a);
       fprintf(ctx->f, "      }\n\n");
       // Check SM Accepting
       fprintf(ctx->f, "      int accept = %s",
               smaut.accepting.len > 1 ? "(" : "");
       for (size_t i = 0; i < smaut.accepting.len; i++) {
         int acc = list_int_get(&smaut.accepting, i);
-        fprintf(ctx->f, "(smaut_states[%zu] == %i)", a, acc);
+        fprintf(ctx->f, "(smaut_state_%zu == %i)", a, acc);
         if (i != smaut.accepting.len - 1)
           fprintf(ctx->f, " | ");
       }
       fprintf(ctx->f, "%s;\n", smaut.accepting.len > 1 ? ")" : "");
       fprintf(ctx->f, "      if (accept)\n");
-      fprintf(ctx->f, "        smaut_munch_size[%zu] = iidx + 1;\n", a);
-
+      fprintf(ctx->f, "        smaut_munch_size_%zu = iidx + 1;\n", a);
 
       fprintf(ctx->f, "    }\n\n");
     }
