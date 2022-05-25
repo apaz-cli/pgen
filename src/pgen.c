@@ -9,7 +9,6 @@
 #include "tokparser.h"
 #include "pegparser.h"
 #include "astvalid.h"
-#include "astmod.h"
 #include "automata.h"
 #include "codegen.h"
 
@@ -56,9 +55,6 @@ int main(int argc, char **argv) {
   // Validate the ASTs.
   validateTokast(tokast);
   validatePegast(pegast);
-
-  // Remove irrelevant AST nodes.
-  pegast = simplifyAST(pegast);
 
   // Create the automata (Tokenizer IR).
   TrieAutomaton trie = createTrieAutomaton(tokast);
