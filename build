@@ -5,5 +5,5 @@
 
 # Build pgen
 rm pgen 2>/dev/null
-clang src/pgen.c -o pgen -fsanitize=address -g
+clang src/pgen.c -o pgen -fsanitize=address -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable
 ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h
