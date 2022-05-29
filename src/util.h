@@ -16,6 +16,28 @@
 #include "list.h"
 #include "utf8.h"
 
+typedef struct {
+  char *str;
+  size_t len;
+} String_View;
+
+typedef struct {
+  codepoint_t *str;
+  size_t len;
+} Codepoint_String_View;
+
+static inline String_View UTF8_encode_view(Codepoint_String_View view) {
+  String_View sv = {NULL, 0};
+  UTF8_encode(view.str, view.len, &sv.str, &sv.len);
+  return sv; // returns {NULL, 0} on failure since encode doesn't write.
+}
+
+static inline Codepoint_String_View UTF8_decode_view(String_View view) {
+  Codepoint_String_View sv = {NULL, 0};
+  UTF8_decode(view.str, view.len, &sv.str, &sv.len);
+  return sv; // returns {NULL, 0} on failure since encode doesn't write.
+}
+
 LIST_DECLARE(String_View)
 LIST_DEFINE(String_View)
 LIST_DECLARE(Codepoint_String_View)
@@ -40,7 +62,7 @@ static inline String_View readFile(char *filePath) {
   struct stat st;
   if (stat(filePath, &st) == -1)
     return err;
-  size_t fsize = st.st_size;
+  size_t fsize = (size_t)st.st_size;
 
   /* Open the file */
   int fd = open(filePath, O_RDONLY);
@@ -49,18 +71,14 @@ static inline String_View readFile(char *filePath) {
 
   /* Allocate exactly enough memory. */
   char *buffer = (char *)malloc(fsize + 1);
-  if (!buffer) {
-    close(fd);
-    return oom;
-  }
+  if (!buffer)
+    return close(fd), oom;
 
   /* Read the file into a buffer and close it. */
-  size_t bytes_read = read(fd, buffer, fsize);
+  ssize_t bytes_read = read(fd, buffer, fsize);
   int close_err = close(fd);
-  if ((bytes_read != fsize) | close_err) {
-    free(buffer);
-    return err;
-  }
+  if ((bytes_read != (ssize_t)fsize) | close_err)
+    return free(buffer), err;
 
   /* Write null terminator */
   buffer[fsize] = '\0';
@@ -91,7 +109,7 @@ static inline void printStringView(String_View sv) {
 }
 
 static inline void printCodepointStringView(Codepoint_String_View cpsv) {
-  String_View sv = UTF8_encode(cpsv.str, cpsv.len);
+  String_View sv = UTF8_encode_view(cpsv);
   printStringView(sv);
   free(sv.str);
 }

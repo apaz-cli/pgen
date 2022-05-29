@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Generate utf8 include with xxd
-#xxd -i src/utf8.h | sed 's/\([0-9a-f]\)$/\0, 0x00/' > src/strutf8.xxd
+xxd -i src/utf8.h | sed 's/\([0-9a-f]\)$/\0, 0x00/' > src/strutf8.xxd
 
 # Build pgen
 rm pgen 2>/dev/null

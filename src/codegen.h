@@ -129,35 +129,37 @@ static inline void tok_write_header(codegen_ctx *ctx) {
           ctx->prefix_upper);
 }
 
-static inline void tok_write_toklist(codegen_ctx *ctx) {
+static inline void tok_write_enum(codegen_ctx *ctx) {
+  fprintf(ctx->f, "typedef enum { ");
+
   size_t num_defs = ctx->tokast->num_children;
-  fprintf(ctx->f, "#define %s_TOKENS %s_TOK_STREAMEND, ", ctx->prefix_upper,
-          ctx->prefix_upper);
-  for (size_t i = 0; i < num_defs; i++) {
+  fprintf(ctx->f, "%s_TOK_STREAMEND, ", ctx->prefix_upper);
+  for (size_t i = 0; i < num_defs; i++)
     fprintf(ctx->f, "%s_TOK_%s, ", ctx->prefix_upper,
             (char *)(ctx->tokast->children[i]->children[0]->extra));
-  }
-  fprintf(ctx->f, "\n\n");
-}
 
-static inline void tok_write_enum(codegen_ctx *ctx) {
-  fprintf(ctx->f, "typedef enum { %s_TOKENS } %s_token_id;\n",
-          ctx->prefix_upper, ctx->prefix_lower);
-
-  fprintf(ctx->f, "static %s_token_id _%s_num_tokids[] = { %s_TOKENS };\n",
-          ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_upper);
+  fprintf(ctx->f, "} %s_token_id;\n\n", ctx->prefix_lower);
 
   fprintf(ctx->f,
-          "static size_t %s_num_tokens = (sizeof(_%s_num_tokids)"
-          " / sizeof(%s_token_id)) - 1;\n\n",
-          ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_lower);
+          "// The 0th token is end of stream.\n// Tokens 1 - %zu are the ones "
+          "you defined.\n",
+          num_defs);
+  fprintf(ctx->f, "static size_t %s_num_tokens = %zu;\n", ctx->prefix_lower,
+          num_defs + 1);
+  fprintf(ctx->f,
+          "static const char* %s_lexeme_name[] = { \"%s_TOK_STREAMEND\", ",
+          ctx->prefix_lower, ctx->prefix_upper);
+  for (size_t i = 0; i < num_defs; i++)
+    fprintf(ctx->f, "\"%s_TOK_%s\", ", ctx->prefix_upper,
+            (char *)(ctx->tokast->children[i]->children[0]->extra));
+  fprintf(ctx->f, "};\n\n");
 }
 
 static inline void tok_write_tokenstruct(codegen_ctx *ctx) {
   fprintf(ctx->f,
           "typedef struct {\n"
           "  %s_token_id lexeme;\n"
-          "  codepoint_t* start;\n"
+          "  size_t start;\n"
           "  size_t len;\n"
           "#if %s_TOKENIZER_SOURCEINFO\n"
           "  size_t line;\n"
@@ -392,8 +394,6 @@ static inline void codegen_write_tokenizer(codegen_ctx *ctx) {
   write_utf8_lib(ctx);
 
   tok_write_header(ctx);
-
-  tok_write_toklist(ctx);
 
   tok_write_enum(ctx);
 
