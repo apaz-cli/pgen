@@ -68,11 +68,13 @@ int main(void) {
   pl0_token tok;
   while ((tok = pl0_nextToken(&tokenizer)).lexeme != PL0_TOK_STREAMEND) {
 #if PL0_TOKENIZER_SOURCEINFO
-    printf("Token: {.lexeme=%s, .start=%zu, .len=%zu, .line=%zu, "
-           ".col=%zu, .sourceFile=\"%s\"}\n",
-           pl0_lexeme_name[tok.lexeme], tok.start, tok.len, tok.line, tok.col, tok.sourceFile);
+    printf("Token: {.lexeme=%s, .start=%zu, .len=%zu, "
+           ".line=%zu, .col=%zu, .sourceFile=\"%s\"}\n",
+           pl0_lexeme_name[tok.lexeme], tok.start, tok.len, tok.line, tok.col,
+           tok.sourceFile);
 #else
-    printf("Token: {%s, %zu, %zu}\n", pl0_lexeme_name[tok.lexeme], tok.start, tok.len);
+    printf("Token: {%s, %zu, %zu}\n", pl0_lexeme_name[tok.lexeme], tok.start,
+           tok.len);
 #endif
   }
 }
