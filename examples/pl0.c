@@ -2,65 +2,41 @@
 #define PL0_TOKENIZER_SOURCEINFO 1
 #include "pl0.h"
 
-#include <fcntl.h>
 #include <stdio.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
-typedef struct {
-  char *str;
-  size_t len;
-} String_View;
+static inline void readFile(char *filePath, char **str, size_t *len) {
+  long inputFileLen;
+  FILE *inputFile;
+  char *filestr;
 
-static inline String_View readFile(char *filePath) {
-  String_View err;
-  err.str = NULL;
-  err.len = 0;
-  String_View oom;
-  oom.str = NULL;
-  oom.len = 1;
+  if (!(inputFile = fopen(filePath, "r")))
+    fprintf(stderr, "Error: Could not open %s.\n", filePath), exit(1);
+  if (fseek(inputFile, 0, SEEK_END) == -1)
+    fprintf(stderr, "Error: Could not seek to end of file.\n"), exit(1);
+  if ((inputFileLen = ftell(inputFile)) == -1)
+    fprintf(stderr, "Error: Could not check file length.\n"), exit(1);
+  if (fseek(inputFile, 0, SEEK_SET) == -1)
+    fprintf(stderr, "Error: Could not rewind the file.\n"), exit(1);
+  if (!(filestr = malloc(inputFileLen + 1)))
+    fprintf(stderr, "Error: Could not allocate memory.\n"), exit(1);
+  if (fread(filestr, 1, inputFileLen, inputFile) == -1)
+    fprintf(stderr, "Error: Could not read from the file.\n"), exit(1);
+  filestr[inputFileLen] = '\0';
+  fclose(inputFile);
 
-  /* Ask for the length of the file */
-  struct stat st;
-  if (stat(filePath, &st) == -1)
-    return err;
-  size_t fsize = (size_t)st.st_size;
-
-  /* Open the file */
-  int fd = open(filePath, O_RDONLY);
-  if (fd == -1)
-    return err;
-
-  /* Allocate exactly enough memory. */
-  char *buffer = (char *)malloc(fsize + 1);
-  if (!buffer)
-    return close(fd), oom;
-
-  /* Read the file into a buffer and close it. */
-  ssize_t bytes_read = read(fd, buffer, fsize);
-  int close_err = close(fd);
-  if ((bytes_read != (ssize_t)fsize) | close_err)
-    return free(buffer), err;
-
-  /* Write null terminator */
-  buffer[fsize] = '\0';
-
-  String_View ret;
-  ret.str = buffer;
-  ret.len = fsize;
-  return ret;
+  *str = filestr;
+  *len = inputFileLen;
 }
 
 int main(void) {
-  String_View sv = readFile("pl0.pl0");
-  if (!sv.str)
-    perror("Could not open example file.");
+  char *input_str = NULL;
+  size_t input_len = 0;
+  readFile("pl0.pl0", &input_str, &input_len);
 
   codepoint_t *cps = NULL;
   size_t cpslen = 0;
-  UTF8_decode(sv.str, sv.len, &cps, &cpslen);
-  if ((!cps) | (!cpslen))
-    perror("Could not decode any text to parse.");
+  if (!UTF8_decode(input_str, input_len, &cps, &cpslen))
+    fprintf(stderr, "Could not decode to UTF32.\n"), exit(1);
 
   pl0_tokenizer tokenizer;
   pl0_tokenizer_init(&tokenizer, "pl0.pl0", cps, cpslen);
@@ -77,4 +53,6 @@ int main(void) {
            tok.len);
 #endif
   }
+
+  // Clean up
 }
