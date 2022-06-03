@@ -139,7 +139,7 @@ static inline void tok_write_enum(codegen_ctx *ctx) {
     fprintf(ctx->f, "%s_TOK_%s, ", ctx->prefix_upper,
             (char *)(ctx->tokast->children[i]->children[0]->extra));
 
-  fprintf(ctx->f, "} %s_token_id;\n\n", ctx->prefix_lower);
+  fprintf(ctx->f, "} %s_token_kind;\n\n", ctx->prefix_lower);
 
   fprintf(ctx->f,
           "// The 0th token is end of stream.\n// Tokens 1 - %zu are the ones "
@@ -159,7 +159,7 @@ static inline void tok_write_enum(codegen_ctx *ctx) {
 static inline void tok_write_tokenstruct(codegen_ctx *ctx) {
   fprintf(ctx->f,
           "typedef struct {\n"
-          "  %s_token_id lexeme;\n"
+          "  %s_token_kind lexeme;\n"
           "  size_t start;\n"
           "  size_t len;\n"
           "#if %s_TOKENIZER_SOURCEINFO\n"
@@ -289,11 +289,12 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   }
 
   if (has_trie)
-    fprintf(ctx->f, "  %s_token_id trie_tokenkind = %s_TOK_STREAMEND;\n",
+    fprintf(ctx->f, "  %s_token_kind trie_tokenkind = %s_TOK_STREAMEND;\n",
             ctx->prefix_lower, ctx->prefix_upper);
   if (has_smauts) {
     for (size_t i = 0; i < smauts.len; i++)
-      fprintf(ctx->f, "  %s_token_id smaut_tokenkind_%zu = %s_TOK_STREAMEND;\n",
+      fprintf(ctx->f,
+              "  %s_token_kind smaut_tokenkind_%zu = %s_TOK_STREAMEND;\n",
               ctx->prefix_lower, i, ctx->prefix_upper);
   }
   fprintf(ctx->f, "\n\n");
@@ -363,7 +364,7 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   if (has_smauts) {
     for (size_t a = 0; a < smauts.len; a++) {
       SMAutomaton aut = smauts.buf[a];
-      fprintf(ctx->f, "    // Transition State Machine %zu\n", a);
+      fprintf(ctx->f, "    // Transition %s State Machine\n", aut.ident);
       fprintf(ctx->f, "    if (smaut_state_%zu != -1) {\n", a);
       fprintf(ctx->f, "      all_dead = 0;\n\n");
 
@@ -371,15 +372,14 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
       for (size_t i = 0; i < aut.trans.len; i++) {
         SMTransition trans = list_SMTransition_get(&aut.trans, i);
 
-        fprintf(ctx->f, "      %sif (", eels++ ? "else " : "");
+        fprintf(ctx->f, "      %sif ((", eels++ ? "else " : "");
         tok_write_statecheck(ctx, a, trans.from);
-        fprintf(ctx->f, ") {\n");
-
-        fprintf(ctx->f, "        if (");
+        fprintf(ctx->f, ") &\n         (");
         tok_write_charsetcheck(ctx, trans.act);
-        fprintf(ctx->f, ")\n");
+        fprintf(ctx->f, ")) {\n");
+        
         fprintf(ctx->f, "          smaut_state_%zu = %i;\n", a, trans.to);
-        fprintf(ctx->f, "        else\n          smaut_state_%zu = -1;\n", a);
+        
         fprintf(ctx->f, "      }\n");
       }
       fprintf(ctx->f, "      else {\n");
@@ -404,8 +404,8 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   fprintf(ctx->f, "  }\n\n"); // For each remaining character
 
   fprintf(ctx->f, "  // Determine what token was accepted, if any.\n");
-  fprintf(ctx->f, "  %s_token_id kind = %s_TOK_STREAMEND;\n", ctx->prefix_lower,
-          ctx->prefix_upper);
+  fprintf(ctx->f, "  %s_token_kind kind = %s_TOK_STREAMEND;\n",
+          ctx->prefix_lower, ctx->prefix_upper);
   fprintf(ctx->f, "  size_t max_munch = 0;\n");
   if (has_smauts) {
     for (size_t i = smauts.len; i-- > 0;) {
@@ -415,6 +415,12 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
       fprintf(ctx->f, "    max_munch = smaut_munch_size_%zu;\n", i);
       fprintf(ctx->f, "  }\n");
     }
+  }
+  if (has_trie) {
+    fprintf(ctx->f, "  if (trie_munch_size >= max_munch) {\n");
+    fprintf(ctx->f, "    kind = trie_tokenkind;\n");
+    fprintf(ctx->f, "    max_munch = trie_munch_size;\n");
+    fprintf(ctx->f, "  }\n");
   }
   fprintf(ctx->f, "\n");
 

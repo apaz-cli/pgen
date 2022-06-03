@@ -83,19 +83,23 @@ int main(void) {
     // skipWhitespace(&tokenizer);
     tok = pl0_nextToken(&tokenizer);
 
+    printf("Token: (");
+    for (size_t i = 0; i < tok.len; i++) {
+      putchar(*(tokenizer.start + tok.start + i));
+    }
 #if PL0_TOKENIZER_SOURCEINFO
-    printf("Token: {.lexeme=%s, .start=%zu, .len=%zu, "
+    printf(") {.lexeme=%s, .start=%zu, .len=%zu, "
            ".line=%zu, .col=%zu, .sourceFile=\"%s\"}\n",
            pl0_lexeme_name[tok.lexeme], tok.start, tok.len, tok.line, tok.col,
            tok.sourceFile);
 #else
-    printf("Token: {%s, %zu, %zu}\n", pl0_lexeme_name[tok.lexeme], tok.start,
+    printf(") {%s, %zu, %zu}\n", pl0_lexeme_name[tok.lexeme], tok.start,
            tok.len);
 #endif
-    for (size_t i = 0; i < tok.len; i++) {
-      putchar(*(tokenizer.start + tok.start + i));
-    }puts("");
+
   } while (tok.lexeme != PL0_TOK_STREAMEND);
 
   // Clean up
+  free(input_str);
+  free(cps);
 }

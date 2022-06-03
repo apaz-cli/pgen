@@ -188,15 +188,15 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
 #define PL0_TOKENIZER_SOURCEINFO 1
 #endif
 
-typedef enum { PL0_TOK_STREAMEND, PL0_TOK_EQ, PL0_TOK_CEQ, PL0_TOK_SEMI, PL0_TOK_DOT, PL0_TOK_COMMA, PL0_TOK_OPEN, PL0_TOK_CLOSE, PL0_TOK_HASH, PL0_TOK_LT, PL0_TOK_LEQ, PL0_TOK_GT, PL0_TOK_GEQ, PL0_TOK_PLUS, PL0_TOK_MINUS, PL0_TOK_STAR, PL0_TOK_DIV, PL0_TOK_VAR, PL0_TOK_PROC, PL0_TOK_CONST, PL0_TOK_BEGIN, PL0_TOK_END, PL0_TOK_IF, PL0_TOK_THEN, PL0_TOK_WHILE, PL0_TOK_DO, PL0_TOK_ODD, PL0_TOK_CALL, PL0_TOK_IDENT, PL0_TOK_NUM, PL0_TOK_WS, PL0_TOK_SLCOM, } pl0_token_id;
+typedef enum { PL0_TOK_STREAMEND, PL0_TOK_EQ, PL0_TOK_CEQ, PL0_TOK_SEMI, PL0_TOK_DOT, PL0_TOK_COMMA, PL0_TOK_OPEN, PL0_TOK_CLOSE, PL0_TOK_HASH, PL0_TOK_LT, PL0_TOK_LEQ, PL0_TOK_GT, PL0_TOK_GEQ, PL0_TOK_PLUS, PL0_TOK_MINUS, PL0_TOK_STAR, PL0_TOK_DIV, PL0_TOK_VAR, PL0_TOK_PROC, PL0_TOK_CONST, PL0_TOK_BEGIN, PL0_TOK_END, PL0_TOK_IF, PL0_TOK_THEN, PL0_TOK_WHILE, PL0_TOK_DO, PL0_TOK_ODD, PL0_TOK_CALL, PL0_TOK_IDENT, PL0_TOK_NUM, PL0_TOK_WS, } pl0_token_kind;
 
 // The 0th token is end of stream.
-// Tokens 1 - 31 are the ones you defined.
-static size_t pl0_num_tokens = 32;
-static const char* pl0_lexeme_name[] = { "PL0_TOK_STREAMEND", "PL0_TOK_EQ", "PL0_TOK_CEQ", "PL0_TOK_SEMI", "PL0_TOK_DOT", "PL0_TOK_COMMA", "PL0_TOK_OPEN", "PL0_TOK_CLOSE", "PL0_TOK_HASH", "PL0_TOK_LT", "PL0_TOK_LEQ", "PL0_TOK_GT", "PL0_TOK_GEQ", "PL0_TOK_PLUS", "PL0_TOK_MINUS", "PL0_TOK_STAR", "PL0_TOK_DIV", "PL0_TOK_VAR", "PL0_TOK_PROC", "PL0_TOK_CONST", "PL0_TOK_BEGIN", "PL0_TOK_END", "PL0_TOK_IF", "PL0_TOK_THEN", "PL0_TOK_WHILE", "PL0_TOK_DO", "PL0_TOK_ODD", "PL0_TOK_CALL", "PL0_TOK_IDENT", "PL0_TOK_NUM", "PL0_TOK_WS", "PL0_TOK_SLCOM", };
+// Tokens 1 - 30 are the ones you defined.
+static size_t pl0_num_tokens = 31;
+static const char* pl0_lexeme_name[] = { "PL0_TOK_STREAMEND", "PL0_TOK_EQ", "PL0_TOK_CEQ", "PL0_TOK_SEMI", "PL0_TOK_DOT", "PL0_TOK_COMMA", "PL0_TOK_OPEN", "PL0_TOK_CLOSE", "PL0_TOK_HASH", "PL0_TOK_LT", "PL0_TOK_LEQ", "PL0_TOK_GT", "PL0_TOK_GEQ", "PL0_TOK_PLUS", "PL0_TOK_MINUS", "PL0_TOK_STAR", "PL0_TOK_DIV", "PL0_TOK_VAR", "PL0_TOK_PROC", "PL0_TOK_CONST", "PL0_TOK_BEGIN", "PL0_TOK_END", "PL0_TOK_IF", "PL0_TOK_THEN", "PL0_TOK_WHILE", "PL0_TOK_DO", "PL0_TOK_ODD", "PL0_TOK_CALL", "PL0_TOK_IDENT", "PL0_TOK_NUM", "PL0_TOK_WS", };
 
 typedef struct {
-  pl0_token_id lexeme;
+  pl0_token_kind lexeme;
   size_t start;
   size_t len;
 #if PL0_TOKENIZER_SOURCEINFO
@@ -238,17 +238,14 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
   int smaut_state_0 = 0;
   int smaut_state_1 = 0;
   int smaut_state_2 = 0;
-  int smaut_state_3 = 0;
   size_t trie_munch_size = 0;
   size_t smaut_munch_size_0 = 0;
   size_t smaut_munch_size_1 = 0;
   size_t smaut_munch_size_2 = 0;
-  size_t smaut_munch_size_3 = 0;
-  pl0_token_id trie_tokenkind = PL0_TOK_STREAMEND;
-  pl0_token_id smaut_tokenkind_0 = PL0_TOK_STREAMEND;
-  pl0_token_id smaut_tokenkind_1 = PL0_TOK_STREAMEND;
-  pl0_token_id smaut_tokenkind_2 = PL0_TOK_STREAMEND;
-  pl0_token_id smaut_tokenkind_3 = PL0_TOK_STREAMEND;
+  pl0_token_kind trie_tokenkind = PL0_TOK_STREAMEND;
+  pl0_token_kind smaut_tokenkind_0 = PL0_TOK_STREAMEND;
+  pl0_token_kind smaut_tokenkind_1 = PL0_TOK_STREAMEND;
+  pl0_token_kind smaut_tokenkind_2 = PL0_TOK_STREAMEND;
 
 
   for (size_t iidx = 0; iidx < remaining; iidx++) {
@@ -545,21 +542,17 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       }
     }
 
-    // Transition State Machine 0
+    // Transition IDENT State Machine
     if (smaut_state_0 != -1) {
       all_dead = 0;
 
-      if (smaut_state_0 == 0) {
-        if ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)))
+      if ((smaut_state_0 == 0) &
+         ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)))) {
           smaut_state_0 = 1;
-        else
-          smaut_state_0 = -1;
       }
-      else if ((smaut_state_0 == 1) | (smaut_state_0 == 2)) {
-        if ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)) | ((c >= 48) & (c <= 57)))
+      else if (((smaut_state_0 == 1) | (smaut_state_0 == 2)) &
+         ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)) | ((c >= 48) & (c <= 57)))) {
           smaut_state_0 = 2;
-        else
-          smaut_state_0 = -1;
       }
       else {
         smaut_state_0 = -1;
@@ -572,21 +565,17 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       }
     }
 
-    // Transition State Machine 1
+    // Transition NUM State Machine
     if (smaut_state_1 != -1) {
       all_dead = 0;
 
-      if (smaut_state_1 == 0) {
-        if ((c == 45) | (c == 43))
+      if ((smaut_state_1 == 0) &
+         ((c == 45) | (c == 43))) {
           smaut_state_1 = 1;
-        else
-          smaut_state_1 = -1;
       }
-      else if ((smaut_state_1 == 0) | (smaut_state_1 == 1) | (smaut_state_1 == 2)) {
-        if (((c >= 48) & (c <= 57)))
+      else if (((smaut_state_1 == 0) | (smaut_state_1 == 1) | (smaut_state_1 == 2)) &
+         (((c >= 48) & (c <= 57)))) {
           smaut_state_1 = 2;
-        else
-          smaut_state_1 = -1;
       }
       else {
         smaut_state_1 = -1;
@@ -599,15 +588,13 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       }
     }
 
-    // Transition State Machine 2
+    // Transition WS State Machine
     if (smaut_state_2 != -1) {
       all_dead = 0;
 
-      if ((smaut_state_2 == 0) | (smaut_state_2 == 1)) {
-        if ((c == 32) | (c == 110) | (c == 114) | (c == 116))
+      if (((smaut_state_2 == 0) | (smaut_state_2 == 1)) &
+         ((c == 32) | (c == 110) | (c == 114) | (c == 116))) {
           smaut_state_2 = 1;
-        else
-          smaut_state_2 = -1;
       }
       else {
         smaut_state_2 = -1;
@@ -620,50 +607,13 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       }
     }
 
-    // Transition State Machine 3
-    if (smaut_state_3 != -1) {
-      all_dead = 0;
-
-      if (smaut_state_3 == 0) {
-        if (c == 47)
-          smaut_state_3 = 1;
-        else
-          smaut_state_3 = -1;
-      }
-      else if (smaut_state_3 == 1) {
-        if (c == 47)
-          smaut_state_3 = 2;
-        else
-          smaut_state_3 = -1;
-      }
-      else if (smaut_state_3 == 2) {
-        if (!(c == 110))
-          smaut_state_3 = 2;
-        else
-          smaut_state_3 = -1;
-      }
-      else {
-        smaut_state_3 = -1;
-      }
-
-      // Check accept
-      if (smaut_state_3 == 2) {
-        smaut_tokenkind_3 = PL0_TOK_SLCOM;
-        smaut_munch_size_3 = iidx + 1;
-      }
-    }
-
     if (all_dead)
       break;
   }
 
   // Determine what token was accepted, if any.
-  pl0_token_id kind = PL0_TOK_STREAMEND;
+  pl0_token_kind kind = PL0_TOK_STREAMEND;
   size_t max_munch = 0;
-  if (smaut_munch_size_3 >= max_munch) {
-    kind = PL0_TOK_SLCOM;
-    max_munch = smaut_munch_size_3;
-  }
   if (smaut_munch_size_2 >= max_munch) {
     kind = PL0_TOK_WS;
     max_munch = smaut_munch_size_2;
@@ -675,6 +625,10 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
   if (smaut_munch_size_0 >= max_munch) {
     kind = PL0_TOK_IDENT;
     max_munch = smaut_munch_size_0;
+  }
+  if (trie_munch_size >= max_munch) {
+    kind = trie_tokenkind;
+    max_munch = trie_munch_size;
   }
 
   pl0_token ret;
