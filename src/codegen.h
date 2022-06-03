@@ -6,6 +6,7 @@
 #include "list.h"
 #include "parserctx.h"
 #include "utf8.h"
+#include <stdio.h>
 
 /*******/
 /* ctx */
@@ -185,8 +186,8 @@ static inline void tok_write_ctxstruct(codegen_ctx *ctx) {
           ctx->prefix_upper, ctx->prefix_lower);
 
   fprintf(ctx->f,
-          "static inline void %s_tokenizer_init(%s_tokenizer* tokenizer, char* "
-          "sourceFile, codepoint_t* start, size_t len) {\n"
+          "static inline void %s_tokenizer_init(%s_tokenizer* tokenizer, "
+          "codepoint_t* start, size_t len, char* sourceFile) {\n"
           "  tokenizer->start = start;\n"
           "  tokenizer->len = len;\n"
           "  tokenizer->pos = 0;\n"
@@ -286,6 +287,15 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
     for (size_t i = 0; i < smauts.len; i++)
       fprintf(ctx->f, "  size_t smaut_munch_size_%zu = 0;\n", i);
   }
+
+  if (has_trie)
+    fprintf(ctx->f, "  %s_token_id trie_tokenkind = %s_TOK_STREAMEND;\n",
+            ctx->prefix_lower, ctx->prefix_upper);
+  if (has_smauts) {
+    for (size_t i = 0; i < smauts.len; i++)
+      fprintf(ctx->f, "  %s_token_id smaut_tokenkind_%zu = %s_TOK_STREAMEND;\n",
+              ctx->prefix_lower, i, ctx->prefix_upper);
+  }
   fprintf(ctx->f, "\n\n");
 
   // Outer loop
@@ -333,7 +343,19 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
     }
     fprintf(ctx->f, "      else {\n");
     fprintf(ctx->f, "        trie_state = -1;\n");
-    fprintf(ctx->f, "      }\n");
+    fprintf(ctx->f, "      }\n\n");
+
+    eels = 0;
+    fprintf(ctx->f, "      // Check accept\n");
+    for (size_t i = 0; i < trie.accepting.len; i++) {
+      fprintf(ctx->f, "      %sif (trie_state == %i) {\n",
+              eels++ ? "else " : "", trie.accepting.buf[i].num);
+      fprintf(ctx->f, "        trie_tokenkind =  %s_TOK_%s;\n",
+              ctx->prefix_upper,
+              (char *)trie.accepting.buf[i].rule->children[0]->extra);
+      fprintf(ctx->f, "        trie_munch_size = iidx + 1;\n");
+      fprintf(ctx->f, "      }\n");
+    }
     fprintf(ctx->f, "    }\n\n"); // End of Trie aut
   }
 
@@ -343,24 +365,20 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
       SMAutomaton aut = smauts.buf[a];
       fprintf(ctx->f, "    // Transition State Machine %zu\n", a);
       fprintf(ctx->f, "    if (smaut_state_%zu != -1) {\n", a);
-      fprintf(ctx->f, "      all_dead = 0;\n");
+      fprintf(ctx->f, "      all_dead = 0;\n\n");
 
       int eels = 0;
       for (size_t i = 0; i < aut.trans.len; i++) {
         SMTransition trans = list_SMTransition_get(&aut.trans, i);
-        //
+
         fprintf(ctx->f, "      %sif (", eels++ ? "else " : "");
-        tok_write_statecheck(ctx, a, aut.accepting);
+        tok_write_statecheck(ctx, a, trans.from);
         fprintf(ctx->f, ") {\n");
 
-        int els = 0;
-        for (size_t j = 0; j < trans.from.len; j++) {
-          // fprintf(ctx->f, "\n");
-          fprintf(ctx->f, "        %sif (", els++ ? "else " : "");
-          tok_write_charsetcheck(ctx, trans.act);
-          fprintf(ctx->f, ")\n");
-          fprintf(ctx->f, "          smaut_state_%zu = %i;\n", a, trans.to);
-        }
+        fprintf(ctx->f, "        if (");
+        tok_write_charsetcheck(ctx, trans.act);
+        fprintf(ctx->f, ")\n");
+        fprintf(ctx->f, "          smaut_state_%zu = %i;\n", a, trans.to);
         fprintf(ctx->f, "        else\n          smaut_state_%zu = -1;\n", a);
         fprintf(ctx->f, "      }\n");
       }
@@ -368,12 +386,15 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
       fprintf(ctx->f, "        smaut_state_%zu = -1;\n", a);
       fprintf(ctx->f, "      }\n\n");
 
-      // Check SM Accepting
+      fprintf(ctx->f, "      // Check accept\n");
+
       fprintf(ctx->f, "      if (");
       tok_write_statecheck(ctx, a, aut.accepting);
-      fprintf(ctx->f, ")\n");
-      
+      fprintf(ctx->f, ") {\n");
+      fprintf(ctx->f, "        smaut_tokenkind_%zu = %s_TOK_%s;\n", a,
+              ctx->prefix_upper, aut.ident);
       fprintf(ctx->f, "        smaut_munch_size_%zu = iidx + 1;\n", a);
+      fprintf(ctx->f, "      }\n");
 
       fprintf(ctx->f, "    }\n\n");
     }
@@ -383,21 +404,43 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   fprintf(ctx->f, "  }\n\n"); // For each remaining character
 
   fprintf(ctx->f, "  // Determine what token was accepted, if any.\n");
-  fprintf(ctx->f,
-          "  %s_token ret;\n"
-          "#if %s_TOKENIZER_SOURCEINFO\n"
-          "  ret.line = tokenizer->pos_line;\n"
-          "  ret.col = tokenizer->pos_col;\n"
-          "  ret.sourceFile = tokenizer->pos_sourceFile;\n"
-          "#endif\n\n",
-          ctx->prefix_lower, ctx->prefix_upper);
-
-  for (size_t a = 0; a < smauts.len; a++) {
+  fprintf(ctx->f, "  %s_token_id kind = %s_TOK_STREAMEND;\n", ctx->prefix_lower,
+          ctx->prefix_upper);
+  fprintf(ctx->f, "  size_t max_munch = 0;\n");
+  if (has_smauts) {
+    for (size_t i = smauts.len; i-- > 0;) {
+      SMAutomaton aut = smauts.buf[i];
+      fprintf(ctx->f, "  if (smaut_munch_size_%zu >= max_munch) {\n", i);
+      fprintf(ctx->f, "    kind = %s_TOK_%s;\n", ctx->prefix_upper, aut.ident);
+      fprintf(ctx->f, "    max_munch = smaut_munch_size_%zu;\n", i);
+      fprintf(ctx->f, "  }\n");
+    }
   }
-  fprintf(ctx->f, "  \n");
+  fprintf(ctx->f, "\n");
 
+  fprintf(ctx->f, "  %s_token ret;\n", ctx->prefix_lower);
+  fprintf(ctx->f, "  ret.lexeme = kind;\n");
+  fprintf(ctx->f, "  ret.start = tokenizer->pos;\n");
+  fprintf(ctx->f, "  ret.len = max_munch;\n\n");
+
+  fprintf(ctx->f, "#if PL0_TOKENIZER_SOURCEINFO\n");
+  fprintf(ctx->f, "  ret.line = tokenizer->pos_line;\n");
+  fprintf(ctx->f, "  ret.col = tokenizer->pos_col;\n");
+  fprintf(ctx->f, "  ret.sourceFile = tokenizer->pos_sourceFile;\n");
+  fprintf(ctx->f, "\n");
+  fprintf(ctx->f, "  for (size_t i = 0; i < ret.len; i++) {\n");
+  fprintf(ctx->f, "    if (current[i] == '\\n') {\n");
+  fprintf(ctx->f, "      tokenizer->pos_line++;\n");
+  fprintf(ctx->f, "      tokenizer->pos_col = 0;\n");
+  fprintf(ctx->f, "    } else {\n");
+  fprintf(ctx->f, "      tokenizer->pos_col++;\n");
+  fprintf(ctx->f, "    }\n");
+  fprintf(ctx->f, "  }\n");
+  fprintf(ctx->f, "#endif\n\n");
+
+  fprintf(ctx->f, "  tokenizer->pos += max_munch;\n");
   fprintf(ctx->f, "  return ret;\n");
-  fprintf(ctx->f, "}\n\n"); // end function
+  fprintf(ctx->f, "}\n\n");
 }
 
 static inline void tok_write_footer(codegen_ctx *ctx) {

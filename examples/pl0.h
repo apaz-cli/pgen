@@ -188,12 +188,12 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
 #define PL0_TOKENIZER_SOURCEINFO 1
 #endif
 
-typedef enum { PL0_TOK_STREAMEND, PL0_TOK_EQ, PL0_TOK_CEQ, PL0_TOK_SEMI, PL0_TOK_DOT, PL0_TOK_COMMA, PL0_TOK_OPEN, PL0_TOK_CLOSE, PL0_TOK_HASH, PL0_TOK_LT, PL0_TOK_LEQ, PL0_TOK_GT, PL0_TOK_GEQ, PL0_TOK_PLUS, PL0_TOK_MINUS, PL0_TOK_STAR, PL0_TOK_DIV, PL0_TOK_VAR, PL0_TOK_PROC, PL0_TOK_CONST, PL0_TOK_BEGIN, PL0_TOK_END, PL0_TOK_IF, PL0_TOK_THEN, PL0_TOK_WHILE, PL0_TOK_DO, PL0_TOK_ODD, PL0_TOK_CALL, PL0_TOK_IDENT, PL0_TOK_NUM, } pl0_token_id;
+typedef enum { PL0_TOK_STREAMEND, PL0_TOK_EQ, PL0_TOK_CEQ, PL0_TOK_SEMI, PL0_TOK_DOT, PL0_TOK_COMMA, PL0_TOK_OPEN, PL0_TOK_CLOSE, PL0_TOK_HASH, PL0_TOK_LT, PL0_TOK_LEQ, PL0_TOK_GT, PL0_TOK_GEQ, PL0_TOK_PLUS, PL0_TOK_MINUS, PL0_TOK_STAR, PL0_TOK_DIV, PL0_TOK_VAR, PL0_TOK_PROC, PL0_TOK_CONST, PL0_TOK_BEGIN, PL0_TOK_END, PL0_TOK_IF, PL0_TOK_THEN, PL0_TOK_WHILE, PL0_TOK_DO, PL0_TOK_ODD, PL0_TOK_CALL, PL0_TOK_IDENT, PL0_TOK_NUM, PL0_TOK_WS, PL0_TOK_SLCOM, } pl0_token_id;
 
 // The 0th token is end of stream.
-// Tokens 1 - 29 are the ones you defined.
-static size_t pl0_num_tokens = 30;
-static const char* pl0_lexeme_name[] = { "PL0_TOK_STREAMEND", "PL0_TOK_EQ", "PL0_TOK_CEQ", "PL0_TOK_SEMI", "PL0_TOK_DOT", "PL0_TOK_COMMA", "PL0_TOK_OPEN", "PL0_TOK_CLOSE", "PL0_TOK_HASH", "PL0_TOK_LT", "PL0_TOK_LEQ", "PL0_TOK_GT", "PL0_TOK_GEQ", "PL0_TOK_PLUS", "PL0_TOK_MINUS", "PL0_TOK_STAR", "PL0_TOK_DIV", "PL0_TOK_VAR", "PL0_TOK_PROC", "PL0_TOK_CONST", "PL0_TOK_BEGIN", "PL0_TOK_END", "PL0_TOK_IF", "PL0_TOK_THEN", "PL0_TOK_WHILE", "PL0_TOK_DO", "PL0_TOK_ODD", "PL0_TOK_CALL", "PL0_TOK_IDENT", "PL0_TOK_NUM", };
+// Tokens 1 - 31 are the ones you defined.
+static size_t pl0_num_tokens = 32;
+static const char* pl0_lexeme_name[] = { "PL0_TOK_STREAMEND", "PL0_TOK_EQ", "PL0_TOK_CEQ", "PL0_TOK_SEMI", "PL0_TOK_DOT", "PL0_TOK_COMMA", "PL0_TOK_OPEN", "PL0_TOK_CLOSE", "PL0_TOK_HASH", "PL0_TOK_LT", "PL0_TOK_LEQ", "PL0_TOK_GT", "PL0_TOK_GEQ", "PL0_TOK_PLUS", "PL0_TOK_MINUS", "PL0_TOK_STAR", "PL0_TOK_DIV", "PL0_TOK_VAR", "PL0_TOK_PROC", "PL0_TOK_CONST", "PL0_TOK_BEGIN", "PL0_TOK_END", "PL0_TOK_IF", "PL0_TOK_THEN", "PL0_TOK_WHILE", "PL0_TOK_DO", "PL0_TOK_ODD", "PL0_TOK_CALL", "PL0_TOK_IDENT", "PL0_TOK_NUM", "PL0_TOK_WS", "PL0_TOK_SLCOM", };
 
 typedef struct {
   pl0_token_id lexeme;
@@ -217,7 +217,7 @@ typedef struct {
 #endif
 } pl0_tokenizer;
 
-static inline void pl0_tokenizer_init(pl0_tokenizer* tokenizer, char* sourceFile, codepoint_t* start, size_t len) {
+static inline void pl0_tokenizer_init(pl0_tokenizer* tokenizer, codepoint_t* start, size_t len, char* sourceFile) {
   tokenizer->start = start;
   tokenizer->len = len;
   tokenizer->pos = 0;
@@ -237,9 +237,18 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
   int trie_state = 0;
   int smaut_state_0 = 0;
   int smaut_state_1 = 0;
+  int smaut_state_2 = 0;
+  int smaut_state_3 = 0;
   size_t trie_munch_size = 0;
   size_t smaut_munch_size_0 = 0;
   size_t smaut_munch_size_1 = 0;
+  size_t smaut_munch_size_2 = 0;
+  size_t smaut_munch_size_3 = 0;
+  pl0_token_id trie_tokenkind = PL0_TOK_STREAMEND;
+  pl0_token_id smaut_tokenkind_0 = PL0_TOK_STREAMEND;
+  pl0_token_id smaut_tokenkind_1 = PL0_TOK_STREAMEND;
+  pl0_token_id smaut_tokenkind_2 = PL0_TOK_STREAMEND;
+  pl0_token_id smaut_tokenkind_3 = PL0_TOK_STREAMEND;
 
 
   for (size_t iidx = 0; iidx < remaining; iidx++) {
@@ -250,42 +259,42 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
     if (trie_state != -1) {
       all_dead = 0;
       if (trie_state == 0) {
-        if (c == 61 /*'='*/) trie_state = 1;
+        if (c == 35 /*'#'*/) trie_state = 9;
+        else if (c == 40 /*'('*/) trie_state = 7;
+        else if (c == 41 /*')'*/) trie_state = 8;
+        else if (c == 42 /*'*'*/) trie_state = 16;
+        else if (c == 43 /*'+'*/) trie_state = 14;
+        else if (c == 44 /*','*/) trie_state = 6;
+        else if (c == 45 /*'-'*/) trie_state = 15;
+        else if (c == 46 /*'.'*/) trie_state = 5;
+        else if (c == 47 /*'/'*/) trie_state = 17;
         else if (c == 58 /*':'*/) trie_state = 2;
+        else if (c == 59 /*';'*/) trie_state = 4;
+        else if (c == 60 /*'<'*/) trie_state = 10;
+        else if (c == 61 /*'='*/) trie_state = 1;
+        else if (c == 62 /*'>'*/) trie_state = 12;
+        else if (c == 98 /*'b'*/) trie_state = 35;
+        else if (c == 99 /*'c'*/) trie_state = 30;
+        else if (c == 100 /*'d'*/) trie_state = 54;
+        else if (c == 101 /*'e'*/) trie_state = 40;
+        else if (c == 105 /*'i'*/) trie_state = 43;
+        else if (c == 111 /*'o'*/) trie_state = 56;
+        else if (c == 112 /*'p'*/) trie_state = 21;
+        else if (c == 116 /*'t'*/) trie_state = 45;
+        else if (c == 118 /*'v'*/) trie_state = 18;
+        else if (c == 119 /*'w'*/) trie_state = 49;
         else trie_state = -1;
       }
       else if (trie_state == 2) {
         if (c == 61 /*'='*/) trie_state = 3;
         else trie_state = -1;
       }
-      else if (trie_state == 0) {
-        if (c == 59 /*';'*/) trie_state = 4;
-        else if (c == 46 /*'.'*/) trie_state = 5;
-        else if (c == 44 /*','*/) trie_state = 6;
-        else if (c == 40 /*'('*/) trie_state = 7;
-        else if (c == 41 /*')'*/) trie_state = 8;
-        else if (c == 35 /*'#'*/) trie_state = 9;
-        else if (c == 60 /*'<'*/) trie_state = 10;
-        else trie_state = -1;
-      }
       else if (trie_state == 10) {
         if (c == 61 /*'='*/) trie_state = 11;
         else trie_state = -1;
       }
-      else if (trie_state == 0) {
-        if (c == 62 /*'>'*/) trie_state = 12;
-        else trie_state = -1;
-      }
       else if (trie_state == 12) {
         if (c == 61 /*'='*/) trie_state = 13;
-        else trie_state = -1;
-      }
-      else if (trie_state == 0) {
-        if (c == 43 /*'+'*/) trie_state = 14;
-        else if (c == 45 /*'-'*/) trie_state = 15;
-        else if (c == 42 /*'*'*/) trie_state = 16;
-        else if (c == 47 /*'/'*/) trie_state = 17;
-        else if (c == 118 /*'v'*/) trie_state = 18;
         else trie_state = -1;
       }
       else if (trie_state == 18) {
@@ -294,10 +303,6 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       }
       else if (trie_state == 19) {
         if (c == 114 /*'r'*/) trie_state = 20;
-        else trie_state = -1;
-      }
-      else if (trie_state == 0) {
-        if (c == 112 /*'p'*/) trie_state = 21;
         else trie_state = -1;
       }
       else if (trie_state == 21) {
@@ -332,12 +337,9 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         if (c == 101 /*'e'*/) trie_state = 29;
         else trie_state = -1;
       }
-      else if (trie_state == 0) {
-        if (c == 99 /*'c'*/) trie_state = 30;
-        else trie_state = -1;
-      }
       else if (trie_state == 30) {
-        if (c == 111 /*'o'*/) trie_state = 31;
+        if (c == 97 /*'a'*/) trie_state = 59;
+        else if (c == 111 /*'o'*/) trie_state = 31;
         else trie_state = -1;
       }
       else if (trie_state == 31) {
@@ -350,10 +352,6 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       }
       else if (trie_state == 33) {
         if (c == 116 /*'t'*/) trie_state = 34;
-        else trie_state = -1;
-      }
-      else if (trie_state == 0) {
-        if (c == 98 /*'b'*/) trie_state = 35;
         else trie_state = -1;
       }
       else if (trie_state == 35) {
@@ -372,10 +370,6 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         if (c == 110 /*'n'*/) trie_state = 39;
         else trie_state = -1;
       }
-      else if (trie_state == 0) {
-        if (c == 101 /*'e'*/) trie_state = 40;
-        else trie_state = -1;
-      }
       else if (trie_state == 40) {
         if (c == 110 /*'n'*/) trie_state = 41;
         else trie_state = -1;
@@ -384,16 +378,8 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         if (c == 100 /*'d'*/) trie_state = 42;
         else trie_state = -1;
       }
-      else if (trie_state == 0) {
-        if (c == 105 /*'i'*/) trie_state = 43;
-        else trie_state = -1;
-      }
       else if (trie_state == 43) {
         if (c == 102 /*'f'*/) trie_state = 44;
-        else trie_state = -1;
-      }
-      else if (trie_state == 0) {
-        if (c == 116 /*'t'*/) trie_state = 45;
         else trie_state = -1;
       }
       else if (trie_state == 45) {
@@ -406,10 +392,6 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       }
       else if (trie_state == 47) {
         if (c == 110 /*'n'*/) trie_state = 48;
-        else trie_state = -1;
-      }
-      else if (trie_state == 0) {
-        if (c == 119 /*'w'*/) trie_state = 49;
         else trie_state = -1;
       }
       else if (trie_state == 49) {
@@ -428,16 +410,8 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         if (c == 101 /*'e'*/) trie_state = 53;
         else trie_state = -1;
       }
-      else if (trie_state == 0) {
-        if (c == 100 /*'d'*/) trie_state = 54;
-        else trie_state = -1;
-      }
       else if (trie_state == 54) {
         if (c == 111 /*'o'*/) trie_state = 55;
-        else trie_state = -1;
-      }
-      else if (trie_state == 0) {
-        if (c == 111 /*'o'*/) trie_state = 56;
         else trie_state = -1;
       }
       else if (trie_state == 56) {
@@ -446,10 +420,6 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       }
       else if (trie_state == 57) {
         if (c == 100 /*'d'*/) trie_state = 58;
-        else trie_state = -1;
-      }
-      else if (trie_state == 30) {
-        if (c == 97 /*'a'*/) trie_state = 59;
         else trie_state = -1;
       }
       else if (trie_state == 59) {
@@ -463,12 +433,123 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       else {
         trie_state = -1;
       }
+
+      // Check accept
+      if (trie_state == 1) {
+        trie_tokenkind =  PL0_TOK_EQ;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 3) {
+        trie_tokenkind =  PL0_TOK_CEQ;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 4) {
+        trie_tokenkind =  PL0_TOK_SEMI;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 5) {
+        trie_tokenkind =  PL0_TOK_DOT;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 6) {
+        trie_tokenkind =  PL0_TOK_COMMA;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 7) {
+        trie_tokenkind =  PL0_TOK_OPEN;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 8) {
+        trie_tokenkind =  PL0_TOK_CLOSE;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 9) {
+        trie_tokenkind =  PL0_TOK_HASH;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 10) {
+        trie_tokenkind =  PL0_TOK_LT;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 11) {
+        trie_tokenkind =  PL0_TOK_LEQ;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 12) {
+        trie_tokenkind =  PL0_TOK_GT;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 13) {
+        trie_tokenkind =  PL0_TOK_GEQ;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 14) {
+        trie_tokenkind =  PL0_TOK_PLUS;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 15) {
+        trie_tokenkind =  PL0_TOK_MINUS;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 16) {
+        trie_tokenkind =  PL0_TOK_STAR;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 17) {
+        trie_tokenkind =  PL0_TOK_DIV;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 20) {
+        trie_tokenkind =  PL0_TOK_VAR;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 29) {
+        trie_tokenkind =  PL0_TOK_PROC;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 34) {
+        trie_tokenkind =  PL0_TOK_CONST;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 39) {
+        trie_tokenkind =  PL0_TOK_BEGIN;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 42) {
+        trie_tokenkind =  PL0_TOK_END;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 44) {
+        trie_tokenkind =  PL0_TOK_IF;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 48) {
+        trie_tokenkind =  PL0_TOK_THEN;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 53) {
+        trie_tokenkind =  PL0_TOK_WHILE;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 55) {
+        trie_tokenkind =  PL0_TOK_DO;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 58) {
+        trie_tokenkind =  PL0_TOK_ODD;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 61) {
+        trie_tokenkind =  PL0_TOK_CALL;
+        trie_munch_size = iidx + 1;
+      }
     }
 
     // Transition State Machine 0
     if (smaut_state_0 != -1) {
       all_dead = 0;
-      if ((smaut_state_0 == 1) | (smaut_state_0 == 2)) {
+
+      if (smaut_state_0 == 0) {
         if ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)))
           smaut_state_0 = 1;
         else
@@ -477,8 +558,6 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       else if ((smaut_state_0 == 1) | (smaut_state_0 == 2)) {
         if ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)) | ((c >= 48) & (c <= 57)))
           smaut_state_0 = 2;
-        else if ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)) | ((c >= 48) & (c <= 57)))
-          smaut_state_0 = 2;
         else
           smaut_state_0 = -1;
       }
@@ -486,25 +565,25 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         smaut_state_0 = -1;
       }
 
-      if ((smaut_state_0 == 1) | (smaut_state_0 == 2))
+      // Check accept
+      if ((smaut_state_0 == 1) | (smaut_state_0 == 2)) {
+        smaut_tokenkind_0 = PL0_TOK_IDENT;
         smaut_munch_size_0 = iidx + 1;
+      }
     }
 
     // Transition State Machine 1
     if (smaut_state_1 != -1) {
       all_dead = 0;
-      if (smaut_state_1 == 2) {
+
+      if (smaut_state_1 == 0) {
         if ((c == 45) | (c == 43))
           smaut_state_1 = 1;
         else
           smaut_state_1 = -1;
       }
-      else if (smaut_state_1 == 2) {
+      else if ((smaut_state_1 == 0) | (smaut_state_1 == 1) | (smaut_state_1 == 2)) {
         if (((c >= 48) & (c <= 57)))
-          smaut_state_1 = 2;
-        else if (((c >= 48) & (c <= 57)))
-          smaut_state_1 = 2;
-        else if (((c >= 48) & (c <= 57)))
           smaut_state_1 = 2;
         else
           smaut_state_1 = -1;
@@ -513,8 +592,65 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         smaut_state_1 = -1;
       }
 
-      if (smaut_state_1 == 2)
+      // Check accept
+      if (smaut_state_1 == 2) {
+        smaut_tokenkind_1 = PL0_TOK_NUM;
         smaut_munch_size_1 = iidx + 1;
+      }
+    }
+
+    // Transition State Machine 2
+    if (smaut_state_2 != -1) {
+      all_dead = 0;
+
+      if ((smaut_state_2 == 0) | (smaut_state_2 == 1)) {
+        if ((c == 32) | (c == 110) | (c == 114) | (c == 116))
+          smaut_state_2 = 1;
+        else
+          smaut_state_2 = -1;
+      }
+      else {
+        smaut_state_2 = -1;
+      }
+
+      // Check accept
+      if (smaut_state_2 == 1) {
+        smaut_tokenkind_2 = PL0_TOK_WS;
+        smaut_munch_size_2 = iidx + 1;
+      }
+    }
+
+    // Transition State Machine 3
+    if (smaut_state_3 != -1) {
+      all_dead = 0;
+
+      if (smaut_state_3 == 0) {
+        if (c == 47)
+          smaut_state_3 = 1;
+        else
+          smaut_state_3 = -1;
+      }
+      else if (smaut_state_3 == 1) {
+        if (c == 47)
+          smaut_state_3 = 2;
+        else
+          smaut_state_3 = -1;
+      }
+      else if (smaut_state_3 == 2) {
+        if (!(c == 110))
+          smaut_state_3 = 2;
+        else
+          smaut_state_3 = -1;
+      }
+      else {
+        smaut_state_3 = -1;
+      }
+
+      // Check accept
+      if (smaut_state_3 == 2) {
+        smaut_tokenkind_3 = PL0_TOK_SLCOM;
+        smaut_munch_size_3 = iidx + 1;
+      }
     }
 
     if (all_dead)
@@ -522,14 +658,46 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
   }
 
   // Determine what token was accepted, if any.
+  pl0_token_id kind = PL0_TOK_STREAMEND;
+  size_t max_munch = 0;
+  if (smaut_munch_size_3 >= max_munch) {
+    kind = PL0_TOK_SLCOM;
+    max_munch = smaut_munch_size_3;
+  }
+  if (smaut_munch_size_2 >= max_munch) {
+    kind = PL0_TOK_WS;
+    max_munch = smaut_munch_size_2;
+  }
+  if (smaut_munch_size_1 >= max_munch) {
+    kind = PL0_TOK_NUM;
+    max_munch = smaut_munch_size_1;
+  }
+  if (smaut_munch_size_0 >= max_munch) {
+    kind = PL0_TOK_IDENT;
+    max_munch = smaut_munch_size_0;
+  }
+
   pl0_token ret;
+  ret.lexeme = kind;
+  ret.start = tokenizer->pos;
+  ret.len = max_munch;
+
 #if PL0_TOKENIZER_SOURCEINFO
   ret.line = tokenizer->pos_line;
   ret.col = tokenizer->pos_col;
   ret.sourceFile = tokenizer->pos_sourceFile;
+
+  for (size_t i = 0; i < ret.len; i++) {
+    if (current[i] == '\n') {
+      tokenizer->pos_line++;
+      tokenizer->pos_col = 0;
+    } else {
+      tokenizer->pos_col++;
+    }
+  }
 #endif
 
-  
+  tokenizer->pos += max_munch;
   return ret;
 }
 

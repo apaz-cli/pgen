@@ -5,7 +5,7 @@
 #include "utf8.h"
 #include "util.h"
 
-#define AUT_PRINT 1
+#define AUT_PRINT 0
 #define AUT_DEBUG 0
 
 // loris@cs.wisc.edu
@@ -45,6 +45,7 @@ typedef struct {
 } TrieAutomaton;
 
 typedef struct {
+  char* ident;
   list_int accepting;
   list_SMTransition trans;
 } SMAutomaton;
@@ -206,8 +207,8 @@ static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
 
   // Sort the trie transitions.
   // First by from, then by to, then by char.
-  // qsort(trie.trans.buf, trie.trans.len, sizeof(TrieTransition),
-  // trieTransition_compare);
+  qsort(trie.trans.buf, trie.trans.len, sizeof(TrieTransition),
+        trieTransition_compare);
 
   if (AUT_DEBUG)
     printf("Finished building the Trie automaton.\n");
@@ -242,6 +243,7 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
     ASTNode *ident = r->children[0];
     ASTNode *def = r->children[1];
     char *identstr = (char *)ident->extra;
+    aut.ident = identstr;
 
     if (strcmp(def->name, "SMDef") != 0)
       continue;
