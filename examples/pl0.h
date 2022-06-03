@@ -244,49 +244,48 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
 
   for (size_t iidx = 0; iidx < remaining; iidx++) {
     codepoint_t c = current[iidx];
-
     int all_dead = 1;
 
     // Trie
     if (trie_state != -1) {
       all_dead = 0;
       if (trie_state == 0) {
-        if (c == 35 /*'#'*/) trie_state = 9;
-        else if (c == 40 /*'('*/) trie_state = 7;
-        else if (c == 41 /*')'*/) trie_state = 8;
-        else if (c == 42 /*'*'*/) trie_state = 16;
-        else if (c == 43 /*'+'*/) trie_state = 14;
-        else if (c == 44 /*','*/) trie_state = 6;
-        else if (c == 45 /*'-'*/) trie_state = 15;
-        else if (c == 46 /*'.'*/) trie_state = 5;
-        else if (c == 47 /*'/'*/) trie_state = 17;
+        if (c == 61 /*'='*/) trie_state = 1;
         else if (c == 58 /*':'*/) trie_state = 2;
-        else if (c == 59 /*';'*/) trie_state = 4;
-        else if (c == 60 /*'<'*/) trie_state = 10;
-        else if (c == 61 /*'='*/) trie_state = 1;
-        else if (c == 62 /*'>'*/) trie_state = 12;
-        else if (c == 98 /*'b'*/) trie_state = 35;
-        else if (c == 99 /*'c'*/) trie_state = 30;
-        else if (c == 100 /*'d'*/) trie_state = 54;
-        else if (c == 101 /*'e'*/) trie_state = 40;
-        else if (c == 105 /*'i'*/) trie_state = 43;
-        else if (c == 111 /*'o'*/) trie_state = 56;
-        else if (c == 112 /*'p'*/) trie_state = 21;
-        else if (c == 116 /*'t'*/) trie_state = 45;
-        else if (c == 118 /*'v'*/) trie_state = 18;
-        else if (c == 119 /*'w'*/) trie_state = 49;
         else trie_state = -1;
       }
       else if (trie_state == 2) {
         if (c == 61 /*'='*/) trie_state = 3;
         else trie_state = -1;
       }
+      else if (trie_state == 0) {
+        if (c == 59 /*';'*/) trie_state = 4;
+        else if (c == 46 /*'.'*/) trie_state = 5;
+        else if (c == 44 /*','*/) trie_state = 6;
+        else if (c == 40 /*'('*/) trie_state = 7;
+        else if (c == 41 /*')'*/) trie_state = 8;
+        else if (c == 35 /*'#'*/) trie_state = 9;
+        else if (c == 60 /*'<'*/) trie_state = 10;
+        else trie_state = -1;
+      }
       else if (trie_state == 10) {
         if (c == 61 /*'='*/) trie_state = 11;
         else trie_state = -1;
       }
+      else if (trie_state == 0) {
+        if (c == 62 /*'>'*/) trie_state = 12;
+        else trie_state = -1;
+      }
       else if (trie_state == 12) {
         if (c == 61 /*'='*/) trie_state = 13;
+        else trie_state = -1;
+      }
+      else if (trie_state == 0) {
+        if (c == 43 /*'+'*/) trie_state = 14;
+        else if (c == 45 /*'-'*/) trie_state = 15;
+        else if (c == 42 /*'*'*/) trie_state = 16;
+        else if (c == 47 /*'/'*/) trie_state = 17;
+        else if (c == 118 /*'v'*/) trie_state = 18;
         else trie_state = -1;
       }
       else if (trie_state == 18) {
@@ -295,6 +294,10 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       }
       else if (trie_state == 19) {
         if (c == 114 /*'r'*/) trie_state = 20;
+        else trie_state = -1;
+      }
+      else if (trie_state == 0) {
+        if (c == 112 /*'p'*/) trie_state = 21;
         else trie_state = -1;
       }
       else if (trie_state == 21) {
@@ -329,9 +332,12 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         if (c == 101 /*'e'*/) trie_state = 29;
         else trie_state = -1;
       }
+      else if (trie_state == 0) {
+        if (c == 99 /*'c'*/) trie_state = 30;
+        else trie_state = -1;
+      }
       else if (trie_state == 30) {
-        if (c == 97 /*'a'*/) trie_state = 59;
-        else if (c == 111 /*'o'*/) trie_state = 31;
+        if (c == 111 /*'o'*/) trie_state = 31;
         else trie_state = -1;
       }
       else if (trie_state == 31) {
@@ -344,6 +350,10 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       }
       else if (trie_state == 33) {
         if (c == 116 /*'t'*/) trie_state = 34;
+        else trie_state = -1;
+      }
+      else if (trie_state == 0) {
+        if (c == 98 /*'b'*/) trie_state = 35;
         else trie_state = -1;
       }
       else if (trie_state == 35) {
@@ -362,6 +372,10 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         if (c == 110 /*'n'*/) trie_state = 39;
         else trie_state = -1;
       }
+      else if (trie_state == 0) {
+        if (c == 101 /*'e'*/) trie_state = 40;
+        else trie_state = -1;
+      }
       else if (trie_state == 40) {
         if (c == 110 /*'n'*/) trie_state = 41;
         else trie_state = -1;
@@ -370,8 +384,16 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         if (c == 100 /*'d'*/) trie_state = 42;
         else trie_state = -1;
       }
+      else if (trie_state == 0) {
+        if (c == 105 /*'i'*/) trie_state = 43;
+        else trie_state = -1;
+      }
       else if (trie_state == 43) {
         if (c == 102 /*'f'*/) trie_state = 44;
+        else trie_state = -1;
+      }
+      else if (trie_state == 0) {
+        if (c == 116 /*'t'*/) trie_state = 45;
         else trie_state = -1;
       }
       else if (trie_state == 45) {
@@ -384,6 +406,10 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       }
       else if (trie_state == 47) {
         if (c == 110 /*'n'*/) trie_state = 48;
+        else trie_state = -1;
+      }
+      else if (trie_state == 0) {
+        if (c == 119 /*'w'*/) trie_state = 49;
         else trie_state = -1;
       }
       else if (trie_state == 49) {
@@ -402,8 +428,16 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         if (c == 101 /*'e'*/) trie_state = 53;
         else trie_state = -1;
       }
+      else if (trie_state == 0) {
+        if (c == 100 /*'d'*/) trie_state = 54;
+        else trie_state = -1;
+      }
       else if (trie_state == 54) {
         if (c == 111 /*'o'*/) trie_state = 55;
+        else trie_state = -1;
+      }
+      else if (trie_state == 0) {
+        if (c == 111 /*'o'*/) trie_state = 56;
         else trie_state = -1;
       }
       else if (trie_state == 56) {
@@ -412,6 +446,10 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       }
       else if (trie_state == 57) {
         if (c == 100 /*'d'*/) trie_state = 58;
+        else trie_state = -1;
+      }
+      else if (trie_state == 30) {
+        if (c == 97 /*'a'*/) trie_state = 59;
         else trie_state = -1;
       }
       else if (trie_state == 59) {
@@ -430,43 +468,52 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
     // Transition State Machine 0
     if (smaut_state_0 != -1) {
       all_dead = 0;
-      if ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90))) {
-        if (smaut_state_0 == 0) smaut_state_0 = 1;
-        else smaut_state_0 = -1;
+      if ((smaut_state_0 == 1) | (smaut_state_0 == 2)) {
+        if ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)))
+          smaut_state_0 = 1;
+        else
+          smaut_state_0 = -1;
       }
-      else if ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)) | ((c >= 48) & (c <= 57))) {
-        if (smaut_state_0 == 1) smaut_state_0 = 2;
-        else if (smaut_state_0 == 2) smaut_state_0 = 2;
-        else smaut_state_0 = -1;
+      else if ((smaut_state_0 == 1) | (smaut_state_0 == 2)) {
+        if ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)) | ((c >= 48) & (c <= 57)))
+          smaut_state_0 = 2;
+        else if ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)) | ((c >= 48) & (c <= 57)))
+          smaut_state_0 = 2;
+        else
+          smaut_state_0 = -1;
       }
       else {
         smaut_state_0 = -1;
       }
 
-      int accept = ((smaut_state_0 == 1) | (smaut_state_0 == 2));
-      if (accept)
+      if ((smaut_state_0 == 1) | (smaut_state_0 == 2))
         smaut_munch_size_0 = iidx + 1;
     }
 
     // Transition State Machine 1
     if (smaut_state_1 != -1) {
       all_dead = 0;
-      if ((c == 45) | (c == 43)) {
-        if (smaut_state_1 == 0) smaut_state_1 = 1;
-        else smaut_state_1 = -1;
+      if (smaut_state_1 == 2) {
+        if ((c == 45) | (c == 43))
+          smaut_state_1 = 1;
+        else
+          smaut_state_1 = -1;
       }
-      else if (((c >= 48) & (c <= 57))) {
-        if (smaut_state_1 == 0) smaut_state_1 = 2;
-        else if (smaut_state_1 == 1) smaut_state_1 = 2;
-        else if (smaut_state_1 == 2) smaut_state_1 = 2;
-        else smaut_state_1 = -1;
+      else if (smaut_state_1 == 2) {
+        if (((c >= 48) & (c <= 57)))
+          smaut_state_1 = 2;
+        else if (((c >= 48) & (c <= 57)))
+          smaut_state_1 = 2;
+        else if (((c >= 48) & (c <= 57)))
+          smaut_state_1 = 2;
+        else
+          smaut_state_1 = -1;
       }
       else {
         smaut_state_1 = -1;
       }
 
-      int accept = (smaut_state_1 == 2);
-      if (accept)
+      if (smaut_state_1 == 2)
         smaut_munch_size_1 = iidx + 1;
     }
 

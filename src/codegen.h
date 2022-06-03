@@ -201,6 +201,22 @@ static inline void tok_write_ctxstruct(codegen_ctx *ctx) {
           ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_upper);
 }
 
+static inline void tok_write_statecheck(codegen_ctx *ctx, size_t smaut_num,
+                                        list_int states) {
+
+  // Single int
+  if (states.len == 1) {
+    fprintf(ctx->f, "smaut_state_%zu == %i", smaut_num, states.buf[0]);
+  }
+
+  // Charset
+  else {
+    fprintf(ctx->f, "(smaut_state_%zu == %i)", smaut_num, states.buf[0]);
+    for (size_t i = 1; i < states.len; i++)
+      fprintf(ctx->f, " | (smaut_state_%zu == %i)", smaut_num, states.buf[i]);
+  }
+}
+
 static inline void tok_write_charsetcheck(codegen_ctx *ctx, ASTNode *charset) {
 
   // Single char
@@ -274,7 +290,7 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
 
   // Outer loop
   fprintf(ctx->f, "  for (size_t iidx = 0; iidx < remaining; iidx++) {\n");
-  fprintf(ctx->f, "    codepoint_t c = current[iidx];\n\n");
+  fprintf(ctx->f, "    codepoint_t c = current[iidx];\n");
   fprintf(ctx->f, "    int all_dead = 1;\n\n");
 
   // Inner loop (automaton, unrolled)
@@ -324,40 +340,39 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   // SM auts
   if (has_smauts) {
     for (size_t a = 0; a < smauts.len; a++) {
-      SMAutomaton smaut = smauts.buf[a];
+      SMAutomaton aut = smauts.buf[a];
       fprintf(ctx->f, "    // Transition State Machine %zu\n", a);
       fprintf(ctx->f, "    if (smaut_state_%zu != -1) {\n", a);
       fprintf(ctx->f, "      all_dead = 0;\n");
+
       int eels = 0;
-      for (size_t i = 0; i < smaut.trans.len; i++) {
-        int els = 0;
-        SMTransition trans = smaut.trans.buf[i];
+      for (size_t i = 0; i < aut.trans.len; i++) {
+        SMTransition trans = list_SMTransition_get(&aut.trans, i);
+        //
         fprintf(ctx->f, "      %sif (", eels++ ? "else " : "");
-        tok_write_charsetcheck(ctx, trans.act);
+        tok_write_statecheck(ctx, a, aut.accepting);
         fprintf(ctx->f, ") {\n");
+
+        int els = 0;
         for (size_t j = 0; j < trans.from.len; j++) {
-          fprintf(ctx->f,
-                  "        %sif (smaut_state_%zu == %i) "
-                  "smaut_state_%zu = %i;\n",
-                  els++ ? "else " : "", a, trans.from.buf[j], a, trans.to);
+          // fprintf(ctx->f, "\n");
+          fprintf(ctx->f, "        %sif (", els++ ? "else " : "");
+          tok_write_charsetcheck(ctx, trans.act);
+          fprintf(ctx->f, ")\n");
+          fprintf(ctx->f, "          smaut_state_%zu = %i;\n", a, trans.to);
         }
-        fprintf(ctx->f, "        else smaut_state_%zu = -1;\n", a);
+        fprintf(ctx->f, "        else\n          smaut_state_%zu = -1;\n", a);
         fprintf(ctx->f, "      }\n");
       }
       fprintf(ctx->f, "      else {\n");
       fprintf(ctx->f, "        smaut_state_%zu = -1;\n", a);
       fprintf(ctx->f, "      }\n\n");
+
       // Check SM Accepting
-      fprintf(ctx->f, "      int accept = %s",
-              smaut.accepting.len > 1 ? "(" : "");
-      for (size_t i = 0; i < smaut.accepting.len; i++) {
-        int acc = list_int_get(&smaut.accepting, i);
-        fprintf(ctx->f, "(smaut_state_%zu == %i)", a, acc);
-        if (i != smaut.accepting.len - 1)
-          fprintf(ctx->f, " | ");
-      }
-      fprintf(ctx->f, "%s;\n", smaut.accepting.len > 1 ? ")" : "");
-      fprintf(ctx->f, "      if (accept)\n");
+      fprintf(ctx->f, "      if (");
+      tok_write_statecheck(ctx, a, aut.accepting);
+      fprintf(ctx->f, ")\n");
+      
       fprintf(ctx->f, "        smaut_munch_size_%zu = iidx + 1;\n", a);
 
       fprintf(ctx->f, "    }\n\n");

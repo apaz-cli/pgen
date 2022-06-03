@@ -5,7 +5,7 @@
 #include "utf8.h"
 #include "util.h"
 
-#define AUT_PRINT 0
+#define AUT_PRINT 1
 #define AUT_DEBUG 0
 
 // loris@cs.wisc.edu
@@ -206,8 +206,8 @@ static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
 
   // Sort the trie transitions.
   // First by from, then by to, then by char.
-  qsort(trie.trans.buf, trie.trans.len, sizeof(TrieTransition),
-        trieTransition_compare);
+  // qsort(trie.trans.buf, trie.trans.len, sizeof(TrieTransition),
+  // trieTransition_compare);
 
   if (AUT_DEBUG)
     printf("Finished building the Trie automaton.\n");
@@ -281,19 +281,20 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
   } // automaton for smdef in tokast
 
   if (AUT_DEBUG)
-    printf("Finished building the SM automata.\n");
+    printf("Finished building the SM automata.\n\n");
 
   if (AUT_PRINT) {
     for (size_t k = 0; k < auts.len; k++) {
       SMAutomaton aut = list_SMAutomaton_get(&auts, k);
-      for (size_t i = 0; i < aut.accepting.len; i++) {
-        int s = list_int_get(&aut.accepting, i);
-        printf("First accepting state: %i\n", s);
-      }
+
+      printf("Accepting states for smaut %zu: ", k);
+      list_int_print(stdout, aut.accepting);
+      puts("");
       for (size_t i = 0; i < aut.trans.len; i++) {
         SMTransition t = list_SMTransition_get(&aut.trans, i);
-        printf("Transition: (");
+        printf("Transition: ");
         list_int_print(stdout, t.from);
+        printf(" -> (%i)\n", t.to);
       }
       fflush(stdout);
     }
