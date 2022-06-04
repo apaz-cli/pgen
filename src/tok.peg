@@ -17,7 +17,7 @@ numset <- num /
           '(' _ num _ "-" _ num _ ')' /
           '(' _ numset _ ("," _ numset _)* ')'
 charset <- "'" char "'" /
-           '[' '^'? (!']' char ('-' !']' char)?)+ ']'
+           '[' '^'? (!']' char ('-' !']' char)?)* ']'
 pair <- '(' _ numset _ ',' _ charset _ ')'
 
 # Definitions

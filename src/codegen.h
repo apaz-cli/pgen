@@ -148,7 +148,7 @@ static inline void tok_write_enum(codegen_ctx *ctx) {
   fprintf(ctx->f, "static size_t %s_num_tokens = %zu;\n", ctx->prefix_lower,
           num_defs + 1);
   fprintf(ctx->f,
-          "static const char* %s_lexeme_name[] = { \"%s_TOK_STREAMEND\", ",
+          "static const char* %s_kind_name[] = { \"%s_TOK_STREAMEND\", ",
           ctx->prefix_lower, ctx->prefix_upper);
   for (size_t i = 0; i < num_defs; i++)
     fprintf(ctx->f, "\"%s_TOK_%s\", ", ctx->prefix_upper,
@@ -159,9 +159,9 @@ static inline void tok_write_enum(codegen_ctx *ctx) {
 static inline void tok_write_tokenstruct(codegen_ctx *ctx) {
   fprintf(ctx->f,
           "typedef struct {\n"
-          "  %s_token_kind lexeme;\n"
-          "  size_t start;\n"
-          "  size_t len;\n"
+          "  %s_token_kind kind;\n"
+          "  size_t start; // The token begins at tokenizer->start[token->start]. \n"
+          "  size_t len;   // It goes until tokenizer->start[token->start + token->len] (non-inclusive).\n"
           "#if %s_TOKENIZER_SOURCEINFO\n"
           "  size_t line;\n"
           "  size_t col;\n"
@@ -222,13 +222,22 @@ static inline void tok_write_charsetcheck(codegen_ctx *ctx, ASTNode *charset) {
 
   // Single char
   if (!charset->num_children) {
-    codepoint_t c = *(codepoint_t *)charset->extra;
-    fprintf(ctx->f, "c == %" PRI_CODEPOINT "", c);
+    // printf("%s\n", charset->name);
+    if (strcmp(charset->name, "CharSet") == 0) {
+      fprintf(ctx->f, "%i", (int)*(bool *)charset->extra);
+    } else { // single char
+      fprintf(ctx->f, "c == %" PRI_CODEPOINT "", *(codepoint_t *)charset->extra);
+    }
   }
 
   // Charset
   else {
     bool inverted = *(bool *)charset->extra;
+    if (!charset->num_children) {
+      fprintf(ctx->f, "%i", (int)inverted);
+      return;
+    }
+
     if (inverted)
       fprintf(ctx->f, "!(");
 
@@ -377,9 +386,9 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
         fprintf(ctx->f, ") &\n         (");
         tok_write_charsetcheck(ctx, trans.act);
         fprintf(ctx->f, ")) {\n");
-        
+
         fprintf(ctx->f, "          smaut_state_%zu = %i;\n", a, trans.to);
-        
+
         fprintf(ctx->f, "      }\n");
       }
       fprintf(ctx->f, "      else {\n");
@@ -425,7 +434,7 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   fprintf(ctx->f, "\n");
 
   fprintf(ctx->f, "  %s_token ret;\n", ctx->prefix_lower);
-  fprintf(ctx->f, "  ret.lexeme = kind;\n");
+  fprintf(ctx->f, "  ret.kind = kind;\n");
   fprintf(ctx->f, "  ret.start = tokenizer->pos;\n");
   fprintf(ctx->f, "  ret.len = max_munch;\n\n");
 

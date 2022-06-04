@@ -77,11 +77,39 @@ static inline codepoint_t tok_parse_Char(parser_ctx *ctx) {
   RULE_BEGIN("Char");
 
   // Escape sequences
-  if (IS_CURRENT("\\"))
+  int esc = 0;
+  if (IS_CURRENT("\\")) {
     ADVANCE(strlen("\\"));
+    codepoint_t ret = CURRENT();
+    NEXT();
+    if (ret == 'n') // newline
+      return '\n';
+    else if (ret == 'r') // carriage return
+      return '\r';
+    else if (ret == 't') // tab
+      return '\t';
+    else if (ret == '\\') // backslash
+      return '\\';
+    else if (ret == '\'') // single quote
+      return '\'';
+    else if (ret == '\"') // double quote
+      return '\"';
+    else if (ret == 'b') // backspace
+      return '\b';
+    else if (ret == 'v') // vertical tab
+      return '\v';
+    else if (ret == 'a') // alert
+      return '\a';
+    else if (ret == 'f') // form feed
+      return '\f';
+    else if (ret == '?') // question mark
+      return '\?';
+    else
+      return REWIND(begin), 0;
+  }
 
   // Normal characters
-  if (HAS_CURRENT()) {
+  else if (HAS_CURRENT()) {
     codepoint_t ret = CURRENT();
     NEXT();
     RETURN(ret);
@@ -206,7 +234,8 @@ static inline ASTNode *tok_parse_NumSet(parser_ctx *ctx) {
 // the form [^? ...] then charset->extra is a bool* of whether
 // the ^ is present, and charset->children has the range's contents.
 // The children are of the form char->extra = codepoint or
-// charrange->extra = codepoint[2].
+// charrange->extra = codepoint[2]. A charset of the
+// form [^? ...] may have no children.
 static inline ASTNode *tok_parse_CharSet(parser_ctx *ctx) {
 
   RULE_BEGIN("CharSet");
@@ -253,7 +282,6 @@ static inline ASTNode *tok_parse_CharSet(parser_ctx *ctx) {
     OOM();
   *bptr = is_inverted;
 
-  int times = 0;
   while (1) {
 
     if (IS_CURRENT("]"))
@@ -295,12 +323,6 @@ static inline ASTNode *tok_parse_CharSet(parser_ctx *ctx) {
       *(cpptr + 1) = c2;
     ASTNode_addChild(node, cld);
 
-    times++;
-  }
-
-  if (!times) {
-    REWIND(begin);
-    RETURN(NULL);
   }
 
   if (!IS_CURRENT("]")) {

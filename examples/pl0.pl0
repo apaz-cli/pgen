@@ -1,3 +1,7 @@
+# Hash Single Line Comment // /* U_U */
+// Single Line Comment /* // uwu */
+/* Multi Line Comment // UwU. */
+
 const max = 100;
 var arg, ret;
 

@@ -117,7 +117,7 @@ static inline size_t UTF8_encodeNext(codepoint_t codepoint, char *buf4) {
  * Returns 1 on success, 0 on failure. Cleans up the buffer and does not store
  * to retstr or retlen on failure.
  */
-static int UTF8_encode(codepoint_t *codepoints, size_t len, char **retstr,
+static inline int UTF8_encode(codepoint_t *codepoints, size_t len, char **retstr,
                        size_t *retlen) {
   char buf4[4];
   size_t characters_used = 0, used, i, j;

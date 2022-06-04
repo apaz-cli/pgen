@@ -249,7 +249,7 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
       continue;
 
     if (AUT_DEBUG)
-      printf("Building automaton %zu for %s.\n", auts.len, identstr);
+      printf("Building automaton for %s.\n", identstr);
 
     // Grab the accepting states.
     ASTNode *accepting = def->children[0];
