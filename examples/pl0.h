@@ -1,8 +1,8 @@
 
 /* START OF UTF8 LIBRARY */
 
-#ifndef PGEN_UTF8
-#define PGEN_UTF8
+#ifndef PGEN_UTF8_INCLUDED
+#define PGEN_UTF8_INCLUDED
 #include <stdint.h>
 #include <stdlib.h>
 #include <inttypes.h>
