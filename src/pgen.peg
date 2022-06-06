@@ -30,7 +30,7 @@ SlashExpr       <- ModExprList (_ '/' ModExprList)*
 
 ModExprList     <- (_ ModExpr)+
 
-ModExpr         <- ('&' / '!')? _ BaseExpr _ ('?' / '*' / '+')?
+ModExpr         <- (RuleIdent _ ':' _)? (('&' / '!') _)? BaseExpr (_ ('?' / '*' / '+'))?
 
 BaseExpr        <- TokIdent
                  / RuleIdent _ !'<-'

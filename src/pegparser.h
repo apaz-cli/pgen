@@ -1,5 +1,6 @@
 #ifndef PGEN_INCLUDE_PEGPARSER
 #define PGEN_INCLUDE_PEGPARSER
+#include "ast.h"
 #include "parserctx.h"
 
 static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx);
@@ -149,9 +150,29 @@ static inline ASTNode *peg_parse_ModExprList(parser_ctx *ctx) {
 static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
 
   RULE_BEGIN("ModExpr");
+  INIT("ModExpr");
 
-  if (!HAS_CURRENT())
+  ASTNode *labelident = peg_parse_RuleIdent(ctx);
+  if (labelident) {
+    WS();
+
+    if (!IS_CURRENT(":")) {
+      ASTNode_destroy(labelident);
+      REWIND(begin);
+    } else {
+      NEXT();
+
+      WS();
+
+      ASTNode_addChild(node, labelident);
+    }
+  }
+
+  if (!HAS_CURRENT()) {
+    ASTNode_destroy(node);
+    REWIND(begin);
     RETURN(NULL);
+  }
 
   char prefix = '\0';
   if ((CURRENT() == '&') | (CURRENT() == '!')) {
@@ -163,29 +184,35 @@ static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
 
   ASTNode *bex = peg_parse_BaseExpr(ctx);
   if (!bex) {
+    ASTNode_destroy(node);
     REWIND(begin);
     RETURN(NULL);
   }
+  ASTNode_addChild(node, bex);
 
   WS();
-
-  INIT("ModExpr");
-  ASTNode_addChild(node, bex);
 
   char suffix = '\0';
   if (HAS_CURRENT()) {
     suffix = (char)CURRENT();
     if (!((suffix == '?') | (suffix == '*') | (suffix == '+')))
       suffix = '\0';
+    NEXT();
   }
 
-  if (suffix) {
-    NEXT();
+  if (prefix | suffix) {
 
     char *cptr;
     node->extra = cptr = (char *)malloc(sizeof(char) * 2);
     *(cptr + 0) = prefix;
     *(cptr + 1) = suffix;
+  }
+
+  // Make the BaseExpr appear before the optional RuleIdent
+  if (node->num_children == 2) {
+    ASTNode *tmp = node->children[0];
+    node->children[0] = node->children[1];
+    node->children[1] = tmp;
   }
 
   RETURN(node);

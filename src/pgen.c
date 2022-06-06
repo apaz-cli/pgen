@@ -1,10 +1,3 @@
-
-#define MEMDEBUG 0
-#if MEMDEBUG // Memory debugging.
-#define PRINT_MEMALLOCS 0
-#include <apaz-libc/memdebug.h>
-#endif
-
 #include "argparse.h"
 #include "tokparser.h"
 #include "pegparser.h"
@@ -71,10 +64,6 @@ int main(int argc, char **argv) {
   destroySMAutomata(smauts);
   free(tokenFile.str);
   free(parserFile.str);
-
-#if MEMDEBUG
-  print_heap();
-#endif
 
   return 0;
 }
