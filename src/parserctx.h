@@ -54,8 +54,8 @@ static inline void parser_ctx_init(parser_ctx *ctx,
     return (ret);                                                              \
   } while (0)
 
-#define DEBUG 0
-#if DEBUG
+static int ctx_debug = 0;
+
 static inline void print_unconsumed(parser_ctx *ctx) {
   Codepoint_String_View cpsv;
   cpsv.str = ctx->str + ctx->pos;
@@ -65,34 +65,26 @@ static inline void print_unconsumed(parser_ctx *ctx) {
 
 static inline void ctx_rule_debug(int status, const char *rulename,
                                   parser_ctx *ctx) {
+  if (ctx_debug) {
+    if (strcmp(rulename, "ws") == 0)
+      return;
 
-  if (strcmp(rulename, "ws") == 0)
-    return;
+    printf("\x1b[2J"); // clear screen
+    printf("\x1b[H");  // cursor to top left corner
 
-  if (status == 0) {
-    printf("\x1b[34m"); // Blue
-  } else if (status == 1) {
-    printf("\x1b[32m"); // Green
-  } else {
-    printf("\x1b[31m"); // Red
+    if (status == 0) {
+      printf("\x1b[34m"); // Blue
+    } else if (status == 1) {
+      printf("\x1b[32m"); // Green
+    } else {
+      printf("\x1b[31m"); // Red
+    }
+    printf("%s\x1b[0m\n", rulename); // Rule name, clear coloring.
+
+    print_unconsumed(ctx);
+    getchar();
   }
-  printf("%s\x1b[0m\n", rulename); // Rule name, clear coloring.
-
-#if 1
-  print_unconsumed(ctx);
-  getchar();
-  printf("\x1b[2J"); // clear screen
-  printf("\x1b[H");  // cursor to top left corner
-#endif
 }
-#else
-static inline void ctx_rule_debug(int status, const char *rulename,
-                                  parser_ctx *ctx) {
-  (void)status;
-  (void)rulename;
-  (void)ctx;
-}
-#endif
 
 static inline bool ctx_is_current(parser_ctx *ctx, const char *s) {
   size_t len = strlen(s);

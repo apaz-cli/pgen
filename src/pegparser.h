@@ -168,19 +168,14 @@ static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
     }
   }
 
-  if (!HAS_CURRENT()) {
-    ASTNode_destroy(node);
-    REWIND(begin);
-    RETURN(NULL);
-  }
-
   char prefix = '\0';
-  if ((CURRENT() == '&') | (CURRENT() == '!')) {
-    prefix = (char)CURRENT();
-    NEXT();
+  if (HAS_CURRENT()) {
+    if ((CURRENT() == '&') | (CURRENT() == '!')) {
+      prefix = (char)CURRENT();
+      NEXT();
+      WS();
+    }
   }
-
-  WS();
 
   ASTNode *bex = peg_parse_BaseExpr(ctx);
   if (!bex) {
@@ -194,14 +189,13 @@ static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
 
   char suffix = '\0';
   if (HAS_CURRENT()) {
-    suffix = (char)CURRENT();
-    if (!((suffix == '?') | (suffix == '*') | (suffix == '+')))
-      suffix = '\0';
-    NEXT();
+    if ((CURRENT() == '?') | (CURRENT() == '*') | (CURRENT() == '+')) {
+      suffix = (char)CURRENT();
+      NEXT();
+    }
   }
 
   if (prefix | suffix) {
-
     char *cptr;
     node->extra = cptr = (char *)malloc(sizeof(char) * 2);
     *(cptr + 0) = prefix;

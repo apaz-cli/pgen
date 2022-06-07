@@ -17,7 +17,7 @@
   } while (0)
 #define ERROR(...)                                                             \
   do {                                                                         \
-    fprintf(stderr, "Error:\n");                                               \
+    fprintf(stderr, "Error: ");                                               \
     fprintf(stderr, __VA_ARGS__);                                              \
     fprintf(stderr, "\n");                                                     \
     exit(1);                                                                   \
