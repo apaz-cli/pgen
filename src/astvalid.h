@@ -3,7 +3,8 @@
 #include "ast.h"
 #include "util.h"
 
-// TODO: Make sure that every SM from has an SM to unless it's zero.
+// TODO: Make sure that every SM transition from has
+//       an SM transition to unless it's zero.
 
 static inline void validateTokast(ASTNode *tokast) {
   // Cross compare for duplicate rules.
