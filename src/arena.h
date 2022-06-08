@@ -152,7 +152,7 @@ static inline pgen_allocator_ret_t pgen_alloc(pgen_allocator *allocator,
         return ret;
 
       // Allocate a new arena if necessary
-      if (allocator->arenas[allocator->rew.arena_idx].cap)
+      if (allocator->arenas[allocator->rew.arena_idx].buf)
         allocator->rew.arena_idx++;
       if (!allocator->arenas[allocator->rew.arena_idx].buf) {
         char *nb = _pgen_abufalloc();
