@@ -14,10 +14,6 @@
 #define ABSZ (PGEN_PAGESIZE * 1024)
 #define NUM_ARENAS 256
 
-#define PGEN_IGNORE_FLAG 0
-#define PGEN_FREE_FLAG 1
-#define PGEN_BUFALLOC_FLAG 2
-
 #ifndef PGEN_PAGESIZE
 #if !(defined(PAGESIZE) | defined(PAGE_SIZE))
 #define PGEN_PAGESIZE 4096
@@ -31,6 +27,7 @@
 #endif
 
 #if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__)))
+
 #if __STDC_VERSION__ >= 201112L
 _Static_assert(ABSZ % PGEN_PAGESIZE == 0,
                "Buffer size must be a multiple of the page size.");
@@ -38,7 +35,7 @@ _Static_assert(ABSZ % PGEN_PAGESIZE == 0,
 
 #include <sys/mman.h>
 #include <unistd.h>
-static inline char *_abufalloc(void) {
+static inline char *_pgen_abufalloc(void) {
   char *b = (char *)mmap(NULL, ABSZ, PROT_READ | PROT_WRITE,
                          MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
   if (b == MAP_FAILED) {
@@ -47,9 +44,12 @@ static inline char *_abufalloc(void) {
   }
   return b;
 }
-static inline void _abuffree(char *buf) { munmap(buf, ABSZ); }
+static inline void _pgen_abuffree(void *buf) {
+  if (munmap(buf, ABSZ) == -1)
+    perror("munmap()");
+}
 #else
-static inline char *_abufalloc(void) {
+static inline char *_pgen_abufalloc(void) {
   char *b = (char *)malloc(ABSZ);
   if (!b) {
     perror("malloc()");
@@ -57,9 +57,7 @@ static inline char *_abufalloc(void) {
   }
   return b;
 }
-#undef PGEN_BUFALLOC_FLAG
-#define PGEN_BUFALLOC_FLAG PGEN_FREE_FLAG
-static inline void _abuffree(char *buf) { free(buf); }
+#define _pgen_abuffree free
 #endif
 
 #if __STDC_VERSION__ >= 201112L
@@ -76,9 +74,9 @@ static inline size_t pgen_align(size_t n, size_t align) {
 }
 
 typedef struct {
+  void (*freefn)(void *ptr);
   char *buf;
   uint32_t cap;
-  uint8_t freeflag;
 } pgen_arena;
 
 typedef struct {
@@ -87,8 +85,8 @@ typedef struct {
 } pgen_allocator_rewind_t;
 
 typedef struct {
-  pgen_arena arenas[NUM_ARENAS];
   pgen_allocator_rewind_t rew;
+  pgen_arena arenas[NUM_ARENAS];
 } pgen_allocator;
 
 typedef struct {
@@ -101,36 +99,29 @@ static inline pgen_allocator pgen_allocator_new() {
   alloc.rew.arena_idx = 0;
   alloc.rew.filled = 0;
   for (size_t i = 0; i < NUM_ARENAS; i++) {
+    alloc.arenas[i].freefn = NULL;
     alloc.arenas[i].buf = NULL;
     alloc.arenas[i].cap = 0;
-    alloc.arenas[i].freeflag = PGEN_IGNORE_FLAG;
   }
-  alloc.arenas[0].buf = _abufalloc();
   return alloc;
 }
 
 static inline int pgen_allocator_launder(pgen_allocator *allocator,
                                          pgen_arena arena) {
-  size_t aidx = allocator->rew.arena_idx + 1;
-  if (aidx < NUM_ARENAS) {
-    allocator->rew.arena_idx = aidx;
-    allocator->arenas[aidx] = arena;
-    return 1;
-  } else {
-    return 0;
+  for (size_t i = 0; i < NUM_ARENAS; i++) {
+    if (!allocator->arenas[i].buf) {
+      allocator->arenas[i] = arena;
+      return 1;
+    }
   }
+  return 0;
 }
 
 static inline void pgen_allocator_destroy(pgen_allocator *allocator) {
   for (size_t i = 0; i < NUM_ARENAS; i++) {
     pgen_arena a = allocator->arenas[i];
-    if (a.buf) {
-      if (a.freeflag == PGEN_FREE_FLAG)
-        free(a.buf);
-      else if (a.freeflag == PGEN_BUFALLOC_FLAG)
-        _abuffree(a.buf);
-      // Ignore PGEN_IGNORE_FLAG
-    }
+    if (a.freefn)
+      a.freefn(a.buf);
   }
 }
 
@@ -155,20 +146,22 @@ static inline pgen_allocator_ret_t pgen_alloc(pgen_allocator *allocator,
     if (bufnext > cap) {
       bufcurrent = 0;
       bufnext = n;
-      // Make sure there's space
+
+      // Make sure there's a spot for it
       if (allocator->rew.arena_idx + 1 >= NUM_ARENAS)
         return ret;
 
       // Allocate a new arena if necessary
-      allocator->rew.arena_idx++;
+      if (allocator->arenas[allocator->rew.arena_idx].cap)
+        allocator->rew.arena_idx++;
       if (!allocator->arenas[allocator->rew.arena_idx].buf) {
-        char *nb = _abufalloc();
+        char *nb = _pgen_abufalloc();
         if (!nb)
           return ret;
         pgen_arena new_arena;
+        new_arena.freefn = _pgen_abuffree;
         new_arena.buf = nb;
         new_arena.cap = ABSZ;
-        new_arena.freeflag = PGEN_BUFALLOC_FLAG;
         allocator->arenas[allocator->rew.arena_idx] = new_arena;
       }
     } else {
@@ -196,14 +189,13 @@ int main(void) {
 
   alignas(128) char to_launder[1024 * 1024];
 
-  
   pgen_allocator a = pgen_allocator_new();
 
   pgen_arena laundry;
   laundry.buf = to_launder;
-  laundry.cap = 1024 * 1024 * 8;
-  laundry.freeflag = PGEN_IGNORE_FLAG;
-  pgen_allocator_launder(&a, laundry);
+  laundry.freefn = NULL;
+  laundry.cap = 1024 * 1024;
+  // pgen_allocator_launder(&a, laundry);
 
   while (1) {
     size_t allocsz = (ABSZ / 6) + 3;
@@ -214,7 +206,4 @@ int main(void) {
   pgen_allocator_destroy(&a);
 }
 
-#undef MAL
-#undef ABSZ
-#undef UNIXY
 #endif /* PGEN_ARENA_INCLUDED */
