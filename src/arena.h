@@ -134,16 +134,12 @@ static inline pgen_allocator_ret_t pgen_alloc(pgen_allocator *allocator,
   ret.rewind = allocator->rew;
   ret.buf = NULL;
 
-  // Check if it will fit in the current arena
-  // If it won't fit, use the next (empty) arena.
-  // If it hasn't already been allocated, allocate it.
-  int cont = 1;
+  // Find the arena to allocate on and where we are inside it.
   size_t bufcurrent = pgen_align(allocator->rew.filled, alignment);
   size_t bufnext = bufcurrent + n;
-  do {
-    size_t cap = allocator->arenas[allocator->rew.arena_idx].cap;
+  while (1) {
     // If we need a new arena
-    if (bufnext > cap) {
+    if (bufnext > allocator->arenas[allocator->rew.arena_idx].cap) {
       bufcurrent = 0;
       bufnext = n;
 
@@ -165,12 +161,12 @@ static inline pgen_allocator_ret_t pgen_alloc(pgen_allocator *allocator,
         allocator->arenas[allocator->rew.arena_idx] = new_arena;
       }
     } else {
-      cont = 0;
+      break;
     }
-  } while (cont);
+  }
 
   ret.buf = allocator->arenas[allocator->rew.arena_idx].buf + bufcurrent;
-  allocator->rew.filled = bufnext; // idx already updated
+  allocator->rew.filled = bufnext;
 
   printf("Allocator: (%u, %u/%u)\n", allocator->rew.arena_idx,
          allocator->rew.filled,
@@ -195,7 +191,7 @@ int main(void) {
   laundry.buf = to_launder;
   laundry.freefn = NULL;
   laundry.cap = 1024 * 1024;
-  // pgen_allocator_launder(&a, laundry);
+  pgen_allocator_launder(&a, laundry);
 
   while (1) {
     size_t allocsz = (ABSZ / 6) + 3;

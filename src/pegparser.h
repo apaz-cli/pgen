@@ -5,6 +5,7 @@
 
 static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx);
 static inline ASTNode *peg_parse_Definition(parser_ctx *ctx);
+static inline ASTNode *peg_parse_StructDef(parser_ctx *ctx);
 static inline ASTNode *peg_parse_SlashExpr(parser_ctx *ctx);
 static inline ASTNode *peg_parse_ModExprList(parser_ctx *ctx);
 static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx);
@@ -50,6 +51,7 @@ static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx) {
 
 // definition->children[0] is a ruleident.
 // definition->children[1] is a slashexpr.
+// definitipn->children[2] is an (optional) list structdef.
 static inline ASTNode *peg_parse_Definition(parser_ctx *ctx) {
 
   RULE_BEGIN("Definition");
@@ -58,6 +60,10 @@ static inline ASTNode *peg_parse_Definition(parser_ctx *ctx) {
   if (!id) {
     RETURN(NULL);
   }
+
+  WS();
+
+  ASTNode *stdef = peg_parse_StructDef(ctx);
 
   WS();
 
@@ -80,6 +86,48 @@ static inline ASTNode *peg_parse_Definition(parser_ctx *ctx) {
   INIT("Definition");
   ASTNode_addChild(node, id);
   ASTNode_addChild(node, slash);
+  if (stdef)
+    ASTNode_addChild(node, stdef);
+  RETURN(node);
+}
+
+static inline ASTNode *peg_parse_StructDef(parser_ctx *ctx) {
+
+  RULE_BEGIN("StructDef");
+
+  if (!IS_CURRENT("{")) {
+    RETURN(NULL);
+  }
+  NEXT();
+
+  INIT("StructDef");
+
+  while (1) {
+    WS();
+
+    ASTNode *ident = peg_parse_RuleIdent(ctx);
+    if (!ident) break;
+    ASTNode *member = ASTNode_new("Member");
+    ASTNode_addChild(node, member);
+    ASTNode_addChild(member, ident);
+
+    WS();
+
+    if (IS_CURRENT("[]")) {
+      ADVANCE(2);
+      member->extra = (void *)member;
+    }
+  }
+
+  WS();
+
+  if (!IS_CURRENT("}")) {
+    ASTNode_destroy(node);
+    REWIND(begin);
+    RETURN(NULL);
+  }
+  NEXT();
+
   RETURN(node);
 }
 
@@ -156,7 +204,7 @@ static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
   if (labelident) {
     WS();
 
-    if (!IS_CURRENT(":")) {
+    if (!IS_CURRENT("=")) {
       ASTNode_destroy(labelident);
       REWIND(begin);
     } else {

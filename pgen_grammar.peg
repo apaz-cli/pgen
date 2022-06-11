@@ -14,7 +14,7 @@
 # Then it copy/pastes the contents into the parser inside a function. How exactly that happens is TBD.
 
 # Instead of using an unbalancing { or }, use the macros LB or RB.
-# Instead of using "{" and "}" use the macros LBSTR and RBSTR.
+# Instead of using "{" or "}" use the macros LBSTR or RBSTR.
 # This will keep the parser happy.
 
 ##########
@@ -24,13 +24,15 @@
 # Rules
 GrammarFile     <- (_ Definition)* _ EOF
 
-Definition      <- RuleIdent _ '<-' _ SlashExpr
+Definition      <- RuleIdent _ StructDef? _ '<-' _ SlashExpr
+
+StructDef       <- '{' (_ RuleIdent _ '[]'?)* _ '}'
 
 SlashExpr       <- ModExprList (_ '/' ModExprList)*
 
 ModExprList     <- (_ ModExpr)+
 
-ModExpr         <- (RuleIdent _ ':' _)? (('&' / '!') _)? BaseExpr _ ('?' / '*' / '+')?
+ModExpr         <- (RuleIdent _ '=' _)? (('&' / '!') _)? BaseExpr _ ('?' / '*' / '+')?
 
 BaseExpr        <- TokIdent
                  / RuleIdent _ !'<-'
