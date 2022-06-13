@@ -7,11 +7,11 @@ xxd -i src/arena.h | sed 's/\([0-9a-f]\)$/\0, 0x00/' > src/strarena.xxd
 # Build pgen
 rm pgen 2>/dev/null
 rm examples/pl0.h 2>/dev/null
-clang src/pgen.c -o pgen # -fsanitize=address -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable
+clang src/pgen.c -o pgen #-fsanitize=address -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable
 ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h
 
 # Run pl0 example.
-cd examples/
-clang pl0.c # -fsanitize=address -g
-./a.out
-cd ..
+#cd examples/
+#clang pl0.c -fsanitize=address -g -O3
+#./a.out
+#cd ..

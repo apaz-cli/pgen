@@ -95,33 +95,59 @@ static inline ASTNode *peg_parse_StructDef(parser_ctx *ctx) {
 
   RULE_BEGIN("StructDef");
 
-  if (!IS_CURRENT("{")) {
+  if (!IS_CURRENT("<")) {
     RETURN(NULL);
   }
   NEXT();
 
   INIT("StructDef");
 
+  int first = 1;
   while (1) {
     WS();
 
-    ASTNode *ident = peg_parse_RuleIdent(ctx);
-    if (!ident) break;
-    ASTNode *member = ASTNode_new("Member");
-    ASTNode_addChild(node, member);
-    ASTNode_addChild(member, ident);
+    if (!first) {
+      if (!IS_CURRENT(","))
+        break;
+      NEXT();
+    }
 
     WS();
 
-    if (IS_CURRENT("[]")) {
-      ADVANCE(2);
-      member->extra = (void *)member;
+    ASTNode *ident = peg_parse_RuleIdent(ctx);
+    if (!ident)
+      break;
+    ASTNode *member = ASTNode_new("Member");
+    ASTNode_addChild(node, member);
+    ASTNode_addChild(member, ident);
+    first = 0;
+
+    WS();
+
+    char isarr = 0;
+    char istok = 0;
+    while (IS_CURRENT(".") | IS_CURRENT("[]")) {
+      if (IS_CURRENT(".")) {
+        istok = true;
+      } else {
+        isarr = true;
+        NEXT();
+      }
+      NEXT();
+      WS();
+    }
+
+    if (isarr | istok) {
+      char *cptr;
+      member->extra = cptr = (char *)malloc(2);
+      cptr[0] = istok;
+      cptr[1] = isarr;
     }
   }
 
   WS();
 
-  if (!IS_CURRENT("}")) {
+  if (!IS_CURRENT(">")) {
     ASTNode_destroy(node);
     REWIND(begin);
     RETURN(NULL);
@@ -277,7 +303,7 @@ static inline ASTNode *peg_parse_BaseExpr(parser_ctx *ctx) {
 
     WS();
 
-    if (IS_CURRENT("<-")) {
+    if (IS_CURRENT("<")) {
       ASTNode_destroy(n);
       REWIND(begin);
       RETURN(NULL);

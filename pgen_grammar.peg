@@ -1,6 +1,7 @@
 # Note - This is written in normal PEG fashion, for my own understanding.
 # This is not an example of the usage of pgen, it is different.
 
+
 # Operators:
 # /  - Try to match the left side, then try to match the right side.
 # &  - Try to parse, match but rewind.
@@ -9,40 +10,42 @@
 # *  - Match zero or more. Returns a list of matches.
 # +  - Match one or more. Returns a list of matches.
 # () - Matches if all expressions within match.
+# {} - Code to insert into the parser. Must return an ASTNode* or NULL to check for match.
+# =  - Capture the info from a match inside the node for the current rule.
 
-# To parse your grammar, pgen assumes that brackets inside of a code expression are balanced.
-# Then it copy/pastes the contents into the parser inside a function. How exactly that happens is TBD.
-
-# Instead of using an unbalancing { or }, use the macros LB or RB.
+# Notes:
+# Instead of using an unbalancing { or } inside a codeexpr, use the macros LB or RB.
 # Instead of using "{" or "}" use the macros LBSTR or RBSTR.
-# This will keep the parser happy.
+
 
 ##########
 # PARSER #
 ##########
 
 # Rules
-GrammarFile     <- (_ Definition)* _ EOF
+GrammarFile    <- (_ Definition)* _ EOF
 
-Definition      <- RuleIdent _ StructDef? _ '<-' _ SlashExpr
+Definition     <- LowerIdent _ StructDef? _ '<-' _ SlashExpr
 
-StructDef       <- '{' (_ RuleIdent _ '[]'?)* _ '}'
+StructDef      <- '<' _ StructMember (_ ',' _ StructMember)* _ '>'
 
-SlashExpr       <- ModExprList (_ '/' ModExprList)*
+StructMember   <- LowerIdent ((_ '.'/_ '[]')*)?
 
-ModExprList     <- (_ ModExpr)+
+SlashExpr      <- ModExprList (_ '/' ModExprList)*
 
-ModExpr         <- (RuleIdent _ '=' _)? (('&' / '!') _)? BaseExpr _ ('?' / '*' / '+')?
+ModExprList    <- (_ ModExpr)+
 
-BaseExpr        <- TokIdent
-                 / RuleIdent _ !'<-'
-                 / CodeExpr
-                 / '(' _ SlashExpr _ ')'
+ModExpr        <- (LowerIdent _ '=' _)? (('&' / '!') _)? BaseExpr _ ('?' / '*' / '+')?
+
+BaseExpr       <- UpperIdent
+                / LowerIdent _ !'<'
+                / CodeExpr
+                / '(' _ SlashExpr _ ')'
 
 
-CodeExpr        <- '{' _ (&'{' CodeExpr / !'}' .)* _ '}'
+CodeExpr       <- '{' _ (&'{' CodeExpr / !'}' .)* _ '}'
 
 
 # Misc
-TokIdent        <- [_A-Z]+
-RuleIdent       <- [_a-z]+
+UpperIdent     <- [_A-Z]+
+LowerIdent     <- [_a-z]+

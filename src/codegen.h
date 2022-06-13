@@ -114,6 +114,12 @@ static inline void write_utf8_lib(codegen_ctx *ctx) {
   fprintf(ctx->f, "\n\n");
 }
 
+static inline void write_arena_lib(codegen_ctx *ctx) {
+#include "strarena.xxd"
+  fprintf(ctx->f, "%s", (char *)src_arena_h);
+  fprintf(ctx->f, "\n\n");
+}
+
 /*************/
 /* Tokenizer */
 /*************/
@@ -131,27 +137,27 @@ static inline void tok_write_header(codegen_ctx *ctx) {
 }
 
 static inline void tok_write_enum(codegen_ctx *ctx) {
-  fprintf(ctx->f, "typedef enum { ");
+  fprintf(ctx->f, "typedef enum {\n");
 
   size_t num_defs = ctx->tokast->num_children;
-  fprintf(ctx->f, "%s_TOK_STREAMEND, ", ctx->prefix_upper);
+  fprintf(ctx->f, "  %s_TOK_STREAMEND,\n", ctx->prefix_upper);
   for (size_t i = 0; i < num_defs; i++)
-    fprintf(ctx->f, "%s_TOK_%s, ", ctx->prefix_upper,
+    fprintf(ctx->f, "  %s_TOK_%s,\n", ctx->prefix_upper,
             (char *)(ctx->tokast->children[i]->children[0]->extra));
 
   fprintf(ctx->f, "} %s_token_kind;\n\n", ctx->prefix_lower);
 
   fprintf(ctx->f,
-          "// The 0th token is end of stream.\n// Tokens 1 - %zu are the ones "
-          "you defined.\n",
-          num_defs);
+          "// The 0th token is end of stream.\n// Tokens 1 through %zu are the ones "
+          "you defined.\n// This totals %zu kinds of tokens.\n",
+          num_defs, num_defs + 1);
   fprintf(ctx->f, "static size_t %s_num_tokens = %zu;\n", ctx->prefix_lower,
           num_defs + 1);
   fprintf(ctx->f,
-          "static const char* %s_kind_name[] = { \"%s_TOK_STREAMEND\", ",
+          "static const char* %s_kind_name[] = {\n  \"%s_TOK_STREAMEND\",\n",
           ctx->prefix_lower, ctx->prefix_upper);
   for (size_t i = 0; i < num_defs; i++)
-    fprintf(ctx->f, "\"%s_TOK_%s\", ", ctx->prefix_upper,
+    fprintf(ctx->f, "  \"%s_TOK_%s\",\n", ctx->prefix_upper,
             (char *)(ctx->tokast->children[i]->children[0]->extra));
   fprintf(ctx->f, "};\n\n");
 }
@@ -160,8 +166,10 @@ static inline void tok_write_tokenstruct(codegen_ctx *ctx) {
   fprintf(ctx->f,
           "typedef struct {\n"
           "  %s_token_kind kind;\n"
-          "  size_t start; // The token begins at tokenizer->start[token->start]. \n"
-          "  size_t len;   // It goes until tokenizer->start[token->start + token->len] (non-inclusive).\n"
+          "  size_t start; // The token begins at "
+          "tokenizer->start[token->start]. \n"
+          "  size_t len;   // It goes until tokenizer->start[token->start + "
+          "token->len] (non-inclusive).\n"
           "#if %s_TOKENIZER_SOURCEINFO\n"
           "  size_t line;\n"
           "  size_t col;\n"
@@ -226,7 +234,8 @@ static inline void tok_write_charsetcheck(codegen_ctx *ctx, ASTNode *charset) {
     if (strcmp(charset->name, "CharSet") == 0) {
       fprintf(ctx->f, "%i", (int)*(bool *)charset->extra);
     } else { // single char
-      fprintf(ctx->f, "c == %" PRI_CODEPOINT "", *(codepoint_t *)charset->extra);
+      fprintf(ctx->f, "c == %" PRI_CODEPOINT "",
+              *(codepoint_t *)charset->extra);
     }
   }
 
@@ -464,8 +473,6 @@ static inline void tok_write_footer(codegen_ctx *ctx) {
 
 static inline void codegen_write_tokenizer(codegen_ctx *ctx) {
 
-  write_utf8_lib(ctx);
-
   tok_write_header(ctx);
 
   tok_write_enum(ctx);
@@ -483,13 +490,73 @@ static inline void codegen_write_tokenizer(codegen_ctx *ctx) {
 /* Parser */
 /**********/
 
-static inline void codegen_write_parser(codegen_ctx *ctx) {}
+static inline void peg_write_structs(codegen_ctx *ctx) {
+  fprintf(ctx->f, "struct %s_astnode_t;\n", ctx->prefix_lower);
+  fprintf(ctx->f, "typedef struct %s_astnode_t %s_astnode_t;\n",
+          ctx->prefix_lower, ctx->prefix_lower);
+  fprintf(ctx->f, "\n");
+  ASTNode *pegast = ctx->pegast;
+  for (size_t i = 0; i < pegast->num_children; i++) {
+    ASTNode *child = pegast->children[i];
+    ASTNode *rident = child->children[0];
+    ASTNode *strucdef = child->num_children == 3 ? child->children[2] : NULL;
+
+    fprintf(ctx->f, "typedef struct {\n");
+    if (strucdef) {
+      for (size_t j = 0; j < strucdef->num_children; j++) {
+        fprintf(ctx->f, "  %s_astnode_t* %s;\n", ctx->prefix_lower,
+                (char *)strucdef->children[j]->children[0]->extra);
+      }
+    }
+    fprintf(ctx->f, "} %s_astnode_t;\n\n", (char *)rident->extra);
+  }
+}
+
+static inline void peg_write_kind_enum(codegen_ctx *ctx) {
+  fprintf(ctx->f, "typedef enum {\n");
+  size_t num_defs = ctx->pegast->num_children;
+  fprintf(ctx->f, "  %s_AST_NULL,\n", ctx->prefix_upper);
+  for (size_t i = 0; i < num_defs; i++) {
+    ASTNode *rident = ctx->pegast->children[i]->children[0];
+    fprintf(ctx->f, "  %s_AST_%s,\n", ctx->prefix_upper, (char *)(rident->extra));
+  }
+  fprintf(ctx->f, "} %s_astnode_kind;\n\n", ctx->prefix_lower);
+}
+
+static inline void peg_write_header(codegen_ctx *ctx) {
+  fprintf(ctx->f, "struct %s_astnode_t {\n", ctx->prefix_lower);
+  fprintf(ctx->f, "  %s_astnode_kind kind;\n", ctx->prefix_lower);
+  fprintf(ctx->f, "  union {\n");
+  for (size_t i = 0; i < ctx->pegast->num_children; i++) {
+    ASTNode *child = ctx->pegast->children[i];
+    ASTNode *rident = child->children[0];
+    ASTNode *strucdef = child->num_children == 3 ? child->children[2] : NULL;
+
+    fprintf(ctx->f, "    %s_astnode_t %s;\n", (char *)rident->extra,
+            (char *)rident->extra);
+  }
+  fprintf(ctx->f, "  };\n");
+  fprintf(ctx->f, "};\n");
+}
+
+static inline void codegen_write_parser(codegen_ctx *ctx) {
+  peg_write_kind_enum(ctx);
+  peg_write_structs(ctx);
+  peg_write_header(ctx);
+}
 
 /**************/
 /* Everything */
 /**************/
 
 static inline void codegen_write(codegen_ctx *ctx) {
+  // Write headers
+  if (ctx->tokast)
+    write_utf8_lib(ctx);
+  if (ctx->pegast)
+    write_arena_lib(ctx);
+
+  // Write bodies
   if (ctx->tokast)
     codegen_write_tokenizer(ctx);
   if (ctx->pegast)

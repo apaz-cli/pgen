@@ -9,6 +9,8 @@
 
 int main(int argc, char **argv) {
 
+  ctx_debug = 1;
+
   ASTNode* tokast = NULL, *pegast = NULL;
 
   Codepoint_String_View tokenFile, parserFile;
@@ -30,7 +32,7 @@ int main(int argc, char **argv) {
   if (!tokast) {
     ERROR("Tokenizer file syntax error.");
   }
-
+  
   // Read the parser's file
   if (args.grammarTarget) {
     parserFile = readFileCodepoints(args.grammarTarget);

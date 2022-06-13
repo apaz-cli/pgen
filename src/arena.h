@@ -67,10 +67,7 @@ _Static_assert(ABSZ <= UINT32_MAX,
 #endif
 
 static inline size_t pgen_align(size_t n, size_t align) {
-  if (__builtin_popcount(align) == 1)
-    return (n + align - 1) & -align;
-  else
-    return (n + align - (n % align));
+  return (n + align - (n % align));
 }
 
 typedef struct {
@@ -179,27 +176,6 @@ static inline void pgen_allocator_rewind(pgen_allocator *allocator,
                                          pgen_allocator_rewind_t to) {
   allocator->rew.arena_idx = to.arena_idx;
   allocator->rew.filled = to.filled;
-}
-
-int main(void) {
-
-  alignas(128) char to_launder[1024 * 1024];
-
-  pgen_allocator a = pgen_allocator_new();
-
-  pgen_arena laundry;
-  laundry.buf = to_launder;
-  laundry.freefn = NULL;
-  laundry.cap = 1024 * 1024;
-  pgen_allocator_launder(&a, laundry);
-
-  while (1) {
-    size_t allocsz = (ABSZ / 6) + 3;
-    pgen_allocator_ret_t ret = pgen_alloc(&a, allocsz, alignof(max_align_t));
-    if (!ret.buf)
-      break;
-  }
-  pgen_allocator_destroy(&a);
 }
 
 #endif /* PGEN_ARENA_INCLUDED */
