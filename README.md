@@ -31,7 +31,7 @@ effortlessly generate Abstract Syntax Trees.
 - [x] Handwritten `tok` parser
 - [x] Handwritten `peg` parser
 - [x] Automaton construction and minimization
-- [ ] Tokenizer codegen
+- [x] Tokenizer codegen
 - [ ] PEG AST rewriting pass
 - [ ] Optimizations
 - [ ] Parser codegen
