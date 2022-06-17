@@ -9,8 +9,6 @@
 
 int main(int argc, char **argv) {
 
-  ctx_debug = 1;
-
   ASTNode* tokast = NULL, *pegast = NULL;
 
   Codepoint_String_View tokenFile, parserFile;

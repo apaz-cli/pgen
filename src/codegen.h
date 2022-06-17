@@ -71,7 +71,7 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
     // Copy up to the first invalid character
     // If it's been hit, copy the null terminator.
     if ((low != '_') & ((low < 'a') | (low > 'z')))
-      if ((low<'0' | low> '9'))
+      if ((low < '0') | (low > '9'))
         break;
 
     ctx->prefix_lower[i] = low;
@@ -148,7 +148,8 @@ static inline void tok_write_enum(codegen_ctx *ctx) {
   fprintf(ctx->f, "} %s_token_kind;\n\n", ctx->prefix_lower);
 
   fprintf(ctx->f,
-          "// The 0th token is end of stream.\n// Tokens 1 through %zu are the ones "
+          "// The 0th token is end of stream.\n// Tokens 1 through %zu are the "
+          "ones "
           "you defined.\n// This totals %zu kinds of tokens.\n",
           num_defs, num_defs + 1);
   fprintf(ctx->f, "static size_t %s_num_tokens = %zu;\n", ctx->prefix_lower,
@@ -518,7 +519,8 @@ static inline void peg_write_kind_enum(codegen_ctx *ctx) {
   fprintf(ctx->f, "  %s_AST_NULL,\n", ctx->prefix_upper);
   for (size_t i = 0; i < num_defs; i++) {
     ASTNode *rident = ctx->pegast->children[i]->children[0];
-    fprintf(ctx->f, "  %s_AST_%s,\n", ctx->prefix_upper, (char *)(rident->extra));
+    fprintf(ctx->f, "  %s_AST_%s,\n", ctx->prefix_upper,
+            (char *)(rident->extra));
   }
   fprintf(ctx->f, "} %s_astnode_kind;\n\n", ctx->prefix_lower);
 }

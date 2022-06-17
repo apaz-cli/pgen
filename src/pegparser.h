@@ -9,7 +9,6 @@ static inline ASTNode *peg_parse_StructDef(parser_ctx *ctx);
 static inline ASTNode *peg_parse_SlashExpr(parser_ctx *ctx);
 static inline ASTNode *peg_parse_ModExprList(parser_ctx *ctx);
 static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx);
-static inline ASTNode *peg_parse_MatchExpr(parser_ctx *ctx);
 static inline ASTNode *peg_parse_BaseExpr(parser_ctx *ctx);
 static inline ASTNode *peg_parse_CodeExpr(parser_ctx *ctx);
 static inline ASTNode *peg_parse_TokIdent(parser_ctx *ctx);

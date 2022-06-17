@@ -17,7 +17,7 @@
   } while (0)
 #define ERROR(...)                                                             \
   do {                                                                         \
-    fprintf(stderr, "Error: ");                                               \
+    fprintf(stderr, "Error: ");                                                \
     fprintf(stderr, __VA_ARGS__);                                              \
     fprintf(stderr, "\n");                                                     \
     exit(1);                                                                   \
@@ -61,14 +61,14 @@
   static inline type list_##type##_get(list_##type *self, size_t idx) {        \
     if (!self)                                                                 \
       ERROR("List is null.");                                                  \
-    if ((idx >= self->len) | (idx < 0))                                        \
+    if (idx >= self->len)                                                      \
       ERROR("List index out of range.");                                       \
     return self->buf[idx];                                                     \
   }                                                                            \
   static inline type list_##type##_remove(list_##type *self, size_t idx) {     \
     if (!self)                                                                 \
       ERROR("List is null.");                                                  \
-    if ((idx >= self->len) | (idx < 0))                                        \
+    if (idx >= self->len)                                                      \
       ERROR("List index out of range.");                                       \
     type ret = self->buf[idx];                                                 \
     size_t nlen = self->len ? self->len - 1 : 0;                               \

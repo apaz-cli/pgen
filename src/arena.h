@@ -4,55 +4,44 @@
 #ifndef PGEN_ARENA_INCLUDED
 #define PGEN_ARENA_INCLUDED
 #include <limits.h>
-#include <stdalign.h>
-#include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 
-#define MAL alignof(max_align_t)
-#define ABSZ (PGEN_PAGESIZE * 1024)
+#define PGEN_ALIGNMENT alignof(max_align_t)
+#define PGEN_BUFFER_SIZE (PGEN_PAGESIZE * 1024)
 #define NUM_ARENAS 256
 
 #ifndef PGEN_PAGESIZE
-#if !(defined(PAGESIZE) | defined(PAGE_SIZE))
 #define PGEN_PAGESIZE 4096
-#else
-#if defined(PAGESIZE)
-#define PGEN_PAGESIZE PAGESIZE
-#else
-#define PGEN_PAGESIZE PAGE_SIZE
-#endif
-#endif
 #endif
 
 #if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__)))
 
 #if __STDC_VERSION__ >= 201112L
-_Static_assert(ABSZ % PGEN_PAGESIZE == 0,
+_Static_assert(PGEN_BUFFER_SIZE % PGEN_PAGESIZE == 0,
                "Buffer size must be a multiple of the page size.");
 #endif
 
 #include <sys/mman.h>
 #include <unistd.h>
 static inline char *_pgen_abufalloc(void) {
-  char *b = (char *)mmap(NULL, ABSZ, PROT_READ | PROT_WRITE,
+  char *b = (char *)mmap(NULL, PGEN_BUFFER_SIZE, PROT_READ | PROT_WRITE,
                          MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
   if (b == MAP_FAILED) {
-    perror("mmap()");
+    //perror("mmap()");
     return NULL;
   }
   return b;
 }
 static inline void _pgen_abuffree(void *buf) {
-  if (munmap(buf, ABSZ) == -1)
-    perror("munmap()");
+  if (munmap(buf, PGEN_BUFFER_SIZE) == -1)
+    ;//perror("munmap()");
 }
 #else
 static inline char *_pgen_abufalloc(void) {
-  char *b = (char *)malloc(ABSZ);
+  char *b = (char *)PGEN_ALIGNMENTloc(PGEN_BUFFER_SIZE);
   if (!b) {
-    perror("malloc()");
+    perror("PGEN_ALIGNMENTloc()");
     return NULL;
   }
   return b;
@@ -61,8 +50,8 @@ static inline char *_pgen_abufalloc(void) {
 #endif
 
 #if __STDC_VERSION__ >= 201112L
-_Static_assert((MAL % 2) == 0, "Why would alignof(max_align_t) be odd? WTF?");
-_Static_assert(ABSZ <= UINT32_MAX,
+_Static_assert((PGEN_ALIGNMENT % 2) == 0, "Why would alignof(max_align_t) be odd? WTF?");
+_Static_assert(PGEN_BUFFER_SIZE <= UINT32_MAX,
                "The arena buffer size must fit in uint32_t.");
 #endif
 
@@ -154,7 +143,7 @@ static inline pgen_allocator_ret_t pgen_alloc(pgen_allocator *allocator,
         pgen_arena new_arena;
         new_arena.freefn = _pgen_abuffree;
         new_arena.buf = nb;
-        new_arena.cap = ABSZ;
+        new_arena.cap = PGEN_BUFFER_SIZE;
         allocator->arenas[allocator->rew.arena_idx] = new_arena;
       }
     } else {
@@ -165,9 +154,9 @@ static inline pgen_allocator_ret_t pgen_alloc(pgen_allocator *allocator,
   ret.buf = allocator->arenas[allocator->rew.arena_idx].buf + bufcurrent;
   allocator->rew.filled = bufnext;
 
-  printf("Allocator: (%u, %u/%u)\n", allocator->rew.arena_idx,
-         allocator->rew.filled,
-         allocator->arenas[allocator->rew.arena_idx].cap);
+  //printf("Allocator: (%u, %u/%u)\n", allocator->rew.arena_idx,
+  //       allocator->rew.filled,
+  //       allocator->arenas[allocator->rew.arena_idx].cap);
   return ret;
 }
 
