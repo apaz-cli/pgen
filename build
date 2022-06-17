@@ -15,3 +15,10 @@ clang src/pgen.c -o pgen #-fsanitize=address -g -Wall -Wextra -Wpedantic -Wno-un
 #clang pl0.c -fsanitize=address -g -O3
 #./a.out
 #cd ..
+
+# Install the binary
+if [ "$1" = "install" ]; then
+  sudo cp pgen /bin/pgen
+  echo "Installed pgen."
+fi
+
