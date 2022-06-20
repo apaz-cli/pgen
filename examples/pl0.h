@@ -437,12 +437,15 @@ static const char* pl0_kind_name[] = {
 
 typedef struct {
   pl0_token_kind kind;
-  size_t start; // The token begins at tokenizer->start[token->start]. 
+  size_t start; // The token begins at tokenizer->start[token->start].
   size_t len;   // It goes until tokenizer->start[token->start + token->len] (non-inclusive).
 #if PL0_TOKENIZER_SOURCEINFO
   size_t line;
   size_t col;
   char* sourceFile;
+#endif
+#ifdef PL0_TOKEN_EXTRA
+  PL0_TOKEN_EXTRA
 #endif
 } pl0_token;
 

@@ -131,7 +131,8 @@ static inline void tok_write_header(codegen_ctx *ctx) {
           "\n"
           "#ifndef %s_TOKENIZER_SOURCEINFO\n"
           "#define %s_TOKENIZER_SOURCEINFO 1\n"
-          "#endif\n\n",
+          "#endif\n"
+          "\n",
           ctx->prefix_upper, ctx->prefix_upper, ctx->prefix_upper,
           ctx->prefix_upper);
 }
@@ -168,7 +169,7 @@ static inline void tok_write_tokenstruct(codegen_ctx *ctx) {
           "typedef struct {\n"
           "  %s_token_kind kind;\n"
           "  size_t start; // The token begins at "
-          "tokenizer->start[token->start]. \n"
+          "tokenizer->start[token->start].\n"
           "  size_t len;   // It goes until tokenizer->start[token->start + "
           "token->len] (non-inclusive).\n"
           "#if %s_TOKENIZER_SOURCEINFO\n"
@@ -176,8 +177,11 @@ static inline void tok_write_tokenstruct(codegen_ctx *ctx) {
           "  size_t col;\n"
           "  char* sourceFile;\n"
           "#endif\n"
+          "#ifdef %s_TOKEN_EXTRA\n"
+          "  %s_TOKEN_EXTRA\n"
+          "#endif\n"
           "} %s_token;\n\n",
-          ctx->prefix_lower, ctx->prefix_upper, ctx->prefix_lower);
+          ctx->prefix_lower, ctx->prefix_upper, ctx->prefix_upper, ctx->prefix_upper, ctx->prefix_lower);
 }
 
 static inline void tok_write_ctxstruct(codegen_ctx *ctx) {

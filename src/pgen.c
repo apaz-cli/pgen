@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
   if (!tokast) {
     ERROR("Tokenizer file syntax error.");
   }
-  
+
   // Read the parser's file
   if (args.grammarTarget) {
     parserFile = readFileCodepoints(args.grammarTarget);
