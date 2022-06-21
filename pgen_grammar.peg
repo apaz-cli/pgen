@@ -11,7 +11,7 @@
 # +  - Match one or more. Returns a list of matches.
 # () - Matches if all expressions within match.
 # {} - Code to insert into the parser. Must return an ASTNode* or NULL to check for match.
-# =  - Capture the info from a match inside the node for the current rule.
+# :  - Capture the info from a match inside the node for the current rule.
 
 # Notes:
 # Instead of using an unbalancing { or } inside a codeexpr, use the macros LB or RB.
@@ -35,7 +35,7 @@ SlashExpr      <- ModExprList (_ '/' ModExprList)*
 
 ModExprList    <- (_ ModExpr)+
 
-ModExpr        <- (LowerIdent _ '=' _)? (('&' / '!') _)? BaseExpr _ ('?' / '*' / '+')?
+ModExpr        <- (LowerIdent _ ':' _)? (('&' / '!') _)? BaseExpr _ ('?' / '*' / '+')?
 
 BaseExpr       <- UpperIdent
                 / LowerIdent _ !'<'

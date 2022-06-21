@@ -150,8 +150,7 @@ static inline void tok_write_enum(codegen_ctx *ctx) {
 
   fprintf(ctx->f,
           "// The 0th token is end of stream.\n// Tokens 1 through %zu are the "
-          "ones "
-          "you defined.\n// This totals %zu kinds of tokens.\n",
+          "ones you defined.\n// This totals %zu kinds of tokens.\n",
           num_defs, num_defs + 1);
   fprintf(ctx->f, "static size_t %s_num_tokens = %zu;\n", ctx->prefix_lower,
           num_defs + 1);
@@ -181,7 +180,8 @@ static inline void tok_write_tokenstruct(codegen_ctx *ctx) {
           "  %s_TOKEN_EXTRA\n"
           "#endif\n"
           "} %s_token;\n\n",
-          ctx->prefix_lower, ctx->prefix_upper, ctx->prefix_upper, ctx->prefix_upper, ctx->prefix_lower);
+          ctx->prefix_lower, ctx->prefix_upper, ctx->prefix_upper,
+          ctx->prefix_upper, ctx->prefix_lower);
 }
 
 static inline void tok_write_ctxstruct(codegen_ctx *ctx) {
