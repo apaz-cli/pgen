@@ -473,7 +473,7 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
 }
 
 static inline void tok_write_footer(codegen_ctx *ctx) {
-  fprintf(ctx->f, "#endif /* %s_TOKENIZER_INCLUDE */\n", ctx->prefix_upper);
+  fprintf(ctx->f, "#endif /* %s_TOKENIZER_INCLUDE */\n\n", ctx->prefix_upper);
 }
 
 static inline void codegen_write_tokenizer(codegen_ctx *ctx) {
@@ -517,38 +517,61 @@ static inline void peg_write_structs(codegen_ctx *ctx) {
   }
 }
 
-static inline void peg_write_kind_enum(codegen_ctx *ctx) {
-  fprintf(ctx->f, "typedef enum {\n");
-  size_t num_defs = ctx->pegast->num_children;
-  fprintf(ctx->f, "  %s_AST_NULL,\n", ctx->prefix_upper);
-  for (size_t i = 0; i < num_defs; i++) {
-    ASTNode *rident = ctx->pegast->children[i]->children[0];
-    fprintf(ctx->f, "  %s_AST_%s,\n", ctx->prefix_upper,
-            (char *)(rident->extra));
-  }
-  fprintf(ctx->f, "} %s_astnode_kind;\n\n", ctx->prefix_lower);
-}
-
 static inline void peg_write_header(codegen_ctx *ctx) {
-  fprintf(ctx->f, "struct %s_astnode_t {\n", ctx->prefix_lower);
-  fprintf(ctx->f, "  %s_astnode_kind kind;\n", ctx->prefix_lower);
-  fprintf(ctx->f, "  union {\n");
-  for (size_t i = 0; i < ctx->pegast->num_children; i++) {
-    ASTNode *child = ctx->pegast->children[i];
-    ASTNode *rident = child->children[0];
-    ASTNode *strucdef = child->num_children == 3 ? child->children[2] : NULL;
-
-    fprintf(ctx->f, "    %s_astnode_t %s;\n", (char *)rident->extra,
-            (char *)rident->extra);
-  }
-  fprintf(ctx->f, "  };\n");
-  fprintf(ctx->f, "};\n");
+  fprintf(ctx->f, "#ifndef PGEN_%s_ASTNODE_INCLUDE\n", ctx->prefix_upper);
+  fprintf(ctx->f, "#define PGEN_%s_ASTNODE_INCLUDE\n\n", ctx->prefix_upper);
 }
 
+static inline void peg_write_footer(codegen_ctx *ctx) {
+  fprintf(ctx->f, "#endif /* PGEN_%s_ASTNODE_INCLUDE */\n\n",
+          ctx->prefix_upper);
+}
+
+static inline void peg_write_astnode_def(codegen_ctx *ctx) {
+  fprintf(ctx->f, "struct %s_astnode_t;\n", ctx->prefix_lower);
+  fprintf(ctx->f, "typedef struct %s_astnode_t %s_astnode_t;\n",
+          ctx->prefix_lower, ctx->prefix_lower);
+  fprintf(ctx->f, "struct %s_astnode_t {\n", ctx->prefix_lower);
+  fprintf(ctx->f, "#ifdef PGEN_%s_NODE_EXTRA\n", ctx->prefix_upper);
+  fprintf(ctx->f, "  PGEN_%s_NODE_EXTRA\n", ctx->prefix_upper);
+  fprintf(ctx->f, "#endif\n");
+  fprintf(ctx->f, "  const char* kind;\n");
+  fprintf(ctx->f, "  size_t num_children;\n");
+  fprintf(ctx->f, "  %s_astnode_t** children;\n", ctx->prefix_lower);
+  fprintf(ctx->f, "  pgen_allocator_rewind_t rewind;\n");
+  fprintf(ctx->f, "};\n\n");
+}
+
+static inline void peg_write_astnode_init(codegen_ctx *ctx) {
+  // #include <stdarg.h>
+  fprintf(ctx->f, "#define node(kind, ...) __VA_ARGS__ \n\n");
+  fprintf(ctx->f, "static inline pl0_astnode_t* pl0_astnode_new(\n"
+                  "                             pgen_allocator* alloc,\n"
+                  "                             const char* kind,\n"
+                  "                             size_t num_children,\n"
+                  "                             ...) {\n\n");
+
+  /*
+  pgen_allocator_ret_t ret = pgen_alloc(
+alloc, sizeof(pl0_astnode_t) + sizeof(pl0_astnode_t *) * num_children,
+_Alignof(pl0_astnode_t));
+pl0_astnode_t *node = (pl0_astnode_t *)ret.buf;
+pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
+node->kind = kind;
+node->num_children = num_children;
+node->children = children;
+node->rewind = ret.rewind;
+return node;
+  */
+  fprintf(ctx->f, "}\n\n");
+}
+
+#include <stdarg.h>
 static inline void codegen_write_parser(codegen_ctx *ctx) {
-  peg_write_kind_enum(ctx);
-  peg_write_structs(ctx);
   peg_write_header(ctx);
+  peg_write_astnode_def(ctx);
+  peg_write_astnode_init(ctx);
+  peg_write_footer(ctx);
 }
 
 /**************/
