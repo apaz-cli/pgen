@@ -1,4 +1,6 @@
 
+%directive capture
+
 program <- block DOT
 
 block <- CONST IDENT EQ NUM (COMMA IDENT EQ NUM)* SEMI /

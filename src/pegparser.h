@@ -2,8 +2,10 @@
 #define PGEN_INCLUDE_PEGPARSER
 #include "ast.h"
 #include "parserctx.h"
+#include "utf8.h"
 
 static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx);
+static inline ASTNode *peg_parse_Directive(parser_ctx *ctx);
 static inline ASTNode *peg_parse_Definition(parser_ctx *ctx);
 static inline ASTNode *peg_parse_StructDef(parser_ctx *ctx);
 static inline ASTNode *peg_parse_SlashExpr(parser_ctx *ctx);
@@ -29,11 +31,15 @@ static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx) {
   while (1) {
     WS();
 
-    ASTNode *def = peg_parse_Definition(ctx);
-    if (!def)
-      break;
-
-    ASTNode_addChild(node, def);
+    ASTNode *dir = peg_parse_Directive(ctx);
+    if (!dir) {
+      ASTNode *def = peg_parse_Definition(ctx);
+      if (!def)
+        break;
+      ASTNode_addChild(node, def);
+    } else {
+      ASTNode_addChild(node, dir);
+    }
   }
 
   WS();
@@ -46,6 +52,56 @@ static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx) {
   }
 
   RETURN(node);
+}
+
+static inline ASTNode *peg_parse_Directive(parser_ctx *ctx) {
+
+  RULE_BEGIN("Directive");
+
+  if (!HAS_CURRENT())
+    RETURN(NULL);
+  else if (CURRENT() == '%') {
+    NEXT();
+
+    WS();
+
+    ASTNode *id = peg_parse_RuleIdent(ctx);
+    if (!id) {
+      REWIND(begin);
+      RETURN(NULL);
+    }
+
+    WS();
+
+    codepoint_t *cap_start = ctx->str + ctx->pos;
+    size_t capture_size = 0;
+    while (HAS_CURRENT() && CURRENT() != '\n') {
+      capture_size++;
+      NEXT();
+    }
+    if (CURRENT() == '\n')
+      NEXT();
+    if (!capture_size) {
+      REWIND(begin);
+      RETURN(NULL);
+    }
+
+    codepoint_t *cpbuf =
+        (codepoint_t *)malloc(sizeof(codepoint_t) * capture_size);
+    if (!cpbuf) {
+      REWIND(begin);
+      RETURN(NULL);
+    }
+    for (size_t i = 0; i < capture_size; i++)
+      cpbuf[i] = cap_start[i];
+
+    ASTNode *dir = ASTNode_new("Directive");
+    dir->extra = cpbuf;
+    ASTNode_addChild(dir, id);
+    RETURN(dir);
+  } else {
+    RETURN(NULL);
+  }
 }
 
 // definition->children[0] is a ruleident.

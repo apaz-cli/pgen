@@ -23,7 +23,9 @@
 ##########
 
 # Rules
-GrammarFile    <- (_ Definition)* _ EOF
+GrammarFile    <- (_ (Directive / Definition))* _ EOF
+
+Directive      <- '%' _ LowerIdent [^\n]*[\n]
 
 Definition     <- LowerIdent _ StructDef? _ '<-' _ SlashExpr
 
