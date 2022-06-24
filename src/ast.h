@@ -18,7 +18,7 @@ struct ASTNode;
 typedef struct ASTNode ASTNode;
 struct ASTNode {
   const char *name;
-  ASTNode *parent;
+  // ASTNode *parent;
   ASTNode **children;
   size_t num_children;
   void *extra;
@@ -33,7 +33,7 @@ struct ASTNode {
 static inline ASTNode *ASTNode_new(const char *name) {
   ASTNode *node = (ASTNode *)malloc(sizeof(ASTNode));
   node->name = name;
-  node->parent = NULL;
+  //node->parent = NULL;
   node->children = NULL; // realloc() as children are added
   node->num_children = 0;
   node->extra = NULL;
