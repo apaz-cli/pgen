@@ -229,7 +229,7 @@ static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
   if (labelident) {
     WS();
 
-    if (!IS_CURRENT("=")) {
+    if (!IS_CURRENT(":")) {
       ASTNode_destroy(labelident);
       REWIND(begin);
     } else {
