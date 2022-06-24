@@ -6,8 +6,9 @@
 #include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stddef.h>
 
-#define PGEN_ALIGNMENT alignof(max_align_t)
+#define PGEN_ALIGNMENT _Alignof(max_align_t)
 #define PGEN_BUFFER_SIZE (PGEN_PAGESIZE * 1024)
 #define NUM_ARENAS 256
 
@@ -34,16 +35,13 @@ static inline char *_pgen_abufalloc(void) {
   return b;
 }
 static inline void _pgen_abuffree(void *buf) {
-  if (munmap(buf, PGEN_BUFFER_SIZE) == -1)
-    ;//perror("munmap()");
+  int err = munmap(buf, PGEN_BUFFER_SIZE);
+  // if (err == -1) perror("munmap()");
 }
 #else
 static inline char *_pgen_abufalloc(void) {
-  char *b = (char *)PGEN_ALIGNMENTloc(PGEN_BUFFER_SIZE);
-  if (!b) {
-    perror("PGEN_ALIGNMENTloc()");
-    return NULL;
-  }
+  char *b = (char *)malloc(PGEN_BUFFER_SIZE);
+  // if (!b) perror("malloc()");
   return b;
 }
 #define _pgen_abuffree free
@@ -112,7 +110,7 @@ static inline void pgen_allocator_destroy(pgen_allocator *allocator) {
 }
 
 #define PGEN_ALLOC_OF(allocator, type)                                         \
-  pgen_alloc(allocator, sizeof(type), alignof(type))
+  pgen_alloc(allocator, sizeof(type), _Alignof(type))
 static inline pgen_allocator_ret_t pgen_alloc(pgen_allocator *allocator,
                                               size_t n, size_t alignment) {
 
