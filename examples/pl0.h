@@ -1024,7 +1024,7 @@ struct pl0_astnode_t {
   pgen_allocator_rewind_t rew;
 };
 
-static inline pl0_astnode_t* pl0_astnode_dynamic(
+static inline pl0_astnode_t* pl0_astnode_list(
                              pgen_allocator* alloc,
                              const char* kind,
                              size_t initial_size) {
@@ -1038,6 +1038,22 @@ static inline pl0_astnode_t* pl0_astnode_dynamic(
   node->num_children = 0;
   node->children = NULL;
   node->rew = rew;
+  return node;
+}
+
+static inline pl0_astnode_t* pl0_astnode_leaf(
+                             pgen_allocator* alloc,
+                             const char* kind) {
+  pgen_allocator_ret_t ret = pgen_alloc(alloc,
+                                        sizeof(pl0_astnode_t),
+                                        _Alignof(pl0_astnode_t));
+  pl0_astnode_t *node = (pl0_astnode_t *)ret.buf;
+  pl0_astnode_t *children = NULL;
+  node->kind = kind;
+  node->max_children = 0;
+  node->num_children = 0;
+  node->children = NULL;
+  node->rew = ret.rew;
   return node;
 }
 
@@ -1323,8 +1339,8 @@ static inline pl0_astnode_t* pl0_astnode_fixed_10(
 
 #define rewind(node) ctx->alloc = node->rew;
 #define node(kind, ...) PGEN_CAT(pl0_astnode_fixed_, PGEN_NARG(__VA_ARGS__))(ctx->alloc, kind, __VA_ARGS__)
-#define list(kind) pl0_astnode_dynamic(ctx->alloc, kind, 32)
-#define leaf(kind) pl0_astnode_dynamic(ctx->alloc, kind, 0)
+#define list(kind) pl0_astnode_list(ctx->alloc, kind, 32)
+#define leaf(kind) pl0_astnode_leaf(ctx->alloc, kind)
 #define add(to, node) pl0_astnode_add(to, node)
 
 #endif /* PGEN_PL0_ASTNODE_INCLUDE */

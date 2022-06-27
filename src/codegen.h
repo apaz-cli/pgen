@@ -601,7 +601,7 @@ static inline void peg_write_astnode_def(codegen_ctx *ctx) {
 
 static inline void peg_write_astnode_init(codegen_ctx *ctx) {
 
-  fprintf(ctx->f, "static inline %s_astnode_t* %s_astnode_dynamic(\n",
+  fprintf(ctx->f, "static inline %s_astnode_t* %s_astnode_list(\n",
           ctx->prefix_lower, ctx->prefix_lower);
   fprintf(ctx->f, "                             pgen_allocator* alloc,\n"
                   "                             const char* kind,\n"
@@ -622,6 +622,26 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   fprintf(ctx->f, "  node->num_children = 0;\n");
   fprintf(ctx->f, "  node->children = NULL;\n");
   fprintf(ctx->f, "  node->rew = rew;\n");
+  fprintf(ctx->f, "  return node;\n");
+  fprintf(ctx->f, "}\n\n");
+
+  fprintf(ctx->f, "static inline %s_astnode_t* %s_astnode_leaf(\n",
+          ctx->prefix_lower, ctx->prefix_lower);
+  fprintf(ctx->f, "                             pgen_allocator* alloc,\n"
+                  "                             const char* kind) {\n");
+  fprintf(ctx->f,
+          "  pgen_allocator_ret_t ret = pgen_alloc(alloc,\n"
+          "                                        sizeof(%s_astnode_t),\n"
+          "                                        _Alignof(%s_astnode_t));\n",
+          ctx->prefix_lower, ctx->prefix_lower);
+  fprintf(ctx->f, "  %s_astnode_t *node = (%s_astnode_t *)ret.buf;\n",
+          ctx->prefix_lower, ctx->prefix_lower);
+  fprintf(ctx->f, "  %s_astnode_t *children = NULL;\n", ctx->prefix_lower);
+  fprintf(ctx->f, "  node->kind = kind;\n");
+  fprintf(ctx->f, "  node->max_children = 0;\n");
+  fprintf(ctx->f, "  node->num_children = 0;\n");
+  fprintf(ctx->f, "  node->children = NULL;\n");
+  fprintf(ctx->f, "  node->rew = ret.rew;\n");
   fprintf(ctx->f, "  return node;\n");
   fprintf(ctx->f, "}\n\n");
 
@@ -670,18 +690,16 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
           "#define node(kind, ...) PGEN_CAT(%s_astnode_fixed_, "
           "PGEN_NARG(__VA_ARGS__))(ctx->alloc, kind, __VA_ARGS__)\n",
           ctx->prefix_lower);
-  fprintf(ctx->f, "#define list(kind) %s_astnode_dynamic(ctx->alloc, kind, 32)\n",
+  fprintf(ctx->f, "#define list(kind) %s_astnode_list(ctx->alloc, kind, 32)\n",
           ctx->prefix_lower);
-  fprintf(ctx->f, "#define leaf(kind) %s_astnode_dynamic(ctx->alloc, kind, 0)\n",
+  fprintf(ctx->f, "#define leaf(kind) %s_astnode_leaf(ctx->alloc, kind)\n",
           ctx->prefix_lower);
-
   fprintf(ctx->f, "#define add(to, node) %s_astnode_add(to, node)\n\n",
           ctx->prefix_lower);
 }
 
 static inline void peg_write_astnode_rewind(codegen_ctx *ctx) {
   fprintf(ctx->f, "#define rewind(node) ctx->alloc = node->rew;\n");
-  
 }
 
 static inline void codegen_write_parser(codegen_ctx *ctx) {
