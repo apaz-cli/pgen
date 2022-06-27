@@ -61,7 +61,7 @@ typedef struct {
   void (*freefn)(void *ptr);
   char *buf;
   uint32_t cap;
-} pgen_arena;
+} pgen_arena_t;
 
 typedef struct {
   uint32_t arena_idx;
@@ -70,11 +70,11 @@ typedef struct {
 
 typedef struct {
   pgen_allocator_rewind_t rew;
-  pgen_arena arenas[NUM_ARENAS];
+  pgen_arena_t arenas[NUM_ARENAS];
 } pgen_allocator;
 
 typedef struct {
-  pgen_allocator_rewind_t rewind;
+  pgen_allocator_rewind_t rew;
   char *buf;
 } pgen_allocator_ret_t;
 
@@ -91,7 +91,7 @@ static inline pgen_allocator pgen_allocator_new() {
 }
 
 static inline int pgen_allocator_launder(pgen_allocator *allocator,
-                                         pgen_arena arena) {
+                                         pgen_arena_t arena) {
   for (size_t i = 0; i < NUM_ARENAS; i++) {
     if (!allocator->arenas[i].buf) {
       allocator->arenas[i] = arena;
@@ -103,7 +103,7 @@ static inline int pgen_allocator_launder(pgen_allocator *allocator,
 
 static inline void pgen_allocator_destroy(pgen_allocator *allocator) {
   for (size_t i = 0; i < NUM_ARENAS; i++) {
-    pgen_arena a = allocator->arenas[i];
+    pgen_arena_t a = allocator->arenas[i];
     if (a.freefn)
       a.freefn(a.buf);
   }
@@ -115,7 +115,7 @@ static inline pgen_allocator_ret_t pgen_alloc(pgen_allocator *allocator,
                                               size_t n, size_t alignment) {
 
   pgen_allocator_ret_t ret;
-  ret.rewind = allocator->rew;
+  ret.rew = allocator->rew;
   ret.buf = NULL;
 
   // Find the arena to allocate on and where we are inside it.
@@ -138,7 +138,7 @@ static inline pgen_allocator_ret_t pgen_alloc(pgen_allocator *allocator,
         char *nb = _pgen_abufalloc();
         if (!nb)
           return ret;
-        pgen_arena new_arena;
+        pgen_arena_t new_arena;
         new_arena.freefn = _pgen_abuffree;
         new_arena.buf = nb;
         new_arena.cap = PGEN_BUFFER_SIZE;
@@ -152,9 +152,6 @@ static inline pgen_allocator_ret_t pgen_alloc(pgen_allocator *allocator,
   ret.buf = allocator->arenas[allocator->rew.arena_idx].buf + bufcurrent;
   allocator->rew.filled = bufnext;
 
-  //printf("Allocator: (%u, %u/%u)\n", allocator->rew.arena_idx,
-  //       allocator->rew.filled,
-  //       allocator->arenas[allocator->rew.arena_idx].cap);
   return ret;
 }
 

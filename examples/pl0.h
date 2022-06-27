@@ -244,7 +244,7 @@ typedef struct {
   void (*freefn)(void *ptr);
   char *buf;
   uint32_t cap;
-} pgen_arena;
+} pgen_arena_t;
 
 typedef struct {
   uint32_t arena_idx;
@@ -253,11 +253,11 @@ typedef struct {
 
 typedef struct {
   pgen_allocator_rewind_t rew;
-  pgen_arena arenas[NUM_ARENAS];
+  pgen_arena_t arenas[NUM_ARENAS];
 } pgen_allocator;
 
 typedef struct {
-  pgen_allocator_rewind_t rewind;
+  pgen_allocator_rewind_t rew;
   char *buf;
 } pgen_allocator_ret_t;
 
@@ -274,7 +274,7 @@ static inline pgen_allocator pgen_allocator_new() {
 }
 
 static inline int pgen_allocator_launder(pgen_allocator *allocator,
-                                         pgen_arena arena) {
+                                         pgen_arena_t arena) {
   for (size_t i = 0; i < NUM_ARENAS; i++) {
     if (!allocator->arenas[i].buf) {
       allocator->arenas[i] = arena;
@@ -286,7 +286,7 @@ static inline int pgen_allocator_launder(pgen_allocator *allocator,
 
 static inline void pgen_allocator_destroy(pgen_allocator *allocator) {
   for (size_t i = 0; i < NUM_ARENAS; i++) {
-    pgen_arena a = allocator->arenas[i];
+    pgen_arena_t a = allocator->arenas[i];
     if (a.freefn)
       a.freefn(a.buf);
   }
@@ -298,7 +298,7 @@ static inline pgen_allocator_ret_t pgen_alloc(pgen_allocator *allocator,
                                               size_t n, size_t alignment) {
 
   pgen_allocator_ret_t ret;
-  ret.rewind = allocator->rew;
+  ret.rew = allocator->rew;
   ret.buf = NULL;
 
   // Find the arena to allocate on and where we are inside it.
@@ -321,7 +321,7 @@ static inline pgen_allocator_ret_t pgen_alloc(pgen_allocator *allocator,
         char *nb = _pgen_abufalloc();
         if (!nb)
           return ret;
-        pgen_arena new_arena;
+        pgen_arena_t new_arena;
         new_arena.freefn = _pgen_abuffree;
         new_arena.buf = nb;
         new_arena.cap = PGEN_BUFFER_SIZE;
@@ -335,9 +335,6 @@ static inline pgen_allocator_ret_t pgen_alloc(pgen_allocator *allocator,
   ret.buf = allocator->arenas[allocator->rew.arena_idx].buf + bufcurrent;
   allocator->rew.filled = bufnext;
 
-  //printf("Allocator: (%u, %u/%u)\n", allocator->rew.arena_idx,
-  //       allocator->rew.filled,
-  //       allocator->arenas[allocator->rew.arena_idx].cap);
   return ret;
 }
 
@@ -516,11 +513,6 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
   size_t smaut_munch_size_3 = 0;
   size_t smaut_munch_size_4 = 0;
   pl0_token_kind trie_tokenkind = PL0_TOK_STREAMEND;
-  pl0_token_kind smaut_tokenkind_0 = PL0_TOK_STREAMEND;
-  pl0_token_kind smaut_tokenkind_1 = PL0_TOK_STREAMEND;
-  pl0_token_kind smaut_tokenkind_2 = PL0_TOK_STREAMEND;
-  pl0_token_kind smaut_tokenkind_3 = PL0_TOK_STREAMEND;
-  pl0_token_kind smaut_tokenkind_4 = PL0_TOK_STREAMEND;
 
 
   for (size_t iidx = 0; iidx < remaining; iidx++) {
@@ -835,7 +827,6 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
 
       // Check accept
       if ((smaut_state_0 == 1) | (smaut_state_0 == 2)) {
-        smaut_tokenkind_0 = PL0_TOK_IDENT;
         smaut_munch_size_0 = iidx + 1;
       }
     }
@@ -858,7 +849,6 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
 
       // Check accept
       if (smaut_state_1 == 2) {
-        smaut_tokenkind_1 = PL0_TOK_NUM;
         smaut_munch_size_1 = iidx + 1;
       }
     }
@@ -877,7 +867,6 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
 
       // Check accept
       if (smaut_state_2 == 1) {
-        smaut_tokenkind_2 = PL0_TOK_WS;
         smaut_munch_size_2 = iidx + 1;
       }
     }
@@ -920,7 +909,6 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
 
       // Check accept
       if (smaut_state_3 == 4) {
-        smaut_tokenkind_3 = PL0_TOK_MLCOM;
         smaut_munch_size_3 = iidx + 1;
       }
     }
@@ -951,7 +939,6 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
 
       // Check accept
       if ((smaut_state_4 == 2) | (smaut_state_4 == 3)) {
-        smaut_tokenkind_4 = PL0_TOK_SLCOM;
         smaut_munch_size_4 = iidx + 1;
       }
     }
@@ -1034,7 +1021,7 @@ struct pl0_astnode_t {
   size_t num_children;
   size_t max_children;
   pl0_astnode_t** children;
-  pgen_allocator_rewind_t rewind;
+  pgen_allocator_rewind_t rew;
 };
 
 static inline pl0_astnode_t* pl0_astnode_dynamic(
@@ -1050,7 +1037,7 @@ static inline pl0_astnode_t* pl0_astnode_dynamic(
   node->max_children = initial_size;
   node->num_children = 0;
   node->children = NULL;
-  node->rewind = rew;
+  node->rew = rew;
   return node;
 }
 
@@ -1068,7 +1055,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_1(
   node->max_children = 1;
   node->num_children = 1;
   node->children = children;
-  node->rewind = ret.rewind;
+  node->rew = ret.rew;
   children[0] = n0;
   return node;
 }
@@ -1088,7 +1075,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_2(
   node->max_children = 2;
   node->num_children = 2;
   node->children = children;
-  node->rewind = ret.rewind;
+  node->rew = ret.rew;
   children[0] = n0;
   children[1] = n1;
   return node;
@@ -1110,7 +1097,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_3(
   node->max_children = 3;
   node->num_children = 3;
   node->children = children;
-  node->rewind = ret.rewind;
+  node->rew = ret.rew;
   children[0] = n0;
   children[1] = n1;
   children[2] = n2;
@@ -1134,7 +1121,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_4(
   node->max_children = 4;
   node->num_children = 4;
   node->children = children;
-  node->rewind = ret.rewind;
+  node->rew = ret.rew;
   children[0] = n0;
   children[1] = n1;
   children[2] = n2;
@@ -1160,7 +1147,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_5(
   node->max_children = 5;
   node->num_children = 5;
   node->children = children;
-  node->rewind = ret.rewind;
+  node->rew = ret.rew;
   children[0] = n0;
   children[1] = n1;
   children[2] = n2;
@@ -1188,7 +1175,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_6(
   node->max_children = 6;
   node->num_children = 6;
   node->children = children;
-  node->rewind = ret.rewind;
+  node->rew = ret.rew;
   children[0] = n0;
   children[1] = n1;
   children[2] = n2;
@@ -1218,7 +1205,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_7(
   node->max_children = 7;
   node->num_children = 7;
   node->children = children;
-  node->rewind = ret.rewind;
+  node->rew = ret.rew;
   children[0] = n0;
   children[1] = n1;
   children[2] = n2;
@@ -1250,7 +1237,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_8(
   node->max_children = 8;
   node->num_children = 8;
   node->children = children;
-  node->rewind = ret.rewind;
+  node->rew = ret.rew;
   children[0] = n0;
   children[1] = n1;
   children[2] = n2;
@@ -1284,7 +1271,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_9(
   node->max_children = 9;
   node->num_children = 9;
   node->children = children;
-  node->rewind = ret.rewind;
+  node->rew = ret.rew;
   children[0] = n0;
   children[1] = n1;
   children[2] = n2;
@@ -1320,7 +1307,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_10(
   node->max_children = 10;
   node->num_children = 10;
   node->children = children;
-  node->rewind = ret.rewind;
+  node->rew = ret.rew;
   children[0] = n0;
   children[1] = n1;
   children[2] = n2;
@@ -1334,6 +1321,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_10(
   return node;
 }
 
+#define rewind(node) ctx->alloc = node->rew;
 #define node(kind, ...) PGEN_CAT(pl0_astnode_fixed_, PGEN_NARG(__VA_ARGS__))(ctx->alloc, kind, __VA_ARGS__)
 #define list(kind) pl0_astnode_dynamic(ctx->alloc, kind, 32)
 #define leaf(kind) pl0_astnode_dynamic(ctx->alloc, kind, 0)

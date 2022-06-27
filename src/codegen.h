@@ -369,12 +369,6 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   if (has_trie)
     fprintf(ctx->f, "  %s_token_kind trie_tokenkind = %s_TOK_STREAMEND;\n",
             ctx->prefix_lower, ctx->prefix_upper);
-  if (has_smauts) {
-    for (size_t i = 0; i < smauts.len; i++)
-      fprintf(ctx->f,
-              "  %s_token_kind smaut_tokenkind_%zu = %s_TOK_STREAMEND;\n",
-              ctx->prefix_lower, i, ctx->prefix_upper);
-  }
   fprintf(ctx->f, "\n\n");
 
   // Outer loop
@@ -469,8 +463,6 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
       fprintf(ctx->f, "      if (");
       tok_write_statecheck(ctx, a, aut.accepting);
       fprintf(ctx->f, ") {\n");
-      fprintf(ctx->f, "        smaut_tokenkind_%zu = %s_TOK_%s;\n", a,
-              ctx->prefix_upper, aut.ident);
       fprintf(ctx->f, "        smaut_munch_size_%zu = iidx + 1;\n", a);
       fprintf(ctx->f, "      }\n");
 
@@ -603,7 +595,7 @@ static inline void peg_write_astnode_def(codegen_ctx *ctx) {
   fprintf(ctx->f, "  size_t num_children;\n");
   fprintf(ctx->f, "  size_t max_children;\n");
   fprintf(ctx->f, "  %s_astnode_t** children;\n", ctx->prefix_lower);
-  fprintf(ctx->f, "  pgen_allocator_rewind_t rewind;\n");
+  fprintf(ctx->f, "  pgen_allocator_rewind_t rew;\n");
   fprintf(ctx->f, "};\n\n");
 }
 
@@ -629,7 +621,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   fprintf(ctx->f, "  node->max_children = initial_size;\n");
   fprintf(ctx->f, "  node->num_children = 0;\n");
   fprintf(ctx->f, "  node->children = NULL;\n");
-  fprintf(ctx->f, "  node->rewind = rew;\n");
+  fprintf(ctx->f, "  node->rew = rew;\n");
   fprintf(ctx->f, "  return node;\n");
   fprintf(ctx->f, "}\n\n");
 
@@ -665,7 +657,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
     fprintf(ctx->f, "  node->max_children = %zu;\n", i);
     fprintf(ctx->f, "  node->num_children = %zu;\n", i);
     fprintf(ctx->f, "  node->children = children;\n");
-    fprintf(ctx->f, "  node->rewind = ret.rewind;\n");
+    fprintf(ctx->f, "  node->rew = ret.rew;\n");
     for (size_t j = 0; j < i; j++)
       fprintf(ctx->f, "  children[%zu] = n%zu;\n", j, j);
     fprintf(ctx->f, "  return node;\n");
@@ -687,11 +679,17 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
           ctx->prefix_lower);
 }
 
+static inline void peg_write_astnode_rewind(codegen_ctx *ctx) {
+  fprintf(ctx->f, "#define rewind(node) ctx->alloc = node->rew;\n");
+  
+}
+
 static inline void codegen_write_parser(codegen_ctx *ctx) {
   peg_write_header(ctx);
   peg_write_parser_ctx(ctx);
   peg_write_astnode_def(ctx);
   peg_write_astnode_init(ctx);
+  peg_write_astnode_rewind(ctx);
   peg_write_parsermacros(ctx);
   peg_write_footer(ctx);
 }
