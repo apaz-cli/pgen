@@ -626,9 +626,30 @@ static inline void peg_write_astnode_def(codegen_ctx *ctx) {
   fprintf(ctx->f, "typedef struct %s_astnode_t %s_astnode_t;\n",
           ctx->prefix_lower, ctx->prefix_lower);
   fprintf(ctx->f, "struct %s_astnode_t {\n", ctx->prefix_lower);
-  fprintf(ctx->f, "#ifdef PGEN_%s_NODE_EXTRA\n", ctx->prefix_upper);
-  fprintf(ctx->f, "  PGEN_%s_NODE_EXTRA\n", ctx->prefix_upper);
-  fprintf(ctx->f, "#endif\n");
+
+  // Insert %extra directives.
+  int inserted_extra = 0;
+  ASTNode *pegast = ctx->pegast;
+  for (size_t n = 0; n < pegast->num_children; n++) {
+    ASTNode *dir = pegast->children[n];
+    if (strcmp(dir->name, "Directive"))
+      continue;
+
+    // %extra directive
+    if (!strcmp((char *)dir->children[0]->extra, "extra")) {
+      if (!inserted_extra) {
+        inserted_extra = 1;
+        fprintf(ctx->f, "  // Extra data in %%extra directives:\n\n");
+      }
+      fprintf(ctx->f, "  %s\n", (char *)dir->extra);
+    }
+  }
+
+  if (inserted_extra)
+    fprintf(ctx->f, "\n  // End of extra data.\n\n");
+  else
+    fprintf(ctx->f, "  // No %%extra directives.\n\n");
+
   fprintf(ctx->f, "  const char* kind;\n");
   fprintf(ctx->f, "  size_t num_children;\n");
   fprintf(ctx->f, "  size_t max_children;\n");

@@ -1105,9 +1105,8 @@ typedef struct {
 struct pl0_astnode_t;
 typedef struct pl0_astnode_t pl0_astnode_t;
 struct pl0_astnode_t {
-#ifdef PGEN_PL0_NODE_EXTRA
-  PGEN_PL0_NODE_EXTRA
-#endif
+  // No %extra directives.
+
   const char* kind;
   size_t num_children;
   size_t max_children;
