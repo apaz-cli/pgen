@@ -1,5 +1,4 @@
-
-%directive capture
+%oom exit(1)
 
 program <- block DOT
 

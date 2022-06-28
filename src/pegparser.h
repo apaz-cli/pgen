@@ -86,14 +86,14 @@ static inline ASTNode *peg_parse_Directive(parser_ctx *ctx) {
       RETURN(NULL);
     }
 
-    codepoint_t *cpbuf =
-        (codepoint_t *)malloc(sizeof(codepoint_t) * capture_size);
+    char *cpbuf = (char*)malloc(capture_size + 1);
     if (!cpbuf) {
       REWIND(begin);
       RETURN(NULL);
     }
     for (size_t i = 0; i < capture_size; i++)
-      cpbuf[i] = cap_start[i];
+      cpbuf[i] = (char)cap_start[i];
+    cpbuf[capture_size] = '\0';
 
     ASTNode *dir = ASTNode_new("Directive");
     dir->extra = cpbuf;

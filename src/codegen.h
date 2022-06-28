@@ -7,6 +7,8 @@
 #include "parserctx.h"
 #include "utf8.h"
 
+#define NODE_NUM_FIXED 10
+
 /*******/
 /* ctx */
 /*******/
@@ -367,9 +369,10 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   }
 
   if (has_trie)
-    fprintf(ctx->f, "  %s_token_kind trie_tokenkind = %s_TOK_STREAMEND;\n",
+    fprintf(ctx->f, "  %s_token_kind trie_tokenkind = %s_TOK_STREAMEND;\n\n",
             ctx->prefix_lower, ctx->prefix_upper);
-  fprintf(ctx->f, "\n\n");
+  else
+    fprintf(ctx->f, "\n");
 
   // Outer loop
   fprintf(ctx->f, "  for (size_t iidx = 0; iidx < remaining; iidx++) {\n");
@@ -574,6 +577,41 @@ static inline void peg_write_footer(codegen_ctx *ctx) {
           ctx->prefix_upper);
 }
 
+static inline void peg_write_directives(codegen_ctx *ctx) {
+  int oom_written = 0;
+
+  ASTNode *pegast = ctx->pegast;
+  if (pegast->num_children)
+    fprintf(ctx->f, "/**************/\n/* Directives */\n/**************/\n");
+  for (size_t n = 0; n < pegast->num_children; n++) {
+    ASTNode *dir = pegast->children[n];
+    if (strcmp(dir->name, "Directive"))
+      continue;
+
+    // %define directive
+    if (!strcmp((char *)dir->children[0]->extra, "define")) {
+      fprintf(ctx->f, "#define %s\n", (char *)dir->extra);
+    }
+    // %oom directive
+    else if (!strcmp((char *)dir->children[0]->extra, "oom")) {
+      if (oom_written)
+        ERROR("Duplicate %%oom directives.");
+
+      fprintf(ctx->f, "#define PGEN_OOM() %s\n", (char *)dir->extra);
+      oom_written = 1;
+    }
+    // %include directive
+    else if (!strcmp((char *)dir->children[0]->extra, "include")) {
+      fprintf(ctx->f, "#include %s\n", (char *)dir->extra);
+    }
+    // %code directive
+    else if (!strcmp((char *)dir->children[0]->extra, "code")) {
+      fprintf(ctx->f, "%s\n", (char *)dir->extra);
+    }
+  }
+  fprintf(ctx->f, "\n");
+}
+
 static inline void peg_write_parser_ctx(codegen_ctx *ctx) {
   fprintf(ctx->f, "typedef struct {\n");
   fprintf(ctx->f, "  %s_token* tokens;\n", ctx->prefix_lower);
@@ -606,22 +644,29 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   fprintf(ctx->f, "                             pgen_allocator* alloc,\n"
                   "                             const char* kind,\n"
                   "                             size_t initial_size) {\n");
-  fprintf(ctx->f, "  pgen_allocator_rewind_t rew;\n");
-  fprintf(ctx->f, "  rew.arena_idx = 0xFFFF0000;\n");
-  fprintf(ctx->f, "  rew.filled = 0xFFFF0000;\n");
   fprintf(ctx->f,
-          "  %s_astnode_t *node = (%s_astnode_t*)"
-          "malloc(sizeof(%s_astnode_t));\n",
-          ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_lower);
+          "  pgen_allocator_ret_t ret = pgen_alloc(alloc,\n"
+          "                                        sizeof(%s_astnode_t),\n"
+          "                                        _Alignof(%s_astnode_t));\n",
+          ctx->prefix_lower, ctx->prefix_lower);
+  fprintf(ctx->f, "  %s_astnode_t *node = (pl0_astnode_t*)ret.buf;\n\n",
+          ctx->prefix_lower);
+  fprintf(ctx->f, "  %s_astnode_t *children;\n", ctx->prefix_lower);
+  fprintf(ctx->f, "  if (initial_size) {\n");
   fprintf(ctx->f,
-          "  %s_astnode_t *children = initial_size ? (%s_astnode_t*)"
-          "malloc(sizeof(%s_astnode_t) * initial_size) : NULL;\n",
-          ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_lower);
+          "    children = (%s_astnode_t*)"
+          "malloc(sizeof(%s_astnode_t) * initial_size);\n",
+          ctx->prefix_lower, ctx->prefix_lower);
+  fprintf(ctx->f, "    if (!children)\n      PGEN_OOM();\n");
+  fprintf(ctx->f, "    pgen_defer(alloc, free, children, ret.rew);\n");
+  fprintf(ctx->f, "  } else {\n");
+  fprintf(ctx->f, "    children = NULL;\n");
+  fprintf(ctx->f, "  }\n\n");
   fprintf(ctx->f, "  node->kind = kind;\n");
   fprintf(ctx->f, "  node->max_children = initial_size;\n");
   fprintf(ctx->f, "  node->num_children = 0;\n");
   fprintf(ctx->f, "  node->children = NULL;\n");
-  fprintf(ctx->f, "  node->rew = rew;\n");
+  fprintf(ctx->f, "  node->rew = ret.rew;\n");
   fprintf(ctx->f, "  return node;\n");
   fprintf(ctx->f, "}\n\n");
 
@@ -645,7 +690,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   fprintf(ctx->f, "  return node;\n");
   fprintf(ctx->f, "}\n\n");
 
-  for (size_t i = 1; i <= 10; i++) {
+  for (size_t i = 1; i <= NODE_NUM_FIXED; i++) {
 
     fprintf(ctx->f, "static inline %s_astnode_t* %s_astnode_fixed_%zu(\n",
             ctx->prefix_lower, ctx->prefix_lower, i);
@@ -670,11 +715,10 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
     fprintf(ctx->f, "  %s_astnode_t *node = (%s_astnode_t *)ret.buf;\n",
             ctx->prefix_lower, ctx->prefix_lower);
     fprintf(ctx->f,
-            "  %s_astnode_t **children ="
-            " (%s_astnode_t **)(node + 1);\n",
+            "  %s_astnode_t **children = (%s_astnode_t **)(node + 1);\n",
             ctx->prefix_lower, ctx->prefix_lower);
     fprintf(ctx->f, "  node->kind = kind;\n");
-    fprintf(ctx->f, "  node->max_children = %zu;\n", i);
+    fprintf(ctx->f, "  node->max_children = 0;\n");
     fprintf(ctx->f, "  node->num_children = %zu;\n", i);
     fprintf(ctx->f, "  node->children = children;\n");
     fprintf(ctx->f, "  node->rew = ret.rew;\n");
@@ -690,16 +734,39 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
           "#define node(kind, ...) PGEN_CAT(%s_astnode_fixed_, "
           "PGEN_NARG(__VA_ARGS__))(ctx->alloc, kind, __VA_ARGS__)\n",
           ctx->prefix_lower);
+  fprintf(
+      ctx->f,
+      "#define rewind(node) pgen_allocator_rewind(ctx->alloc, node->rew)\n");
   fprintf(ctx->f, "#define list(kind) %s_astnode_list(ctx->alloc, kind, 32)\n",
           ctx->prefix_lower);
   fprintf(ctx->f, "#define leaf(kind) %s_astnode_leaf(ctx->alloc, kind)\n",
           ctx->prefix_lower);
-  fprintf(ctx->f, "#define add(to, node) %s_astnode_add(to, node)\n\n",
+  fprintf(ctx->f,
+          "#define add(to, node) %s_astnode_add(ctx->alloc, to, node)\n",
           ctx->prefix_lower);
+  fprintf(ctx->f, "#define defer(node, freefn, ptr) "
+                  "pgen_defer(ctx->alloc, freefn, ptr, node->rew)\n\n");
 }
 
-static inline void peg_write_astnode_rewind(codegen_ctx *ctx) {
-  fprintf(ctx->f, "#define rewind(node) ctx->alloc = node->rew;\n");
+static inline void peg_write_astnode_add(codegen_ctx *ctx) {
+  fprintf(ctx->f,
+          "static inline void %s_astnode_add("
+          "pgen_allocator* alloc, %s_astnode_t *list, %s_astnode_t *node) {\n",
+          ctx->prefix_lower, ctx->prefix_lower, ctx->prefix_lower);
+  fprintf(ctx->f, "  if (list->num_children > list->max_children)\n"
+                  "    PGEN_OOM();\n\n");
+  fprintf(ctx->f, "  if (list->max_children == list->num_children) {\n");
+  fprintf(ctx->f, "    size_t new_max = list->max_children * 2;\n");
+  fprintf(ctx->f, "    void* old_ptr = list->children;");
+  fprintf(ctx->f, "    void* new_ptr = realloc(list->children, new_max);\n");
+  fprintf(ctx->f, "    if (!new_ptr)\n      PGEN_OOM();\n");
+  fprintf(ctx->f, "    list->children = (pl0_astnode_t **)new_ptr;\n");
+  fprintf(ctx->f, "    list->max_children = new_max;\n");
+  fprintf(ctx->f, "    pgen_allocator_realloced(alloc, old_ptr, new_ptr, free, list->rew);\n");
+  fprintf(ctx->f, "  }\n");
+  fprintf(ctx->f, "  \n");
+  fprintf(ctx->f, "  list->children[list->num_children++] = node;\n");
+  fprintf(ctx->f, "}\n\n");
 }
 
 static inline void codegen_write_parser(codegen_ctx *ctx) {
@@ -707,7 +774,7 @@ static inline void codegen_write_parser(codegen_ctx *ctx) {
   peg_write_parser_ctx(ctx);
   peg_write_astnode_def(ctx);
   peg_write_astnode_init(ctx);
-  peg_write_astnode_rewind(ctx);
+  peg_write_astnode_add(ctx);
   peg_write_parsermacros(ctx);
   peg_write_footer(ctx);
 }
@@ -722,6 +789,7 @@ static inline void codegen_write(codegen_ctx *ctx) {
     write_utf8_lib(ctx);
   }
   if (ctx->pegast) {
+    peg_write_directives(ctx);
     write_arena_lib(ctx);
     write_helpermacros(ctx);
   }
