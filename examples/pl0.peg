@@ -1,7 +1,7 @@
 %oom exit(1)
 //%extra char* node_extra;
 
-program <- block DOT
+program <- label:block DOT {ret = label;}
 
 block <- CONST IDENT EQ NUM (COMMA IDENT EQ NUM)* SEMI /
          VAR IDENT (COMMA IDENT)* SEMI /

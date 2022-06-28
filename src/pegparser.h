@@ -3,6 +3,8 @@
 #include "ast.h"
 #include "parserctx.h"
 #include "utf8.h"
+#include "util.h"
+#include <limits.h>
 
 static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx);
 static inline ASTNode *peg_parse_Directive(parser_ctx *ctx);
@@ -86,7 +88,7 @@ static inline ASTNode *peg_parse_Directive(parser_ctx *ctx) {
       RETURN(NULL);
     }
 
-    char *cpbuf = (char*)malloc(capture_size + 1);
+    char *cpbuf = (char *)malloc(capture_size + 1);
     if (!cpbuf) {
       REWIND(begin);
       RETURN(NULL);
@@ -212,7 +214,7 @@ static inline ASTNode *peg_parse_StructDef(parser_ctx *ctx) {
   RETURN(node);
 }
 
-// Each
+// Each child is a ModExprList.
 static inline ASTNode *peg_parse_SlashExpr(parser_ctx *ctx) {
 
   RULE_BEGIN("SlashExpr");
@@ -276,6 +278,7 @@ static inline ASTNode *peg_parse_ModExprList(parser_ctx *ctx) {
   RETURN(node);
 }
 
+// modexpr->children[1]
 static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
 
   RULE_BEGIN("ModExpr");
@@ -410,6 +413,9 @@ static inline ASTNode *peg_parse_CodeExpr(parser_ctx *ctx) {
 
   if (!IS_CURRENT("{"))
     RETURN(NULL);
+  NEXT();
+
+  RECORD(sv_start);
 
   size_t num_opens = 1;
   list_codepoint_t content = list_codepoint_t_new();
@@ -432,9 +438,12 @@ static inline ASTNode *peg_parse_CodeExpr(parser_ctx *ctx) {
       if (CURRENT() == '{')
         num_opens++;
       else if (CURRENT() == '}') {
+
         num_opens--;
-        if (!num_opens)
+        if (!num_opens) {
+          NEXT();
           break;
+        }
       }
 
       c = CURRENT();
@@ -444,12 +453,20 @@ static inline ASTNode *peg_parse_CodeExpr(parser_ctx *ctx) {
     list_codepoint_t_add(&content, c);
   }
 
+  size_t diff = ctx->pos - _rew_to_sv_start;
+
   INIT("CodeExpr");
-  list_codepoint_t *lcpp;
-  node->extra = lcpp = (list_codepoint_t *)malloc(sizeof(list_codepoint_t));
-  if (!lcpp)
-    OOM();
-  *lcpp = content;
+  char *str;
+  node->extra = str = (char *)malloc(diff + 1);
+  for (size_t i = 0; i < diff; i++) {
+    codepoint_t c = content.buf[i];
+    if (c > CHAR_MAX)
+      ERROR("No non-ascii codepoints in code blocks.");
+    str[i] = (char)c;
+  }
+  str[diff] = '\0';
+  list_codepoint_t_clear(&content);
+
   RETURN(node);
 }
 

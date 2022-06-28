@@ -1462,5 +1462,236 @@ static inline void pl0_astnode_add(pgen_allocator* alloc, pl0_astnode_t *list, p
 #define add(to, node)            pl0_astnode_add(ctx->alloc, to, node)
 #define defer(node, freefn, ptr) pgen_defer(ctx->alloc, freefn, ptr, node->rew)
 
+static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx);
+static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx);
+static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx);
+static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx);
+static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx);
+static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx);
+static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx);
+
+
+static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
+  pl0_astnode_t* label = NULL;
+  pl0_astnode_t* ret = NULL;
+
+  {
+    // SlashExpr
+    pl0_astnode_t* expr_ret_0 = NULL;
+    pl0_astnode_t* expr_ret_1 = NULL;
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_2 = NULL;
+      pl0_astnode_t* expr_ret_3 = NULL;
+
+      expr_ret_1 = expr_ret_2;
+    }
+
+    expr_ret_0 = expr_ret_0;
+  }
+
+  return ret;
+}
+static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
+  pl0_astnode_t* ret = NULL;
+
+  {
+    // SlashExpr
+    pl0_astnode_t* expr_ret_4 = NULL;
+    pl0_astnode_t* expr_ret_5 = NULL;
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_6 = NULL;
+      pl0_astnode_t* expr_ret_7 = NULL;
+
+      expr_ret_5 = expr_ret_6;
+    }
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_8 = NULL;
+      pl0_astnode_t* expr_ret_9 = NULL;
+
+      expr_ret_5 = expr_ret_8;
+    }
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_10 = NULL;
+      pl0_astnode_t* expr_ret_11 = NULL;
+
+      expr_ret_5 = expr_ret_10;
+    }
+
+    expr_ret_4 = expr_ret_4;
+  }
+
+  return ret;
+}
+static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
+  pl0_astnode_t* ret = NULL;
+
+  {
+    // SlashExpr
+    pl0_astnode_t* expr_ret_12 = NULL;
+    pl0_astnode_t* expr_ret_13 = NULL;
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_14 = NULL;
+      pl0_astnode_t* expr_ret_15 = NULL;
+
+      expr_ret_13 = expr_ret_14;
+    }
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_16 = NULL;
+      pl0_astnode_t* expr_ret_17 = NULL;
+
+      expr_ret_13 = expr_ret_16;
+    }
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_18 = NULL;
+      pl0_astnode_t* expr_ret_19 = NULL;
+
+      expr_ret_13 = expr_ret_18;
+    }
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_20 = NULL;
+      pl0_astnode_t* expr_ret_21 = NULL;
+
+      expr_ret_13 = expr_ret_20;
+    }
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_22 = NULL;
+      pl0_astnode_t* expr_ret_23 = NULL;
+
+      expr_ret_13 = expr_ret_22;
+    }
+
+    expr_ret_12 = expr_ret_12;
+  }
+
+  return ret;
+}
+static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
+  pl0_astnode_t* ret = NULL;
+
+  {
+    // SlashExpr
+    pl0_astnode_t* expr_ret_24 = NULL;
+    pl0_astnode_t* expr_ret_25 = NULL;
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_26 = NULL;
+      pl0_astnode_t* expr_ret_27 = NULL;
+
+      expr_ret_25 = expr_ret_26;
+    }
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_28 = NULL;
+      pl0_astnode_t* expr_ret_29 = NULL;
+
+      expr_ret_25 = expr_ret_28;
+    }
+
+    expr_ret_24 = expr_ret_24;
+  }
+
+  return ret;
+}
+static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
+  pl0_astnode_t* ret = NULL;
+
+  {
+    // SlashExpr
+    pl0_astnode_t* expr_ret_30 = NULL;
+    pl0_astnode_t* expr_ret_31 = NULL;
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_32 = NULL;
+      pl0_astnode_t* expr_ret_33 = NULL;
+
+      expr_ret_31 = expr_ret_32;
+    }
+
+    expr_ret_30 = expr_ret_30;
+  }
+
+  return ret;
+}
+static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
+  pl0_astnode_t* ret = NULL;
+
+  {
+    // SlashExpr
+    pl0_astnode_t* expr_ret_34 = NULL;
+    pl0_astnode_t* expr_ret_35 = NULL;
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_36 = NULL;
+      pl0_astnode_t* expr_ret_37 = NULL;
+
+      expr_ret_35 = expr_ret_36;
+    }
+
+    expr_ret_34 = expr_ret_34;
+  }
+
+  return ret;
+}
+static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
+  pl0_astnode_t* ret = NULL;
+
+  {
+    // SlashExpr
+    pl0_astnode_t* expr_ret_38 = NULL;
+    pl0_astnode_t* expr_ret_39 = NULL;
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_40 = NULL;
+      pl0_astnode_t* expr_ret_41 = NULL;
+
+      expr_ret_39 = expr_ret_40;
+    }
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_42 = NULL;
+      pl0_astnode_t* expr_ret_43 = NULL;
+
+      expr_ret_39 = expr_ret_42;
+    }
+
+    {
+      // ModExprList
+      pl0_astnode_t* expr_ret_44 = NULL;
+      pl0_astnode_t* expr_ret_45 = NULL;
+
+      expr_ret_39 = expr_ret_44;
+    }
+
+    expr_ret_38 = expr_ret_38;
+  }
+
+  return ret;
+}
+
+
 #endif /* PGEN_PL0_ASTNODE_INCLUDE */
 
