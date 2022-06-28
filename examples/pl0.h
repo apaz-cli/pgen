@@ -1444,7 +1444,8 @@ static inline void pl0_astnode_add(pgen_allocator* alloc, pl0_astnode_t *list, p
 
   if (list->max_children == list->num_children) {
     size_t new_max = list->max_children * 2;
-    void* old_ptr = list->children;    void* new_ptr = realloc(list->children, new_max);
+    void* old_ptr = list->children;
+    void* new_ptr = realloc(list->children, new_max);
     if (!new_ptr)
       PGEN_OOM();
     list->children = (pl0_astnode_t **)new_ptr;
@@ -1455,11 +1456,11 @@ static inline void pl0_astnode_add(pgen_allocator* alloc, pl0_astnode_t *list, p
   list->children[list->num_children++] = node;
 }
 
-#define node(kind, ...) PGEN_CAT(pl0_astnode_fixed_, PGEN_NARG(__VA_ARGS__))(ctx->alloc, kind, __VA_ARGS__)
-#define rewind(node) pgen_allocator_rewind(ctx->alloc, node->rew)
-#define list(kind) pl0_astnode_list(ctx->alloc, kind, 32)
-#define leaf(kind) pl0_astnode_leaf(ctx->alloc, kind)
-#define add(to, node) pl0_astnode_add(ctx->alloc, to, node)
+#define node(kind, ...)          PGEN_CAT(pl0_astnode_fixed_, PGEN_NARG(__VA_ARGS__))(ctx->alloc, kind, __VA_ARGS__)
+#define rewind(node)             pgen_allocator_rewind(ctx->alloc, node->rew)
+#define list(kind)               pl0_astnode_list(ctx->alloc, kind, 32)
+#define leaf(kind)               pl0_astnode_leaf(ctx->alloc, kind)
+#define add(to, node)            pl0_astnode_add(ctx->alloc, to, node)
 #define defer(node, freefn, ptr) pgen_defer(ctx->alloc, freefn, ptr, node->rew)
 
 #endif /* PGEN_PL0_ASTNODE_INCLUDE */

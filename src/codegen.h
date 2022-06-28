@@ -731,18 +731,24 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
 
 static inline void peg_write_parsermacros(codegen_ctx *ctx) {
   fprintf(ctx->f,
-          "#define node(kind, ...) PGEN_CAT(%s_astnode_fixed_, "
-          "PGEN_NARG(__VA_ARGS__))(ctx->alloc, kind, __VA_ARGS__)\n",
+          "#define node(kind, ...)          "
+          "PGEN_CAT(%s_astnode_fixed_, "
+          "PGEN_NARG(__VA_ARGS__))"
+          "(ctx->alloc, kind, __VA_ARGS__)\n",
           ctx->prefix_lower);
-  fprintf(
-      ctx->f,
-      "#define rewind(node) pgen_allocator_rewind(ctx->alloc, node->rew)\n");
-  fprintf(ctx->f, "#define list(kind) %s_astnode_list(ctx->alloc, kind, 32)\n",
-          ctx->prefix_lower);
-  fprintf(ctx->f, "#define leaf(kind) %s_astnode_leaf(ctx->alloc, kind)\n",
+  fprintf(ctx->f, "#define rewind(node)             "
+                  "pgen_allocator_rewind(ctx->alloc, node->rew)\n");
+  fprintf(ctx->f,
+          "#define list(kind)               "
+          "%s_astnode_list(ctx->alloc, kind, 32)\n",
           ctx->prefix_lower);
   fprintf(ctx->f,
-          "#define add(to, node) %s_astnode_add(ctx->alloc, to, node)\n",
+          "#define leaf(kind)               "
+          "%s_astnode_leaf(ctx->alloc, kind)\n",
+          ctx->prefix_lower);
+  fprintf(ctx->f,
+          "#define add(to, node)            "
+          "%s_astnode_add(ctx->alloc, to, node)\n",
           ctx->prefix_lower);
   fprintf(ctx->f, "#define defer(node, freefn, ptr) "
                   "pgen_defer(ctx->alloc, freefn, ptr, node->rew)\n\n");
@@ -757,12 +763,13 @@ static inline void peg_write_astnode_add(codegen_ctx *ctx) {
                   "    PGEN_OOM();\n\n");
   fprintf(ctx->f, "  if (list->max_children == list->num_children) {\n");
   fprintf(ctx->f, "    size_t new_max = list->max_children * 2;\n");
-  fprintf(ctx->f, "    void* old_ptr = list->children;");
+  fprintf(ctx->f, "    void* old_ptr = list->children;\n");
   fprintf(ctx->f, "    void* new_ptr = realloc(list->children, new_max);\n");
   fprintf(ctx->f, "    if (!new_ptr)\n      PGEN_OOM();\n");
   fprintf(ctx->f, "    list->children = (pl0_astnode_t **)new_ptr;\n");
   fprintf(ctx->f, "    list->max_children = new_max;\n");
-  fprintf(ctx->f, "    pgen_allocator_realloced(alloc, old_ptr, new_ptr, free, list->rew);\n");
+  fprintf(ctx->f, "    pgen_allocator_realloced(alloc, old_ptr, new_ptr, free, "
+                  "list->rew);\n");
   fprintf(ctx->f, "  }\n");
   fprintf(ctx->f, "  \n");
   fprintf(ctx->f, "  list->children[list->num_children++] = node;\n");
