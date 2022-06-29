@@ -855,26 +855,29 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     }
 
     indent_fprintf("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
-
     end_block(ctx);
 
   } else if (!strcmp(expr->name, "ModExprList")) {
     size_t ret = expr_cnt++;
     size_t sub = expr_cnt++;
 
-    
     start_block(ctx);
     comment(ctx, "ModExprList");
     indent_fprintf("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
     indent_fprintf("%s_astnode_t* expr_ret_%zu = NULL;\n\n", ctx->lower, sub);
 
     for (size_t i = 0; i < expr->num_children; i++) {
-      peg_visit_write_exprs(ctx, expr->children[i], ret);
+      if (i) {
+        indent_fprintf("if (expr_ret_%zu)\n", sub);
+        start_block(ctx);
+      }
+      peg_visit_write_exprs(ctx, expr->children[i], sub);
+      if (i) {
+        end_block(ctx);
+      }
     }
 
-    indent(ctx);
-    fprintf(ctx->f, "expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
-
+    indent_fprintf("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
     end_block(ctx);
 
   } else if (!strcmp(expr->name, "ModExpr")) {

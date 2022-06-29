@@ -1485,6 +1485,14 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
       pl0_astnode_t* expr_ret_2 = NULL;
       pl0_astnode_t* expr_ret_3 = NULL;
 
+      if (expr_ret_3)
+      {
+      }
+
+      if (expr_ret_3)
+      {
+      }
+
       expr_ret_1 = expr_ret_2;
     }
 
@@ -1506,6 +1514,26 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       pl0_astnode_t* expr_ret_6 = NULL;
       pl0_astnode_t* expr_ret_7 = NULL;
 
+      if (expr_ret_7)
+      {
+      }
+
+      if (expr_ret_7)
+      {
+      }
+
+      if (expr_ret_7)
+      {
+      }
+
+      if (expr_ret_7)
+      {
+      }
+
+      if (expr_ret_7)
+      {
+      }
+
       expr_ret_5 = expr_ret_6;
     }
 
@@ -1514,6 +1542,18 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       pl0_astnode_t* expr_ret_8 = NULL;
       pl0_astnode_t* expr_ret_9 = NULL;
 
+      if (expr_ret_9)
+      {
+      }
+
+      if (expr_ret_9)
+      {
+      }
+
+      if (expr_ret_9)
+      {
+      }
+
       expr_ret_5 = expr_ret_8;
     }
 
@@ -1521,6 +1561,10 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       // ModExprList
       pl0_astnode_t* expr_ret_10 = NULL;
       pl0_astnode_t* expr_ret_11 = NULL;
+
+      if (expr_ret_11)
+      {
+      }
 
       expr_ret_5 = expr_ret_10;
     }
@@ -1543,6 +1587,14 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       pl0_astnode_t* expr_ret_14 = NULL;
       pl0_astnode_t* expr_ret_15 = NULL;
 
+      if (expr_ret_15)
+      {
+      }
+
+      if (expr_ret_15)
+      {
+      }
+
       expr_ret_13 = expr_ret_14;
     }
 
@@ -1550,6 +1602,10 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       // ModExprList
       pl0_astnode_t* expr_ret_16 = NULL;
       pl0_astnode_t* expr_ret_17 = NULL;
+
+      if (expr_ret_17)
+      {
+      }
 
       expr_ret_13 = expr_ret_16;
     }
@@ -1559,6 +1615,18 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       pl0_astnode_t* expr_ret_18 = NULL;
       pl0_astnode_t* expr_ret_19 = NULL;
 
+      if (expr_ret_19)
+      {
+      }
+
+      if (expr_ret_19)
+      {
+      }
+
+      if (expr_ret_19)
+      {
+      }
+
       expr_ret_13 = expr_ret_18;
     }
 
@@ -1567,6 +1635,18 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       pl0_astnode_t* expr_ret_20 = NULL;
       pl0_astnode_t* expr_ret_21 = NULL;
 
+      if (expr_ret_21)
+      {
+      }
+
+      if (expr_ret_21)
+      {
+      }
+
+      if (expr_ret_21)
+      {
+      }
+
       expr_ret_13 = expr_ret_20;
     }
 
@@ -1574,6 +1654,18 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       // ModExprList
       pl0_astnode_t* expr_ret_22 = NULL;
       pl0_astnode_t* expr_ret_23 = NULL;
+
+      if (expr_ret_23)
+      {
+      }
+
+      if (expr_ret_23)
+      {
+      }
+
+      if (expr_ret_23)
+      {
+      }
 
       expr_ret_13 = expr_ret_22;
     }
@@ -1596,6 +1688,10 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
       pl0_astnode_t* expr_ret_26 = NULL;
       pl0_astnode_t* expr_ret_27 = NULL;
 
+      if (expr_ret_27)
+      {
+      }
+
       expr_ret_25 = expr_ret_26;
     }
 
@@ -1603,6 +1699,14 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
       // ModExprList
       pl0_astnode_t* expr_ret_28 = NULL;
       pl0_astnode_t* expr_ret_29 = NULL;
+
+      if (expr_ret_29)
+      {
+      }
+
+      if (expr_ret_29)
+      {
+      }
 
       expr_ret_25 = expr_ret_28;
     }
@@ -1625,6 +1729,14 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
       pl0_astnode_t* expr_ret_32 = NULL;
       pl0_astnode_t* expr_ret_33 = NULL;
 
+      if (expr_ret_33)
+      {
+      }
+
+      if (expr_ret_33)
+      {
+      }
+
       expr_ret_31 = expr_ret_32;
     }
 
@@ -1645,6 +1757,10 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
       // ModExprList
       pl0_astnode_t* expr_ret_36 = NULL;
       pl0_astnode_t* expr_ret_37 = NULL;
+
+      if (expr_ret_37)
+      {
+      }
 
       expr_ret_35 = expr_ret_36;
     }
@@ -1682,6 +1798,14 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       // ModExprList
       pl0_astnode_t* expr_ret_44 = NULL;
       pl0_astnode_t* expr_ret_45 = NULL;
+
+      if (expr_ret_45)
+      {
+      }
+
+      if (expr_ret_45)
+      {
+      }
 
       expr_ret_39 = expr_ret_44;
     }
