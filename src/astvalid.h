@@ -6,6 +6,10 @@
 // TODO: Make sure that every SM transition from has
 //       an SM transition to unless it's zero.
 
+// TODO: Make sure that every upperident in the peg corresponds to a token
+// TODO: Make sure that every lowerident in the peg corresponds to a rule
+// TODO: Make sure that no names of labels and rules overlap
+
 static inline void validateTokast(ASTNode *tokast) {
   // Cross compare for duplicate rules.
   // Also make sure that there's no token named STREAMEND.

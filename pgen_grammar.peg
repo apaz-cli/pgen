@@ -37,7 +37,7 @@ SlashExpr      <- ModExprList (_ '/' ModExprList)*
 
 ModExprList    <- (_ ModExpr)+
 
-ModExpr        <- (LowerIdent _ ':' _)? (('&' / '!') _)? BaseExpr _ ('?' / '*' / '+')?
+ModExpr        <- (LowerIdent _ ':' _)? (('&' / '!') _)* BaseExpr _ ('?' / '*' / '+')*
 
 BaseExpr       <- UpperIdent
                 / LowerIdent _ !'<'

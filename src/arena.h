@@ -53,6 +53,11 @@ typedef struct {
   uint32_t filled;
 } pgen_allocator_rewind_t;
 
+typedef struct {
+  pgen_allocator_rewind_t arew;
+  size_t prew;
+} pgen_parser_rewind_t;
+
 #define PGEN_REWIND_START ((pgen_allocator_rewind_t){0, 0})
 
 typedef struct {

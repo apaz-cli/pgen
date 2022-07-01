@@ -12,10 +12,10 @@ clang src/pgen.c -o pgen -fsanitize=address -g -Wall -Wextra -Wpedantic -Wno-unu
 ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h
 
 # Run pl0 example.
-#cd examples/
-#clang pl0.c -fsanitize=address -g -O3
-#./a.out
-#cd ..
+cd examples/
+clang pl0.c -fsanitize=address -g -O3
+./a.out
+cd ..
 
 # Install the binary
 if [ "$1" = "install" ]; then

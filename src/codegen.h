@@ -5,6 +5,7 @@
 #include "automata.h"
 #include "list.h"
 #include "parserctx.h"
+#include "pegparser.h"
 #include "utf8.h"
 
 #define NODE_NUM_FIXED 10
@@ -747,14 +748,20 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
 }
 
 static inline void peg_write_parsermacros(codegen_ctx *ctx) {
+  fprintf(ctx->f, "#define _LIN #__LINE__\n\n");
   fprintf(ctx->f,
           "#define node(kind, ...)          "
           "PGEN_CAT(%s_astnode_fixed_, "
           "PGEN_NARG(__VA_ARGS__))"
           "(ctx->alloc, kind, __VA_ARGS__)\n",
           ctx->lower);
-  fprintf(ctx->f, "#define rewind(node)             "
-                  "pgen_allocator_rewind(ctx->alloc, node->rew)\n");
+  fprintf(ctx->f, "#define rec(label)               "
+                  "pgen_parser_rewind_t _rew_##label = "
+                  "{ctx->alloc->rew, ctx->pos};\n");
+  fprintf(ctx->f,
+          "#define rew(to)                  "
+          "%s_parser_rewind(ctx, to)\n",
+          ctx->lower);
   fprintf(ctx->f,
           "#define list(kind)               "
           "%s_astnode_list(ctx->alloc, kind, 32)\n",
@@ -790,6 +797,16 @@ static inline void peg_write_astnode_add(codegen_ctx *ctx) {
   fprintf(ctx->f, "  }\n");
   fprintf(ctx->f, "  \n");
   fprintf(ctx->f, "  list->children[list->num_children++] = node;\n");
+  fprintf(ctx->f, "}\n\n");
+}
+
+static inline void peg_write_parser_rewind(codegen_ctx *ctx) {
+  fprintf(ctx->f,
+          "static inline void %s_parser_rewind("
+          "%s_parser_ctx *ctx, pgen_parser_rewind_t rew) {\n",
+          ctx->lower, ctx->lower);
+  fprintf(ctx->f, "  pgen_allocator_rewind(ctx->alloc, rew.arew);");
+  fprintf(ctx->f, "  ctx->pos = rew.prew;");
   fprintf(ctx->f, "}\n\n");
 }
 
@@ -841,54 +858,162 @@ static inline void comment(codegen_ctx *ctx, const char *comment) {
 static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
                                          size_t ret_to) {
 
+  // TODO forwarding semantics in ModExpr
+
   if (!strcmp(expr->name, "SlashExpr")) {
-    size_t ret = expr_cnt++;
-    size_t sub = expr_cnt++;
-
-    start_block(ctx);
-    comment(ctx, "SlashExpr");
-    indent_fprintf("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
-    indent_fprintf("%s_astnode_t* expr_ret_%zu = NULL;\n\n", ctx->lower, sub);
-
-    for (size_t i = 0; i < expr->num_children; i++) {
-      peg_visit_write_exprs(ctx, expr->children[i], sub);
+    if (expr->num_children == 1) {
+      peg_visit_write_exprs(ctx, expr->children[0], ret_to);
+      return;
     }
 
-    indent_fprintf("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
-    end_block(ctx);
-
-  } else if (!strcmp(expr->name, "ModExprList")) {
     size_t ret = expr_cnt++;
-    size_t sub = expr_cnt++;
-
-    start_block(ctx);
-    comment(ctx, "ModExprList");
-    indent_fprintf("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
-    indent_fprintf("%s_astnode_t* expr_ret_%zu = NULL;\n\n", ctx->lower, sub);
+    indent_fprintf("%s_astnode_t* expr_ret_%zu = NULL;\n\n", ctx->lower, ret);
 
     for (size_t i = 0; i < expr->num_children; i++) {
-      if (i) {
-        indent_fprintf("if (expr_ret_%zu)\n", sub);
+
+      int notlast = i != expr->num_children - 1;
+      if (notlast) {
+        indent_fprintf("if (!expr_ret_%zu)\n", ret);
         start_block(ctx);
       }
-      peg_visit_write_exprs(ctx, expr->children[i], sub);
-      if (i) {
+
+      // ModExprList
+      peg_visit_write_exprs(ctx, expr->children[i], ret);
+
+      if (notlast)
         end_block(ctx);
-      }
+    }
+    indent_fprintf("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
+
+  } else if (!strcmp(expr->name, "ModExprList")) {
+    if (expr->num_children == 1) {
+      peg_visit_write_exprs(ctx, expr->children[0], ret_to);
+      return;
+    }
+
+    size_t ret = expr_cnt++;
+    indent_fprintf("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
+
+    for (size_t i = 0; i < expr->num_children; i++) {
+      if (i)
+        indent_fprintf("if (expr_ret_%zu)\n", ret);
+      start_block(ctx);
+
+      // ModExpr
+      peg_visit_write_exprs(ctx, expr->children[i], ret);
+
+      end_block(ctx);
     }
 
     indent_fprintf("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
-    end_block(ctx);
 
   } else if (!strcmp(expr->name, "ModExpr")) {
+    ModExprOpts opts = *(ModExprOpts *)expr->extra;
+    if ((opts.inverted == 0) & (opts.kleene_plus == 0) & (opts.optional == 0) &
+            (opts.rewinds == 0) &&
+        expr->num_children == 1) {
+      peg_visit_write_exprs(ctx, expr->children[0], ret_to);
+      return;
+    }
+
+    size_t ret = expr_cnt++;
+    /*
+    indent_fprintf("// inverted: %c\n", opts.inverted ? '!' : '0');
+    indent_fprintf("// rewinds: %c\n", opts.rewinds ? '&' : '0');
+    indent_fprintf("// optional: %c\n", opts.optional ? '?' : '0');
+    indent_fprintf("// kleene_plus: %c\n",
+                   opts.kleene_plus ? opts.kleene_plus == 2 ? '*' : '+' : '0');
+    */
+
+    // Copy state for rewind
+    size_t rew_state;
+    if (opts.rewinds) {
+      rew_state = expr_cnt++;
+      indent_fprintf("pgen_allocator_rewind_t _rew_state_%zu\n", rew_state);
+    }
+
+    indent_fprintf("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
+
+    // Get plus, kleene, or normal success/fail into ret
+    if (opts.kleene_plus == 1) {
+      // Plus (match one or more)
+      size_t times_num = expr_cnt++;
+      indent_fprintf("int plus_times_%zu = 0;\n", times_num);
+      indent_fprintf("%s_astnode_t* expr_ret_%zu = SUCC;\n", ctx->lower,
+                     times_num);
+      indent_fprintf("while (expr_ret_%zu)\n", times_num);
+      start_block(ctx);
+      peg_visit_write_exprs(ctx, expr->children[0], times_num);
+      end_block(ctx);
+      indent_fprintf("while (expr_ret_%zu)\n", times_num);
+    } else if (opts.kleene_plus == 2) {
+      // Kleene closure (match zero or more)
+      indent_fprintf("expr_ret_%zu = SUCC;\n", ret);
+      start_block(ctx);
+      peg_visit_write_exprs(ctx, expr->children[0], ret);
+      end_block(ctx);
+    } else {
+      // Nothing fancy
+      start_block(ctx);
+      peg_visit_write_exprs(ctx, expr->children[0], ret);
+      end_block(ctx);
+    }
+
+    // Apply optional or inverted to ret
+    if (opts.optional) {
+      indent_fprintf("// optional\n");
+      indent_fprintf("if (!expr_ret_%zu)\n", ret);
+      indent_fprintf("  expr_ret_%zu = SUCC;\n", ret);
+    } else if (opts.inverted) {
+      indent_fprintf("// invert\n");
+      indent_fprintf("expr_ret_%zu = !expr_ret_%zu;\n", ret, ret);
+    }
+
+    // Copy ret into ret_to and label if applicable
+    indent_fprintf("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
+    if (expr->num_children == 2) {
+      char *label_name = (char *)expr->children[1]->extra;
+      indent_fprintf("%s = expr_ret_%zu;\n", label_name, ret);
+    }
+
+    // Rewind if applicable
+    if (opts.rewinds) {
+      indent_fprintf("// rewind\n");
+      indent_fprintf("rew(/**/);\n");
+    }
+
+    // return ret_to and write to label
 
   } else if (!strcmp(expr->name, "BaseExpr")) {
     peg_visit_write_exprs(ctx, expr->children[0], ret_to);
   } else if (!strcmp(expr->name, "UpperIdent")) {
-
+    // accept token
+    comment(ctx, "UpperIdent");
+    // if (ctx->tokens[ctx->pos] == %s_TOK_%s) {\nctx->pos++; }
+    indent_fprintf("if (ctx->tokens[ctx->pos].kind == %s_TOK_%s)\n", ctx->upper,
+                   (char *)expr->extra);
+    start_block(ctx);
+    indent_fprintf("ctx->pos++;\n");
+    indent_fprintf("// Allocate?\n");
+    end_block(ctx);
   } else if (!strcmp(expr->name, "LowerIdent")) {
-
+    // call and return rule
+    comment(ctx, "LowerIdent");
+    indent_fprintf("expr_ret_%zu = %s_parse_%s(ctx);\n", ret_to, ctx->lower,
+                   (char *)expr->extra);
   } else if (!strcmp(expr->name, "CodeExpr")) {
+
+    comment(ctx, "CodeExpr");
+
+    indent_fprintf("expr_ret_%zu = SUCC;\n", ret_to);
+    indent_fprintf("#define ret expr_ret_%zu\n\n", ret_to);
+    start_block(ctx);
+    indent_fprintf("%s\n", (char *)expr->extra);
+    end_block(ctx);
+    indent_fprintf("#undef ret\n");
+
+  } else {
+    ERROR("UNREACHABLE ERROR. UNKNOWN NODE TYPE:\n %s\n", expr->name);
   }
 }
 
@@ -904,12 +1029,17 @@ static inline void peg_write_definition(codegen_ctx *ctx, ASTNode *def) {
   // Visit labels, write variables.
   peg_visit_write_labels(ctx, def_expr);
 
-  fprintf(ctx->f, "  %s_astnode_t* ret = NULL;\n\n", ctx->lower);
+  size_t retcnt = expr_cnt++;
+  fprintf(ctx->f, "  #define rule expr_ret_%zu;\n", retcnt);
+  fprintf(ctx->f, "  %s_astnode_t _succ;\n", ctx->lower);
+  fprintf(ctx->f, "  %s_astnode_t* SUCC = &_succ;\n", ctx->lower);
+  fprintf(ctx->f, "  %s_astnode_t* expr_ret_%zu = NULL;\n\n", ctx->lower,
+          retcnt);
 
-  size_t ecnt = expr_cnt;
-  peg_visit_write_exprs(ctx, def_expr, ecnt);
+  peg_visit_write_exprs(ctx, def_expr, retcnt);
 
-  fprintf(ctx->f, "  return ret;\n");
+  fprintf(ctx->f, "  return expr_ret_%zu;\n", retcnt);
+  fprintf(ctx->f, "  #undef rule\n");
   fprintf(ctx->f, "}\n");
 }
 
@@ -946,6 +1076,7 @@ static inline void peg_write_parser(codegen_ctx *ctx) {
   peg_write_astnode_def(ctx);
   peg_write_astnode_init(ctx);
   peg_write_astnode_add(ctx);
+  peg_write_parser_rewind(ctx);
   peg_write_parsermacros(ctx);
   peg_write_parser_body(ctx);
   peg_write_footer(ctx);

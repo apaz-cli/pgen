@@ -20,8 +20,8 @@ expression <- (PLUS / MINUS)? term ((PLUS / MINUS) term)*
 
 term <- factor ((STAR / DIV) factor)*
 
-factor <- ident /
-          number /
+factor <- IDENT /
+          NUM /
           OPEN expression CLOSE
 
 

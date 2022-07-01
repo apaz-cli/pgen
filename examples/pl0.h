@@ -241,6 +241,11 @@ typedef struct {
   uint32_t filled;
 } pgen_allocator_rewind_t;
 
+typedef struct {
+  pgen_allocator_rewind_t arew;
+  size_t prew;
+} pgen_parser_rewind_t;
+
 #define PGEN_REWIND_START ((pgen_allocator_rewind_t){0, 0})
 
 typedef struct {
@@ -1455,8 +1460,14 @@ static inline void pl0_astnode_add(pgen_allocator* alloc, pl0_astnode_t *list, p
   list->children[list->num_children++] = node;
 }
 
+static inline void pl0_parser_rewind(pl0_parser_ctx *ctx, pgen_parser_rewind_t rew) {
+  pgen_allocator_rewind(ctx->alloc, rew.arew);  ctx->pos = rew.prew;}
+
+#define _LIN #__LINE__
+
 #define node(kind, ...)          PGEN_CAT(pl0_astnode_fixed_, PGEN_NARG(__VA_ARGS__))(ctx->alloc, kind, __VA_ARGS__)
-#define rewind(node)             pgen_allocator_rewind(ctx->alloc, node->rew)
+#define rec(label)               pgen_parser_rewind_t _rew_##label = {ctx->alloc->rew, ctx->pos};
+#define rew(to)                  pl0_parser_rewind(ctx, to)
 #define list(kind)               pl0_astnode_list(ctx->alloc, kind, 32)
 #define leaf(kind)               pl0_astnode_leaf(ctx->alloc, kind)
 #define add(to, node)            pl0_astnode_add(ctx->alloc, to, node)
@@ -1473,347 +1484,851 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx);
 
 static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
   pl0_astnode_t* label = NULL;
-  pl0_astnode_t* ret = NULL;
+  #define rule expr_ret_0;
+  pl0_astnode_t _succ;
+  pl0_astnode_t* SUCC = &_succ;
+  pl0_astnode_t* expr_ret_0 = NULL;
 
+  pl0_astnode_t* expr_ret_1 = NULL;
   {
-    // SlashExpr
-    pl0_astnode_t* expr_ret_0 = NULL;
-    pl0_astnode_t* expr_ret_1 = NULL;
-
+    pl0_astnode_t* expr_ret_2 = NULL;
     {
-      // ModExprList
-      pl0_astnode_t* expr_ret_2 = NULL;
-      pl0_astnode_t* expr_ret_3 = NULL;
-
-      if (expr_ret_3)
-      {
-      }
-
-      if (expr_ret_3)
-      {
-      }
-
-      expr_ret_1 = expr_ret_2;
+      // LowerIdent
+      expr_ret_2 = pl0_parse_block(ctx);
     }
 
-    expr_ret_0 = expr_ret_0;
+    expr_ret_1 = expr_ret_2;
+    label = expr_ret_2;
   }
 
-  return ret;
-}
-static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
-  pl0_astnode_t* ret = NULL;
-
+  if (expr_ret_1)
   {
-    // SlashExpr
-    pl0_astnode_t* expr_ret_4 = NULL;
-    pl0_astnode_t* expr_ret_5 = NULL;
+    // UpperIdent
+    if (ctx->tokens[ctx->pos].kind == PL0_TOK_DOT)
+    {
+      ctx->pos++;
+      // Allocate?
+    }
+
+  }
+
+  if (expr_ret_1)
+  {
+    // CodeExpr
+    expr_ret_1 = SUCC;
+    #define ret expr_ret_1
 
     {
-      // ModExprList
+      ret = label;
+    }
+
+    #undef ret
+  }
+
+  expr_ret_0 = expr_ret_1;
+  return expr_ret_0;
+  #undef rule
+}
+static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
+  #define rule expr_ret_3;
+  pl0_astnode_t _succ;
+  pl0_astnode_t* SUCC = &_succ;
+  pl0_astnode_t* expr_ret_3 = NULL;
+
+  pl0_astnode_t* expr_ret_4 = NULL;
+
+  if (!expr_ret_4)
+  {
+    pl0_astnode_t* expr_ret_5 = NULL;
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_CONST)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    if (expr_ret_5)
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    if (expr_ret_5)
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_EQ)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    if (expr_ret_5)
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_NUM)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    if (expr_ret_5)
+    {
       pl0_astnode_t* expr_ret_6 = NULL;
-      pl0_astnode_t* expr_ret_7 = NULL;
-
-      if (expr_ret_7)
+      expr_ret_6 = SUCC;
       {
-      }
+        pl0_astnode_t* expr_ret_7 = NULL;
+        {
+          // UpperIdent
+          if (ctx->tokens[ctx->pos].kind == PL0_TOK_COMMA)
+          {
+            ctx->pos++;
+            // Allocate?
+          }
 
-      if (expr_ret_7)
-      {
-      }
+        }
 
-      if (expr_ret_7)
-      {
-      }
+        if (expr_ret_7)
+        {
+          // UpperIdent
+          if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
+          {
+            ctx->pos++;
+            // Allocate?
+          }
 
-      if (expr_ret_7)
-      {
-      }
+        }
 
-      if (expr_ret_7)
-      {
+        if (expr_ret_7)
+        {
+          // UpperIdent
+          if (ctx->tokens[ctx->pos].kind == PL0_TOK_EQ)
+          {
+            ctx->pos++;
+            // Allocate?
+          }
+
+        }
+
+        if (expr_ret_7)
+        {
+          // UpperIdent
+          if (ctx->tokens[ctx->pos].kind == PL0_TOK_NUM)
+          {
+            ctx->pos++;
+            // Allocate?
+          }
+
+        }
+
+        expr_ret_6 = expr_ret_7;
       }
 
       expr_ret_5 = expr_ret_6;
     }
 
+    if (expr_ret_5)
     {
-      // ModExprList
-      pl0_astnode_t* expr_ret_8 = NULL;
-      pl0_astnode_t* expr_ret_9 = NULL;
-
-      if (expr_ret_9)
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_SEMI)
       {
+        ctx->pos++;
+        // Allocate?
       }
 
-      if (expr_ret_9)
-      {
-      }
-
-      if (expr_ret_9)
-      {
-      }
-
-      expr_ret_5 = expr_ret_8;
     }
 
-    {
-      // ModExprList
-      pl0_astnode_t* expr_ret_10 = NULL;
-      pl0_astnode_t* expr_ret_11 = NULL;
-
-      if (expr_ret_11)
-      {
-      }
-
-      expr_ret_5 = expr_ret_10;
-    }
-
-    expr_ret_4 = expr_ret_4;
+    expr_ret_4 = expr_ret_5;
   }
 
-  return ret;
+  if (!expr_ret_4)
+  {
+    pl0_astnode_t* expr_ret_8 = NULL;
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_VAR)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    if (expr_ret_8)
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    if (expr_ret_8)
+    {
+      pl0_astnode_t* expr_ret_9 = NULL;
+      expr_ret_9 = SUCC;
+      {
+        pl0_astnode_t* expr_ret_10 = NULL;
+        {
+          // UpperIdent
+          if (ctx->tokens[ctx->pos].kind == PL0_TOK_COMMA)
+          {
+            ctx->pos++;
+            // Allocate?
+          }
+
+        }
+
+        if (expr_ret_10)
+        {
+          // UpperIdent
+          if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
+          {
+            ctx->pos++;
+            // Allocate?
+          }
+
+        }
+
+        expr_ret_9 = expr_ret_10;
+      }
+
+      expr_ret_8 = expr_ret_9;
+    }
+
+    if (expr_ret_8)
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_SEMI)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    expr_ret_4 = expr_ret_8;
+  }
+
+  pl0_astnode_t* expr_ret_11 = NULL;
+  {
+    pl0_astnode_t* expr_ret_12 = NULL;
+    expr_ret_12 = SUCC;
+    {
+      pl0_astnode_t* expr_ret_13 = NULL;
+      {
+        // UpperIdent
+        if (ctx->tokens[ctx->pos].kind == PL0_TOK_PROC)
+        {
+          ctx->pos++;
+          // Allocate?
+        }
+
+      }
+
+      if (expr_ret_13)
+      {
+        // UpperIdent
+        if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
+        {
+          ctx->pos++;
+          // Allocate?
+        }
+
+      }
+
+      if (expr_ret_13)
+      {
+        // UpperIdent
+        if (ctx->tokens[ctx->pos].kind == PL0_TOK_SEMI)
+        {
+          ctx->pos++;
+          // Allocate?
+        }
+
+      }
+
+      if (expr_ret_13)
+      {
+        // LowerIdent
+        expr_ret_13 = pl0_parse_block(ctx);
+      }
+
+      if (expr_ret_13)
+      {
+        // UpperIdent
+        if (ctx->tokens[ctx->pos].kind == PL0_TOK_SEMI)
+        {
+          ctx->pos++;
+          // Allocate?
+        }
+
+      }
+
+      expr_ret_12 = expr_ret_13;
+    }
+
+    expr_ret_11 = expr_ret_12;
+  }
+
+  if (expr_ret_11)
+  {
+    // LowerIdent
+    expr_ret_11 = pl0_parse_statement(ctx);
+  }
+
+  expr_ret_4 = expr_ret_11;
+  expr_ret_3 = expr_ret_4;
+  return expr_ret_3;
+  #undef rule
 }
 static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
-  pl0_astnode_t* ret = NULL;
+  #define rule expr_ret_14;
+  pl0_astnode_t _succ;
+  pl0_astnode_t* SUCC = &_succ;
+  pl0_astnode_t* expr_ret_14 = NULL;
 
+  pl0_astnode_t* expr_ret_15 = NULL;
+
+  if (!expr_ret_15)
   {
-    // SlashExpr
-    pl0_astnode_t* expr_ret_12 = NULL;
-    pl0_astnode_t* expr_ret_13 = NULL;
-
+    pl0_astnode_t* expr_ret_16 = NULL;
     {
-      // ModExprList
-      pl0_astnode_t* expr_ret_14 = NULL;
-      pl0_astnode_t* expr_ret_15 = NULL;
-
-      if (expr_ret_15)
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
       {
+        ctx->pos++;
+        // Allocate?
       }
 
-      if (expr_ret_15)
-      {
-      }
-
-      expr_ret_13 = expr_ret_14;
     }
 
+    if (expr_ret_16)
     {
-      // ModExprList
-      pl0_astnode_t* expr_ret_16 = NULL;
-      pl0_astnode_t* expr_ret_17 = NULL;
-
-      if (expr_ret_17)
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_CEQ)
       {
+        ctx->pos++;
+        // Allocate?
       }
 
-      expr_ret_13 = expr_ret_16;
     }
 
+    if (expr_ret_16)
     {
-      // ModExprList
-      pl0_astnode_t* expr_ret_18 = NULL;
-      pl0_astnode_t* expr_ret_19 = NULL;
-
-      if (expr_ret_19)
-      {
-      }
-
-      if (expr_ret_19)
-      {
-      }
-
-      if (expr_ret_19)
-      {
-      }
-
-      expr_ret_13 = expr_ret_18;
+      // LowerIdent
+      expr_ret_16 = pl0_parse_expression(ctx);
     }
 
-    {
-      // ModExprList
-      pl0_astnode_t* expr_ret_20 = NULL;
-      pl0_astnode_t* expr_ret_21 = NULL;
-
-      if (expr_ret_21)
-      {
-      }
-
-      if (expr_ret_21)
-      {
-      }
-
-      if (expr_ret_21)
-      {
-      }
-
-      expr_ret_13 = expr_ret_20;
-    }
-
-    {
-      // ModExprList
-      pl0_astnode_t* expr_ret_22 = NULL;
-      pl0_astnode_t* expr_ret_23 = NULL;
-
-      if (expr_ret_23)
-      {
-      }
-
-      if (expr_ret_23)
-      {
-      }
-
-      if (expr_ret_23)
-      {
-      }
-
-      expr_ret_13 = expr_ret_22;
-    }
-
-    expr_ret_12 = expr_ret_12;
+    expr_ret_15 = expr_ret_16;
   }
 
-  return ret;
+  if (!expr_ret_15)
+  {
+    pl0_astnode_t* expr_ret_17 = NULL;
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_CALL)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    if (expr_ret_17)
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    expr_ret_15 = expr_ret_17;
+  }
+
+  if (!expr_ret_15)
+  {
+    pl0_astnode_t* expr_ret_18 = NULL;
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_BEGIN)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    if (expr_ret_18)
+    {
+      // LowerIdent
+      expr_ret_18 = pl0_parse_statement(ctx);
+    }
+
+    if (expr_ret_18)
+    {
+      pl0_astnode_t* expr_ret_19 = NULL;
+      expr_ret_19 = SUCC;
+      {
+        pl0_astnode_t* expr_ret_20 = NULL;
+        {
+          // UpperIdent
+          if (ctx->tokens[ctx->pos].kind == PL0_TOK_SEMI)
+          {
+            ctx->pos++;
+            // Allocate?
+          }
+
+        }
+
+        if (expr_ret_20)
+        {
+          // LowerIdent
+          expr_ret_20 = pl0_parse_statement(ctx);
+        }
+
+        expr_ret_19 = expr_ret_20;
+      }
+
+      expr_ret_18 = expr_ret_19;
+    }
+
+    if (expr_ret_18)
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_END)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    expr_ret_15 = expr_ret_18;
+  }
+
+  if (!expr_ret_15)
+  {
+    pl0_astnode_t* expr_ret_21 = NULL;
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_IF)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    if (expr_ret_21)
+    {
+      // LowerIdent
+      expr_ret_21 = pl0_parse_condition(ctx);
+    }
+
+    if (expr_ret_21)
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_THEN)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    if (expr_ret_21)
+    {
+      // LowerIdent
+      expr_ret_21 = pl0_parse_statement(ctx);
+    }
+
+    expr_ret_15 = expr_ret_21;
+  }
+
+  pl0_astnode_t* expr_ret_22 = NULL;
+  {
+    // UpperIdent
+    if (ctx->tokens[ctx->pos].kind == PL0_TOK_WHILE)
+    {
+      ctx->pos++;
+      // Allocate?
+    }
+
+  }
+
+  if (expr_ret_22)
+  {
+    // LowerIdent
+    expr_ret_22 = pl0_parse_condition(ctx);
+  }
+
+  if (expr_ret_22)
+  {
+    // UpperIdent
+    if (ctx->tokens[ctx->pos].kind == PL0_TOK_DO)
+    {
+      ctx->pos++;
+      // Allocate?
+    }
+
+  }
+
+  if (expr_ret_22)
+  {
+    // LowerIdent
+    expr_ret_22 = pl0_parse_statement(ctx);
+  }
+
+  expr_ret_15 = expr_ret_22;
+  expr_ret_14 = expr_ret_15;
+  return expr_ret_14;
+  #undef rule
 }
 static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
-  pl0_astnode_t* ret = NULL;
+  #define rule expr_ret_23;
+  pl0_astnode_t _succ;
+  pl0_astnode_t* SUCC = &_succ;
+  pl0_astnode_t* expr_ret_23 = NULL;
 
+  pl0_astnode_t* expr_ret_24 = NULL;
+
+  if (!expr_ret_24)
   {
-    // SlashExpr
-    pl0_astnode_t* expr_ret_24 = NULL;
     pl0_astnode_t* expr_ret_25 = NULL;
-
     {
-      // ModExprList
-      pl0_astnode_t* expr_ret_26 = NULL;
-      pl0_astnode_t* expr_ret_27 = NULL;
-
-      if (expr_ret_27)
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_ODD)
       {
+        ctx->pos++;
+        // Allocate?
       }
 
-      expr_ret_25 = expr_ret_26;
     }
 
+    if (expr_ret_25)
     {
-      // ModExprList
-      pl0_astnode_t* expr_ret_28 = NULL;
-      pl0_astnode_t* expr_ret_29 = NULL;
-
-      if (expr_ret_29)
-      {
-      }
-
-      if (expr_ret_29)
-      {
-      }
-
-      expr_ret_25 = expr_ret_28;
+      // LowerIdent
+      expr_ret_25 = pl0_parse_expression(ctx);
     }
 
-    expr_ret_24 = expr_ret_24;
+    expr_ret_24 = expr_ret_25;
   }
 
-  return ret;
+  pl0_astnode_t* expr_ret_26 = NULL;
+  {
+    // LowerIdent
+    expr_ret_26 = pl0_parse_expression(ctx);
+  }
+
+  if (expr_ret_26)
+  {
+    pl0_astnode_t* expr_ret_27 = NULL;
+
+    if (!expr_ret_27)
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_EQ)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    if (!expr_ret_27)
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_HASH)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    if (!expr_ret_27)
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_LT)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    if (!expr_ret_27)
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_LEQ)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    if (!expr_ret_27)
+    {
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_GT)
+      {
+        ctx->pos++;
+        // Allocate?
+      }
+
+    }
+
+    // UpperIdent
+    if (ctx->tokens[ctx->pos].kind == PL0_TOK_GEQ)
+    {
+      ctx->pos++;
+      // Allocate?
+    }
+
+    expr_ret_26 = expr_ret_27;
+  }
+
+  if (expr_ret_26)
+  {
+    // LowerIdent
+    expr_ret_26 = pl0_parse_expression(ctx);
+  }
+
+  expr_ret_24 = expr_ret_26;
+  expr_ret_23 = expr_ret_24;
+  return expr_ret_23;
+  #undef rule
 }
 static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
-  pl0_astnode_t* ret = NULL;
+  #define rule expr_ret_28;
+  pl0_astnode_t _succ;
+  pl0_astnode_t* SUCC = &_succ;
+  pl0_astnode_t* expr_ret_28 = NULL;
 
+  pl0_astnode_t* expr_ret_29 = NULL;
   {
-    // SlashExpr
     pl0_astnode_t* expr_ret_30 = NULL;
-    pl0_astnode_t* expr_ret_31 = NULL;
-
     {
-      // ModExprList
-      pl0_astnode_t* expr_ret_32 = NULL;
-      pl0_astnode_t* expr_ret_33 = NULL;
+      pl0_astnode_t* expr_ret_31 = NULL;
 
-      if (expr_ret_33)
+      if (!expr_ret_31)
       {
+        // UpperIdent
+        if (ctx->tokens[ctx->pos].kind == PL0_TOK_PLUS)
+        {
+          ctx->pos++;
+          // Allocate?
+        }
+
       }
 
-      if (expr_ret_33)
+      // UpperIdent
+      if (ctx->tokens[ctx->pos].kind == PL0_TOK_MINUS)
       {
+        ctx->pos++;
+        // Allocate?
       }
 
-      expr_ret_31 = expr_ret_32;
+      expr_ret_30 = expr_ret_31;
     }
 
-    expr_ret_30 = expr_ret_30;
+    // optional
+    if (!expr_ret_30)
+      expr_ret_30 = SUCC;
+    expr_ret_29 = expr_ret_30;
   }
 
-  return ret;
+  if (expr_ret_29)
+  {
+    // LowerIdent
+    expr_ret_29 = pl0_parse_term(ctx);
+  }
+
+  if (expr_ret_29)
+  {
+    pl0_astnode_t* expr_ret_32 = NULL;
+    expr_ret_32 = SUCC;
+    {
+      pl0_astnode_t* expr_ret_33 = NULL;
+      {
+        pl0_astnode_t* expr_ret_34 = NULL;
+
+        if (!expr_ret_34)
+        {
+          // UpperIdent
+          if (ctx->tokens[ctx->pos].kind == PL0_TOK_PLUS)
+          {
+            ctx->pos++;
+            // Allocate?
+          }
+
+        }
+
+        // UpperIdent
+        if (ctx->tokens[ctx->pos].kind == PL0_TOK_MINUS)
+        {
+          ctx->pos++;
+          // Allocate?
+        }
+
+        expr_ret_33 = expr_ret_34;
+      }
+
+      if (expr_ret_33)
+      {
+        // LowerIdent
+        expr_ret_33 = pl0_parse_term(ctx);
+      }
+
+      expr_ret_32 = expr_ret_33;
+    }
+
+    expr_ret_29 = expr_ret_32;
+  }
+
+  expr_ret_28 = expr_ret_29;
+  return expr_ret_28;
+  #undef rule
 }
 static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
-  pl0_astnode_t* ret = NULL;
+  #define rule expr_ret_35;
+  pl0_astnode_t _succ;
+  pl0_astnode_t* SUCC = &_succ;
+  pl0_astnode_t* expr_ret_35 = NULL;
 
+  pl0_astnode_t* expr_ret_36 = NULL;
   {
-    // SlashExpr
-    pl0_astnode_t* expr_ret_34 = NULL;
-    pl0_astnode_t* expr_ret_35 = NULL;
-
-    {
-      // ModExprList
-      pl0_astnode_t* expr_ret_36 = NULL;
-      pl0_astnode_t* expr_ret_37 = NULL;
-
-      if (expr_ret_37)
-      {
-      }
-
-      expr_ret_35 = expr_ret_36;
-    }
-
-    expr_ret_34 = expr_ret_34;
+    // LowerIdent
+    expr_ret_36 = pl0_parse_factor(ctx);
   }
 
-  return ret;
+  if (expr_ret_36)
+  {
+    pl0_astnode_t* expr_ret_37 = NULL;
+    expr_ret_37 = SUCC;
+    {
+      pl0_astnode_t* expr_ret_38 = NULL;
+      {
+        pl0_astnode_t* expr_ret_39 = NULL;
+
+        if (!expr_ret_39)
+        {
+          // UpperIdent
+          if (ctx->tokens[ctx->pos].kind == PL0_TOK_STAR)
+          {
+            ctx->pos++;
+            // Allocate?
+          }
+
+        }
+
+        // UpperIdent
+        if (ctx->tokens[ctx->pos].kind == PL0_TOK_DIV)
+        {
+          ctx->pos++;
+          // Allocate?
+        }
+
+        expr_ret_38 = expr_ret_39;
+      }
+
+      if (expr_ret_38)
+      {
+        // LowerIdent
+        expr_ret_38 = pl0_parse_factor(ctx);
+      }
+
+      expr_ret_37 = expr_ret_38;
+    }
+
+    expr_ret_36 = expr_ret_37;
+  }
+
+  expr_ret_35 = expr_ret_36;
+  return expr_ret_35;
+  #undef rule
 }
 static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
-  pl0_astnode_t* ret = NULL;
+  #define rule expr_ret_40;
+  pl0_astnode_t _succ;
+  pl0_astnode_t* SUCC = &_succ;
+  pl0_astnode_t* expr_ret_40 = NULL;
 
+  pl0_astnode_t* expr_ret_41 = NULL;
+
+  if (!expr_ret_41)
   {
-    // SlashExpr
-    pl0_astnode_t* expr_ret_38 = NULL;
-    pl0_astnode_t* expr_ret_39 = NULL;
-
+    // UpperIdent
+    if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
     {
-      // ModExprList
-      pl0_astnode_t* expr_ret_40 = NULL;
-      pl0_astnode_t* expr_ret_41 = NULL;
-
-      expr_ret_39 = expr_ret_40;
+      ctx->pos++;
+      // Allocate?
     }
 
-    {
-      // ModExprList
-      pl0_astnode_t* expr_ret_42 = NULL;
-      pl0_astnode_t* expr_ret_43 = NULL;
-
-      expr_ret_39 = expr_ret_42;
-    }
-
-    {
-      // ModExprList
-      pl0_astnode_t* expr_ret_44 = NULL;
-      pl0_astnode_t* expr_ret_45 = NULL;
-
-      if (expr_ret_45)
-      {
-      }
-
-      if (expr_ret_45)
-      {
-      }
-
-      expr_ret_39 = expr_ret_44;
-    }
-
-    expr_ret_38 = expr_ret_38;
   }
 
-  return ret;
+  if (!expr_ret_41)
+  {
+    // UpperIdent
+    if (ctx->tokens[ctx->pos].kind == PL0_TOK_NUM)
+    {
+      ctx->pos++;
+      // Allocate?
+    }
+
+  }
+
+  pl0_astnode_t* expr_ret_42 = NULL;
+  {
+    // UpperIdent
+    if (ctx->tokens[ctx->pos].kind == PL0_TOK_OPEN)
+    {
+      ctx->pos++;
+      // Allocate?
+    }
+
+  }
+
+  if (expr_ret_42)
+  {
+    // LowerIdent
+    expr_ret_42 = pl0_parse_expression(ctx);
+  }
+
+  if (expr_ret_42)
+  {
+    // UpperIdent
+    if (ctx->tokens[ctx->pos].kind == PL0_TOK_CLOSE)
+    {
+      ctx->pos++;
+      // Allocate?
+    }
+
+  }
+
+  expr_ret_41 = expr_ret_42;
+  expr_ret_40 = expr_ret_41;
+  return expr_ret_40;
+  #undef rule
 }
 
 
