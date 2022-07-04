@@ -9,6 +9,8 @@
 // TODO: Make sure that every upperident in the peg corresponds to a token
 // TODO: Make sure that every lowerident in the peg corresponds to a rule
 // TODO: Make sure that no names of labels and rules overlap
+// TODO: Make sure that no labels are named rule or ret.
+// TODO: Make sure that labeled ModExprs do not have ModExprLists in them with more than one child.
 
 static inline void validateTokast(ASTNode *tokast) {
   // Cross compare for duplicate rules.

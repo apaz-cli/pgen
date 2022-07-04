@@ -16,6 +16,10 @@
 #include "list.h"
 #include "utf8.h"
 
+typedef char* cstr;
+LIST_DECLARE(cstr)
+LIST_DEFINE(cstr)
+
 typedef struct {
   char *str;
   size_t len;
