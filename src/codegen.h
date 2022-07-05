@@ -27,6 +27,7 @@ typedef struct {
   ASTNode *pegast;
   TrieAutomaton trie;
   list_SMAutomaton smauts;
+  char *fbuffer;
   size_t expr_cnt;
   size_t indent_cnt;
   char lower[PGEN_PREFIX_LEN];
@@ -107,10 +108,18 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
   if (!ctx->f) {
     ERROR("Could not write to %s.", namebuf);
   }
+  // Set unbuffered.
+  size_t bufsz = 4096 * 50;
+  ctx->fbuffer = (char *)malloc(bufsz);
+  if (ctx->fbuffer)
+    setvbuf(ctx->f, ctx->fbuffer, _IOFBF, bufsz);
 }
 
 static inline void codegen_ctx_destroy(codegen_ctx *ctx) {
   fclose(ctx->f);
+  if (ctx->fbuffer)
+    free(ctx->fbuffer);
+
   ASTNode_destroy(ctx->tokast);
   if (ctx->pegast)
     ASTNode_destroy(ctx->pegast);
@@ -804,8 +813,8 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
          "pgen_parser_rewind_t _rew_##label = "
          "{ctx->alloc->rew, ctx->pos};\n");
   fprintf(ctx->f,
-          "#define rew(to)                  "
-          "%s_parser_rewind(ctx, to)\n",
+          "#define rew(label)               "
+          "%s_parser_rewind(ctx, _rew_##label)\n",
           ctx->lower);
   fprintf(ctx->f,
           "#define node(kind, ...)          "
@@ -822,8 +831,8 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
           "%s_astnode_leaf(ctx->alloc, %s_NODE_##kind)\n",
           ctx->lower, ctx->upper);
   fprintf(ctx->f,
-          "#define add(to, node)            "
-          "%s_astnode_add(ctx->alloc, to, node)\n",
+          "#define add(list, node)            "
+          "%s_astnode_add(ctx->alloc, list, node)\n",
           ctx->lower);
   cwrite("#define defer(node, freefn, ptr) "
          "pgen_defer(ctx->alloc, freefn, ptr, node->rew)\n\n");
@@ -912,7 +921,7 @@ static inline void end_block(codegen_ctx *ctx) {
     cwrite("\n");                                                              \
   } while (0)
 
-#define indent_fprintf(...)                                                    \
+#define iwrite(...)                                                            \
   do {                                                                         \
     indent(ctx);                                                               \
     cwrite(__VA_ARGS__);                                                       \
@@ -929,14 +938,15 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     }
 
     size_t ret = ctx->expr_cnt++;
-    indent_fprintf("%s_astnode_t* expr_ret_%zu = NULL;\n\n", ctx->lower, ret);
+    iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n\n", ctx->lower, ret);
+    iwrite("rec(slash_%zu);\n\n", ret);
 
     for (size_t i = 0; i < expr->num_children; i++) {
 
       comment("SlashExpr %zu", i);
       int notlast = i != expr->num_children - 1;
       if (notlast) {
-        indent_fprintf("if (!expr_ret_%zu)\n", ret);
+        iwrite("if (!expr_ret_%zu)\n", ret);
         start_block(ctx);
       }
 
@@ -947,30 +957,37 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       if (notlast)
         end_block(ctx);
     }
-    indent_fprintf("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
+    iwrite("if (!expr_ret_%zu)\n", ret);
+    iwrite("  rew(slash_%zu);\n\n", ret);
+    iwrite("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
 
   } else if (!strcmp(expr->name, "ModExprList")) {
+    size_t ret = ctx->expr_cnt++;
     if (expr->num_children == 1) {
-      // Forward capture
+      // Forward capture and rewind
+      iwrite("rec(mod_%zu);\n", ret_to);
       peg_visit_write_exprs(ctx, expr->children[0], ret_to, capture);
+      iwrite("if (!expr_ret_%zu)\n", ret_to);
+      iwrite("  rew(mod_%zu);\n\n", ret_to);
       return;
     }
 
-    size_t ret = ctx->expr_cnt++;
-    indent_fprintf("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
+    iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
+    iwrite("rec(mod_%zu);\n", ret);
 
     for (size_t i = 0; i < expr->num_children; i++) {
       comment("ModExprList %zu", i);
       if (i)
-        indent_fprintf("if (expr_ret_%zu)\n", ret);
+        iwrite("if (expr_ret_%zu)\n", ret);
       start_block(ctx);
 
       // Cannot forward capture of multiple ModExprs. Which would be returned?
       peg_visit_write_exprs(ctx, expr->children[i], ret, 0);
       end_block(ctx);
     }
-
-    indent_fprintf("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
+    iwrite("if (!expr_ret_%zu)\n", ret);
+    iwrite("  rew(mod_%zu);\n\n", ret);
+    iwrite("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
 
   } else if (!strcmp(expr->name, "ModExpr")) {
     ModExprOpts opts = *(ModExprOpts *)expr->extra;
@@ -984,74 +1001,82 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
 
     size_t ret = ctx->expr_cnt++;
     /*
-    indent_fprintf("// inverted: %c\n", opts.inverted ? '!' : '0');
-    indent_fprintf("// rewinds: %c\n", opts.rewinds ? '&' : '0');
-    indent_fprintf("// optional: %c\n", opts.optional ? '?' : '0');
-    indent_fprintf("// kleene_plus: %c\n",
+    iwrite("// inverted: %c\n", opts.inverted ? '!' : '0');
+    iwrite("// rewinds: %c\n", opts.rewinds ? '&' : '0');
+    iwrite("// optional: %c\n", opts.optional ? '?' : '0');
+    iwrite("// kleene_plus: %c\n",
                    opts.kleene_plus ? opts.kleene_plus == 2 ? '*' : '+' : '0');
     */
 
     // Copy state for rewind
     size_t rew_state;
     if (opts.rewinds) {
+      // TODO: Opting into rewinds will most likely optimize out
+      // the forced failure rewind. Need to test.
       rew_state = ctx->expr_cnt++;
-      indent_fprintf("rec(_rew_state_%zu)\n", rew_state);
+      iwrite("rec(_rew_state_%zu)\n", rew_state);
     }
 
-    indent_fprintf("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
+    iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
 
-    // Get plus, kleene, or normal success/fail into ret
+    // Get plus or kleene SUCC/NULL or normal node return into ret
     if (opts.kleene_plus == 1) {
       // Plus (match one or more)
-      size_t times_num = ctx->expr_cnt++;
-      indent_fprintf("int plus_times_%zu = 0;\n", times_num);
-      indent_fprintf("%s_astnode_t* expr_ret_%zu = SUCC;\n", ctx->lower,
-                     times_num);
-      indent_fprintf("while (expr_ret_%zu)\n", times_num);
-      start_block(ctx);
+      // This can be implemented with a do while loop.
       // Plus cannot forward capture. Which one would be returned?
+      size_t times_num = ctx->expr_cnt++;
+      iwrite("int plus_times_%zu = 0;\n", times_num);
+      iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, times_num);
+      iwrite("do\n");
+      start_block(ctx);
       peg_visit_write_exprs(ctx, expr->children[0], times_num, 0);
+      iwrite("plus_times_%zu++;\n", times_num);
       end_block(ctx);
-      indent_fprintf("while (expr_ret_%zu)\n", times_num);
+      iwrite("while (expr_ret_%zu);\n", times_num);
+      iwrite("expr_ret_%zu = plus_times_%zu ? SUCC : NULL;\n", ret, times_num);
     } else if (opts.kleene_plus == 2) {
       // Kleene closure (match zero or more)
-      indent_fprintf("expr_ret_%zu = SUCC;\n", ret);
-      start_block(ctx);
       // Kleene cannot forward capture either. Which one would be returned?
+      iwrite("expr_ret_%zu = SUCC;\n", ret);
+      iwrite("while (expr_ret_%zu)\n", ret);
+      start_block(ctx);
       peg_visit_write_exprs(ctx, expr->children[0], ret, 0);
       end_block(ctx);
+      iwrite("expr_ret_%zu = SUCC;\n", ret); // Always accepts
     } else {
       // No plus or Kleene
       // A BaseExpr can either be forwarded in the simple case (is a Token,
       // Rule, or Code which is only one node), or is a SlashExpr in parens.
       // In that case, we should tell the expressions below to capture the token
       // or rule.
+      // Here's where we determine if there's a capture to forward.
       start_block(ctx);
-      peg_visit_write_exprs(ctx, expr->children[0], ret, expr->num_children == 2);
+      peg_visit_write_exprs(ctx, expr->children[0], ret,
+                            expr->num_children == 2);
       end_block(ctx);
     }
 
     // Apply optional/inverted to ret
     if (opts.optional) {
-      indent_fprintf("// optional\n");
-      indent_fprintf("if (!expr_ret_%zu)\n", ret);
-      indent_fprintf("  expr_ret_%zu = SUCC;\n", ret);
+      iwrite("// optional\n");
+      iwrite("if (!expr_ret_%zu)\n", ret);
+      iwrite("  expr_ret_%zu = SUCC;\n", ret);
     } else if (opts.inverted) {
-      indent_fprintf("// invert\n");
-      indent_fprintf("expr_ret_%zu = expr_ret_%zu ? NULL : SUCC;\n", ret, ret);
+      iwrite("// invert\n");
+      iwrite("expr_ret_%zu = expr_ret_%zu ? NULL : SUCC;\n", ret, ret);
     }
 
     // Copy ret into ret_to and label if applicable
-    indent_fprintf("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
+    iwrite("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
     if (expr->num_children == 2) {
       char *label_name = (char *)expr->children[1]->extra;
-      indent_fprintf("%s = expr_ret_%zu;\n", label_name, ret);
+      iwrite("%s = expr_ret_%zu;\n", label_name, ret);
     }
 
     // Rewind if applicable
     if (opts.rewinds) {
-      indent_fprintf("// rewind\n");
-      indent_fprintf("rew(_rew_state_%zu);\n", rew_state);
+      iwrite("// rewind\n");
+      iwrite("rew(_rew_state_%zu);\n", rew_state);
     }
 
     // return ret_to and write to label
@@ -1060,28 +1085,27 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     peg_visit_write_exprs(ctx, expr->children[0], ret_to, capture);
   } else if (!strcmp(expr->name, "UpperIdent")) {
     char *tokname = (char *)expr->extra;
-    indent_fprintf("if (ctx->tokens[ctx->pos].kind == %s_TOK_%s)\n", ctx->upper,
-                   tokname);
+    iwrite("if (ctx->tokens[ctx->pos].kind == %s_TOK_%s)\n", ctx->upper,
+           tokname);
     start_block(ctx);
     if (capture) {
 
-      indent_fprintf("// Capturing %s.\n", tokname);
-      indent_fprintf("pgen_allocator_ret_t alloc_ret = "
-                     "PGEN_ALLOC_OF(ctx->alloc, %s_astnode_t);\n",
-                     ctx->lower);
-      indent_fprintf("expr_ret_%zu = leaf(%s);\n", ret_to, tokname);
+      iwrite("// Capturing %s.\n", tokname);
+      iwrite("pgen_allocator_ret_t alloc_ret = "
+             "PGEN_ALLOC_OF(ctx->alloc, %s_astnode_t);\n",
+             ctx->lower);
+      iwrite("expr_ret_%zu = leaf(%s);\n", ret_to, tokname);
       // Make sure that it actually exists.
       peg_ensure_kind(ctx, tokname);
     } else {
-      indent_fprintf("expr_ret_%zu = SUCC; // Not capturing %s.\n", ret_to,
-                     tokname);
+      iwrite("expr_ret_%zu = SUCC; // Not capturing %s.\n", ret_to, tokname);
     }
-    indent_fprintf("ctx->pos++;\n");
+    iwrite("ctx->pos++;\n");
 
     end_block(ctx);
   } else if (!strcmp(expr->name, "LowerIdent")) {
-    indent_fprintf("expr_ret_%zu = %s_parse_%s(ctx);\n", ret_to, ctx->lower,
-                   (char *)expr->extra);
+    iwrite("expr_ret_%zu = %s_parse_%s(ctx);\n", ret_to, ctx->lower,
+           (char *)expr->extra);
   } else if (!strcmp(expr->name, "CodeExpr")) {
     // No need to respect capturing for a CodeExpr.
     // The user will allocate their own with node() or list() if they want to.
@@ -1089,12 +1113,12 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     // they can override that on their own with NULL or node() or list() or
     // whatever.
     comment("CodeExpr");
-    indent_fprintf("#define ret expr_ret_%zu\n", ret_to);
-    indent_fprintf("ret = SUCC;\n\n");
+    iwrite("#define ret expr_ret_%zu\n", ret_to);
+    iwrite("ret = SUCC;\n\n");
     // start_block(ctx);
-    indent_fprintf("%s;\n\n", (char *)expr->extra);
+    iwrite("%s;\n\n", (char *)expr->extra);
     // end_block(ctx);
-    indent_fprintf("#undef ret\n");
+    iwrite("#undef ret\n");
 
   } else {
     ERROR("UNREACHABLE ERROR. UNKNOWN NODE TYPE:\n %s\n", expr->name);

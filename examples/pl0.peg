@@ -10,18 +10,18 @@ program <- b:block DOT {rule=b}
 %node PROC
 %node PROCLIST
 %node STATEMENT
-block <- c:CONST {rule=list(CONSTLIST)}
+block <- CONST {rule=list(CONSTLIST)}
          i:IDENT EQ n:NUM {add(rule, node(CONST, i, n))}
          (COMMA i:IDENT e:EQ n:NUM {add(rule, node(CONST, i, n))})* SEMI
          /
          v:VAR {rule=list(VARLIST)}
          i:IDENT {add(rule, node(IDENT, i))}
-         (COMMA i:IDENT {add(rule,i)})* SEMI
+         (COMMA i:IDENT {add(rule, i)})* SEMI
          /
          {rule=list(PROCLIST)}
          (PROC i:IDENT SEMI b:block SEMI
          {add(rule, node(PROC, i, b))})*
-         s:statement {add(rule, leaf(STATEMENT))}
+         s:statement {add(rule, s)}
 
 %node CEQ
 %node CALL
@@ -29,7 +29,7 @@ block <- c:CONST {rule=list(CONSTLIST)}
 %node IF
 %node WHILE
 statement <- id:IDENT ceq:CEQ e:expression
-             {rule=node(IDENT, id, ceq, e)}
+             {rule=node(IDENT, id, e)}
              /
              c:CALL id:IDENT
              {rule=node(CALL, id)}
@@ -68,9 +68,9 @@ condition <- ODD ex:expression
 %node SIGN
 expression <- {rule=list(EXPRS)}
               pm:(PLUS / MINUS)? t:term
-              {add(rule, node(UNEXPR, node(SIGN, pm), t))}
+              {add(rule, pm==SUCC ? t : node(UNEXPR, pm, t))}
               (pm:(PLUS / MINUS) t:term
-              {add(rule, node(BINEXPR, node(SIGN, pm), t))})*
+              {add(rule, pm==SUCC ? t : node(BINEXPR, pm, t))})*
 
 %node STAR
 %node DIV

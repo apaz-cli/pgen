@@ -7,15 +7,21 @@ xxd -i src/arena.h | sed 's/\([0-9a-f]\)$/\0, 0x00/' > src/strarena.xxd
 # Build pgen
 rm pgen 2>/dev/null
 rm examples/pl0.h examples/a.out 2>/dev/null
+# Debug
 clang src/pgen.c -o pgen -fsanitize=address -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable
+# Profile
+#cc src/pgen.c -o pgen -O3 -fno-omit-frame-pointer
+# Release
+#cc src/pgen.c -o pgen -O3
+
 #gcc   src/pgen.c -o pgen                    -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable
 ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h
 
 # Run pl0 example.
 cd examples/
 #clang pl0.c -fsanitize=address -g -O3
-gcc pl0.c -g -O3
-./a.out
+clang pl0.c
+#./a.out
 cd ..
 
 # Install the binary
