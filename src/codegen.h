@@ -8,12 +8,11 @@
 #include "pegparser.h"
 #include "utf8.h"
 
-#define NODE_NUM_FIXED 10
+#define NODE_NUM_FIXED 5
 
 #define cwrite(...) fprintf(ctx->f, __VA_ARGS__)
 
 // TODO parse failure returns NULL rule.
-// TODO Remove duplicates in list of identifier names, don't just iterate.
 // TODO SlashExpr and ModExprList rewind to before ModExpr on partial failure.
 
 /*******/
@@ -793,7 +792,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
 static inline void peg_write_parsermacros(codegen_ctx *ctx) {
   cwrite("#define rec(label)               "
          "pgen_parser_rewind_t _rew_##label = "
-         "{ctx->alloc->rew, ctx->pos};\n");
+         "(pgen_parser_rewind_t){ctx->alloc->rew, ctx->pos};\n");
   cwrite("#define rew(label)               "
          "%s_parser_rewind(ctx, _rew_##label)\n",
          ctx->lower);
@@ -814,7 +813,8 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
   cwrite("#define defer(node, freefn, ptr) "
          "pgen_defer(ctx->alloc, freefn, ptr, node->rew)\n");
   cwrite("#define SUCC                     "
-         "((pl0_astnode_t*)(void*)(uintptr_t)1)\n\n");
+         "((%s_astnode_t*)(void*)(uintptr_t)_Alignof(%s_astnode_t))\n\n",
+         ctx->lower, ctx->lower);
 }
 
 static inline void peg_write_astnode_add(codegen_ctx *ctx) {
@@ -842,7 +842,7 @@ static inline void peg_write_parser_rewind(codegen_ctx *ctx) {
   cwrite("static inline void %s_parser_rewind("
          "%s_parser_ctx *ctx, pgen_parser_rewind_t rew) {\n",
          ctx->lower, ctx->lower);
-  cwrite("  pgen_allocator_rewind(ctx->alloc, rew.arew);");
+  cwrite("  pgen_allocator_rewind(ctx->alloc, rew.arew);\n");
   cwrite("  ctx->pos = rew.prew;\n");
   cwrite("}\n\n");
 }
@@ -888,6 +888,15 @@ static inline void end_block(codegen_ctx *ctx) {
   ctx->indent_cnt--;
   indent(ctx);
   cwrite("}\n\n");
+}
+static inline void start_block_0(codegen_ctx *ctx) {
+  cwrite("{\n");
+  ctx->indent_cnt++;
+}
+static inline void end_block_0(codegen_ctx* ctx) {
+  ctx->indent_cnt--;
+  indent(ctx);
+  cwrite("}");
 }
 #define comment(...)                                                           \
   do {                                                                         \
@@ -976,21 +985,12 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     }
 
     size_t ret = ctx->expr_cnt++;
-    /*
-    iwrite("// inverted: %c\n", opts.inverted ? '!' : '0');
-    iwrite("// rewinds: %c\n", opts.rewinds ? '&' : '0');
-    iwrite("// optional: %c\n", opts.optional ? '?' : '0');
-    iwrite("// kleene_plus: %c\n",
-                   opts.kleene_plus ? opts.kleene_plus == 2 ? '*' : '+' : '0');
-    */
 
     // Copy state for rewind
-    size_t rew_state;
     if (opts.rewinds) {
       // TODO: Opting into rewinds will most likely optimize out
       // the forced failure rewind. Need to test.
-      rew_state = ctx->expr_cnt++;
-      iwrite("rec(_rew_state_%zu)\n", rew_state);
+      iwrite("rec(mexpr_state_%zu)\n", ret);
     }
 
     iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
@@ -1026,10 +1026,10 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       // In that case, we should tell the expressions below to capture the token
       // or rule.
       // Here's where we determine if there's a capture to forward.
-      start_block(ctx);
+      // start_block(ctx);
       peg_visit_write_exprs(ctx, expr->children[0], ret,
                             expr->num_children == 2);
-      end_block(ctx);
+      // end_block(ctx);
     }
 
     // Apply optional/inverted to ret
@@ -1042,17 +1042,17 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       iwrite("expr_ret_%zu = expr_ret_%zu ? NULL : SUCC;\n", ret, ret);
     }
 
+    // Rewind if applicable
+    if (opts.rewinds) {
+      iwrite("// rewind\n");
+      iwrite("rew(mexpr_state_%zu);\n", ret);
+    }
+
     // Copy ret into ret_to and label if applicable
     iwrite("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
     if (expr->num_children == 2) {
       char *label_name = (char *)expr->children[1]->extra;
       iwrite("%s = expr_ret_%zu;\n", label_name, ret);
-    }
-
-    // Rewind if applicable
-    if (opts.rewinds) {
-      iwrite("// rewind\n");
-      iwrite("rew(_rew_state_%zu);\n", rew_state);
     }
 
     // return ret_to and write to label
@@ -1061,11 +1061,10 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     peg_visit_write_exprs(ctx, expr->children[0], ret_to, capture);
   } else if (!strcmp(expr->name, "UpperIdent")) {
     char *tokname = (char *)expr->extra;
-    iwrite("if (ctx->tokens[ctx->pos].kind == %s_TOK_%s)\n", ctx->upper,
+    iwrite("if (ctx->tokens[ctx->pos].kind == %s_TOK_%s) ", ctx->upper,
            tokname);
-    start_block(ctx);
+    start_block_0(ctx);
     if (capture) {
-
       iwrite("// Capturing %s.\n", tokname);
       iwrite("expr_ret_%zu = leaf(%s);\n", ret_to, tokname);
       // Make sure that it actually exists.
@@ -1075,9 +1074,9 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     }
     iwrite("ctx->pos++;\n");
 
-    end_block(ctx);
-    iwrite("else\n");
-    start_block(ctx);
+    end_block_0(ctx);
+    cwrite(" else ");
+    start_block_0(ctx);
     iwrite("expr_ret_%zu = NULL;\n", ret_to);
     end_block(ctx);
   } else if (!strcmp(expr->name, "LowerIdent")) {
@@ -1124,7 +1123,7 @@ static inline void peg_write_definition(codegen_ctx *ctx, ASTNode *def) {
 
   cwrite("  return expr_ret_%zu;\n", retcnt);
   cwrite("  #undef rule\n");
-  cwrite("}\n");
+  cwrite("}\n\n");
 }
 
 static inline void peg_write_parser_body(codegen_ctx *ctx) {
