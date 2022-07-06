@@ -1493,15 +1493,17 @@ static inline void pl0_astnode_add(pgen_allocator* alloc, pl0_astnode_t *list, p
 }
 
 static inline void pl0_parser_rewind(pl0_parser_ctx *ctx, pgen_parser_rewind_t rew) {
-  pgen_allocator_rewind(ctx->alloc, rew.arew);  ctx->pos = rew.prew;}
+  pgen_allocator_rewind(ctx->alloc, rew.arew);  ctx->pos = rew.prew;
+}
 
 #define rec(label)               pgen_parser_rewind_t _rew_##label = {ctx->alloc->rew, ctx->pos};
 #define rew(label)               pl0_parser_rewind(ctx, _rew_##label)
 #define node(kind, ...)          PGEN_CAT(pl0_astnode_fixed_, PGEN_NARG(__VA_ARGS__))(ctx->alloc, PL0_NODE_##kind, __VA_ARGS__)
 #define list(kind)               pl0_astnode_list(ctx->alloc, PL0_NODE_##kind, 32)
 #define leaf(kind)               pl0_astnode_leaf(ctx->alloc, PL0_NODE_##kind)
-#define add(list, node)            pl0_astnode_add(ctx->alloc, list, node)
+#define add(list, node)          pl0_astnode_add(ctx->alloc, list, node)
 #define defer(node, freefn, ptr) pgen_defer(ctx->alloc, freefn, ptr, node->rew)
+#define SUCC                     ((pl0_astnode_t*)(void*)(uintptr_t)1)
 
 static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx);
 static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx);
@@ -1515,8 +1517,6 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx);
 static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
   pl0_astnode_t* b = NULL;
   #define rule expr_ret_0
-  pl0_astnode_t _succ;
-  pl0_astnode_t* SUCC = &_succ;
   pl0_astnode_t* expr_ret_0 = NULL;
 
   pl0_astnode_t* expr_ret_1 = NULL;
@@ -1539,6 +1539,11 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
     {
       expr_ret_1 = SUCC; // Not capturing DOT.
       ctx->pos++;
+    }
+
+    else
+    {
+      expr_ret_1 = NULL;
     }
 
   }
@@ -1570,8 +1575,6 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
   pl0_astnode_t* b = NULL;
   pl0_astnode_t* s = NULL;
   #define rule expr_ret_3
-  pl0_astnode_t _succ;
-  pl0_astnode_t* SUCC = &_succ;
   pl0_astnode_t* expr_ret_3 = NULL;
 
   pl0_astnode_t* expr_ret_4 = NULL;
@@ -1589,6 +1592,11 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       {
         expr_ret_5 = SUCC; // Not capturing CONST.
         ctx->pos++;
+      }
+
+      else
+      {
+        expr_ret_5 = NULL;
       }
 
     }
@@ -1613,9 +1621,13 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
         {
           // Capturing IDENT.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_6 = leaf(IDENT);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_6 = NULL;
         }
 
       }
@@ -1633,6 +1645,11 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
         ctx->pos++;
       }
 
+      else
+      {
+        expr_ret_5 = NULL;
+      }
+
     }
 
     // ModExprList 4
@@ -1643,9 +1660,13 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_NUM)
         {
           // Capturing NUM.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_7 = leaf(NUM);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_7 = NULL;
         }
 
       }
@@ -1683,6 +1704,11 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
             ctx->pos++;
           }
 
+          else
+          {
+            expr_ret_9 = NULL;
+          }
+
         }
 
         // ModExprList 1
@@ -1693,9 +1719,13 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
             if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
             {
               // Capturing IDENT.
-              pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
               expr_ret_10 = leaf(IDENT);
               ctx->pos++;
+            }
+
+            else
+            {
+              expr_ret_10 = NULL;
             }
 
           }
@@ -1712,9 +1742,13 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
             if (ctx->tokens[ctx->pos].kind == PL0_TOK_EQ)
             {
               // Capturing EQ.
-              pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
               expr_ret_11 = leaf(EQ);
               ctx->pos++;
+            }
+
+            else
+            {
+              expr_ret_11 = NULL;
             }
 
           }
@@ -1731,9 +1765,13 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
             if (ctx->tokens[ctx->pos].kind == PL0_TOK_NUM)
             {
               // Capturing NUM.
-              pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
               expr_ret_12 = leaf(NUM);
               ctx->pos++;
+            }
+
+            else
+            {
+              expr_ret_12 = NULL;
             }
 
           }
@@ -1773,6 +1811,11 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
         ctx->pos++;
       }
 
+      else
+      {
+        expr_ret_5 = NULL;
+      }
+
     }
 
     if (!expr_ret_5)
@@ -1793,9 +1836,13 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_VAR)
         {
           // Capturing VAR.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_14 = leaf(VAR);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_14 = NULL;
         }
 
       }
@@ -1824,9 +1871,13 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
         {
           // Capturing IDENT.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_15 = leaf(IDENT);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_15 = NULL;
         }
 
       }
@@ -1864,6 +1915,11 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
             ctx->pos++;
           }
 
+          else
+          {
+            expr_ret_17 = NULL;
+          }
+
         }
 
         // ModExprList 1
@@ -1874,9 +1930,13 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
             if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
             {
               // Capturing IDENT.
-              pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
               expr_ret_18 = leaf(IDENT);
               ctx->pos++;
+            }
+
+            else
+            {
+              expr_ret_18 = NULL;
             }
 
           }
@@ -1914,6 +1974,11 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       {
         expr_ret_13 = SUCC; // Not capturing SEMI.
         ctx->pos++;
+      }
+
+      else
+      {
+        expr_ret_13 = NULL;
       }
 
     }
@@ -1955,6 +2020,11 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
           ctx->pos++;
         }
 
+        else
+        {
+          expr_ret_21 = NULL;
+        }
+
       }
 
       // ModExprList 1
@@ -1965,9 +2035,13 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
           {
             // Capturing IDENT.
-            pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
             expr_ret_22 = leaf(IDENT);
             ctx->pos++;
+          }
+
+          else
+          {
+            expr_ret_22 = NULL;
           }
 
         }
@@ -1983,6 +2057,11 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
         {
           expr_ret_21 = SUCC; // Not capturing SEMI.
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_21 = NULL;
         }
 
       }
@@ -2006,6 +2085,11 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
         {
           expr_ret_21 = SUCC; // Not capturing SEMI.
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_21 = NULL;
         }
 
       }
@@ -2074,8 +2158,6 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
   pl0_astnode_t* c = NULL;
   pl0_astnode_t* smt = NULL;
   #define rule expr_ret_25
-  pl0_astnode_t _succ;
-  pl0_astnode_t* SUCC = &_succ;
   pl0_astnode_t* expr_ret_25 = NULL;
 
   pl0_astnode_t* expr_ret_26 = NULL;
@@ -2094,9 +2176,13 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
         {
           // Capturing IDENT.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_28 = leaf(IDENT);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_28 = NULL;
         }
 
       }
@@ -2113,9 +2199,13 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_CEQ)
         {
           // Capturing CEQ.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_29 = leaf(CEQ);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_29 = NULL;
         }
 
       }
@@ -2166,9 +2256,13 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_CALL)
         {
           // Capturing CALL.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_32 = leaf(CALL);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_32 = NULL;
         }
 
       }
@@ -2185,9 +2279,13 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
         {
           // Capturing IDENT.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_33 = leaf(IDENT);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_33 = NULL;
         }
 
       }
@@ -2239,6 +2337,11 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
         ctx->pos++;
       }
 
+      else
+      {
+        expr_ret_34 = NULL;
+      }
+
     }
 
     // ModExprList 2
@@ -2280,6 +2383,11 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
           {
             expr_ret_37 = SUCC; // Not capturing SEMI.
             ctx->pos++;
+          }
+
+          else
+          {
+            expr_ret_37 = NULL;
           }
 
         }
@@ -2327,6 +2435,11 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
         ctx->pos++;
       }
 
+      else
+      {
+        expr_ret_34 = NULL;
+      }
+
     }
 
     if (!expr_ret_34)
@@ -2346,6 +2459,11 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       {
         expr_ret_39 = SUCC; // Not capturing IF.
         ctx->pos++;
+      }
+
+      else
+      {
+        expr_ret_39 = NULL;
       }
 
     }
@@ -2369,6 +2487,11 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       {
         expr_ret_39 = SUCC; // Not capturing THEN.
         ctx->pos++;
+      }
+
+      else
+      {
+        expr_ret_39 = NULL;
       }
 
     }
@@ -2414,6 +2537,11 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       ctx->pos++;
     }
 
+    else
+    {
+      expr_ret_42 = NULL;
+    }
+
   }
 
   // ModExprList 1
@@ -2435,6 +2563,11 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
     {
       expr_ret_42 = SUCC; // Not capturing DO.
       ctx->pos++;
+    }
+
+    else
+    {
+      expr_ret_42 = NULL;
     }
 
   }
@@ -2479,8 +2612,6 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
   pl0_astnode_t* op = NULL;
   pl0_astnode_t* ex_ = NULL;
   #define rule expr_ret_45
-  pl0_astnode_t _succ;
-  pl0_astnode_t* SUCC = &_succ;
   pl0_astnode_t* expr_ret_45 = NULL;
 
   pl0_astnode_t* expr_ret_46 = NULL;
@@ -2498,6 +2629,11 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
       {
         expr_ret_47 = SUCC; // Not capturing ODD.
         ctx->pos++;
+      }
+
+      else
+      {
+        expr_ret_47 = NULL;
       }
 
     }
@@ -2562,9 +2698,13 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_EQ)
         {
           // Capturing EQ.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_52 = leaf(EQ);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_52 = NULL;
         }
 
         if (!expr_ret_52)
@@ -2579,9 +2719,13 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_HASH)
         {
           // Capturing HASH.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_52 = leaf(HASH);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_52 = NULL;
         }
 
         if (!expr_ret_52)
@@ -2596,9 +2740,13 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_LT)
         {
           // Capturing LT.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_52 = leaf(LT);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_52 = NULL;
         }
 
         if (!expr_ret_52)
@@ -2613,9 +2761,13 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_LEQ)
         {
           // Capturing LEQ.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_52 = leaf(LEQ);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_52 = NULL;
         }
 
         if (!expr_ret_52)
@@ -2630,9 +2782,13 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_GT)
         {
           // Capturing GT.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_52 = leaf(GT);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_52 = NULL;
         }
 
         if (!expr_ret_52)
@@ -2645,9 +2801,13 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_GEQ)
       {
         // Capturing GEQ.
-        pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
         expr_ret_52 = leaf(GEQ);
         ctx->pos++;
+      }
+
+      else
+      {
+        expr_ret_52 = NULL;
       }
 
       if (!expr_ret_52)
@@ -2702,8 +2862,6 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
   pl0_astnode_t* pm = NULL;
   pl0_astnode_t* t = NULL;
   #define rule expr_ret_60
-  pl0_astnode_t _succ;
-  pl0_astnode_t* SUCC = &_succ;
   pl0_astnode_t* expr_ret_60 = NULL;
 
   pl0_astnode_t* expr_ret_61 = NULL;
@@ -2735,9 +2893,13 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_PLUS)
         {
           // Capturing PLUS.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_63 = leaf(PLUS);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_63 = NULL;
         }
 
         if (!expr_ret_63)
@@ -2750,9 +2912,13 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_MINUS)
       {
         // Capturing MINUS.
-        pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
         expr_ret_63 = leaf(MINUS);
         ctx->pos++;
+      }
+
+      else
+      {
+        expr_ret_63 = NULL;
       }
 
       if (!expr_ret_63)
@@ -2819,9 +2985,13 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
             if (ctx->tokens[ctx->pos].kind == PL0_TOK_PLUS)
             {
               // Capturing PLUS.
-              pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
               expr_ret_70 = leaf(PLUS);
               ctx->pos++;
+            }
+
+            else
+            {
+              expr_ret_70 = NULL;
             }
 
             if (!expr_ret_70)
@@ -2834,9 +3004,13 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_MINUS)
           {
             // Capturing MINUS.
-            pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
             expr_ret_70 = leaf(MINUS);
             ctx->pos++;
+          }
+
+          else
+          {
+            expr_ret_70 = NULL;
           }
 
           if (!expr_ret_70)
@@ -2897,8 +3071,6 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
   pl0_astnode_t* f = NULL;
   pl0_astnode_t* sd = NULL;
   #define rule expr_ret_74
-  pl0_astnode_t _succ;
-  pl0_astnode_t* SUCC = &_succ;
   pl0_astnode_t* expr_ret_74 = NULL;
 
   pl0_astnode_t* expr_ret_75 = NULL;
@@ -2962,9 +3134,13 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
             if (ctx->tokens[ctx->pos].kind == PL0_TOK_STAR)
             {
               // Capturing STAR.
-              pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
               expr_ret_80 = leaf(STAR);
               ctx->pos++;
+            }
+
+            else
+            {
+              expr_ret_80 = NULL;
             }
 
             if (!expr_ret_80)
@@ -2977,9 +3153,13 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_DIV)
           {
             // Capturing DIV.
-            pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
             expr_ret_80 = leaf(DIV);
             ctx->pos++;
+          }
+
+          else
+          {
+            expr_ret_80 = NULL;
           }
 
           if (!expr_ret_80)
@@ -3041,8 +3221,6 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
   pl0_astnode_t* n = NULL;
   pl0_astnode_t* e = NULL;
   #define rule expr_ret_84
-  pl0_astnode_t _succ;
-  pl0_astnode_t* SUCC = &_succ;
   pl0_astnode_t* expr_ret_84 = NULL;
 
   pl0_astnode_t* expr_ret_85 = NULL;
@@ -3061,9 +3239,13 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT)
         {
           // Capturing IDENT.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_87 = leaf(IDENT);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_87 = NULL;
         }
 
       }
@@ -3102,9 +3284,13 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_NUM)
         {
           // Capturing NUM.
-          pgen_allocator_ret_t alloc_ret = PGEN_ALLOC_OF(ctx->alloc, pl0_astnode_t);
           expr_ret_89 = leaf(NUM);
           ctx->pos++;
+        }
+
+        else
+        {
+          expr_ret_89 = NULL;
         }
 
       }
@@ -3142,6 +3328,11 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       ctx->pos++;
     }
 
+    else
+    {
+      expr_ret_90 = NULL;
+    }
+
   }
 
   // ModExprList 1
@@ -3163,6 +3354,11 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
     {
       expr_ret_90 = SUCC; // Not capturing CLOSE.
       ctx->pos++;
+    }
+
+    else
+    {
+      expr_ret_90 = NULL;
     }
 
   }
