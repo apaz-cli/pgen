@@ -9,6 +9,7 @@ typedef struct {
   char *outputTarget;    // May be null
   bool h;
   bool g;
+  bool d;
 } Args;
 
 static inline Args argparse(int argc, char **argv) {
@@ -18,15 +19,18 @@ static inline Args argparse(int argc, char **argv) {
   args.outputTarget = NULL;
   args.h = 0;
   args.g = 0;
+  args.d = 0;
 
   for (int i = 1; i < argc; i++) {
     char *a = argv[i];
     // Flags
-    if (strcmp(a, "-h") == 0 || strcmp(a, "--help") == 0) {
+    if (!strcmp(a, "-h") || !strcmp(a, "--help")) {
       args.h = 1;
-    } else if (strcmp(a, "-g") == 0) {
+    } else if (!strcmp(a, "-g")) {
       args.g = 1;
-    } else if (strcmp(a, "-o") == 0) {
+    } else if (!strcmp(a, "-d")) {
+      args.d = 1;
+    } else if (!strcmp(a, "-o")) {
       if (i != argc - 1) {
         args.outputTarget = argv[++i];
       } else {

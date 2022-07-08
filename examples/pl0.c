@@ -31,17 +31,24 @@ static inline void printtok(pl0_tokenizer tokenizer, pl0_token tok) {
   printf("Token: (");
   for (size_t i = 0; i < tok.len; i++) {
     codepoint_t c = *(tokenizer.start + tok.start + i);
-    if (c == '\n') printf("\\n");
-    else if (c == '\t') printf("\\t");
-    else if (c == '\r') printf("\\r");
-    else putchar(c);
+    if (c == '\n')
+      printf("\\n");
+    else if (c == '\t')
+      printf("\\t");
+    else if (c == '\r')
+      printf("\\r");
+    else
+      putchar(c);
   }
 
 #if PL0_TOKENIZER_SOURCEINFO
-  printf(") {.kind=%s, .start=%zu, .len=%zu, .line=%zu, .col=%zu, .sourceFile=\"%s\"}\n",
-         pl0_kind_name[tok.kind], tok.start, tok.len, tok.line, tok.col, tok.sourceFile);
+  printf(") {.kind=%s, .start=%zu, .len=%zu, .line=%zu, .col=%zu, "
+         ".sourceFile=\"%s\"}\n",
+         pl0_kind_name[tok.kind], tok.start, tok.len, tok.line, tok.col,
+         tok.sourceFile);
 #else
-  printf(") {.kind=%s, .start=%zu, .len=%zu}\n", pl0_kind_name[tok.kind], tok.start, tok.len);
+  printf(") {.kind=%s, .start=%zu, .len=%zu}\n", pl0_tokenkind_name[tok.kind],
+         tok.start, tok.len);
 #endif
 }
 
@@ -58,16 +65,55 @@ int main(void) {
   pl0_tokenizer tokenizer;
   pl0_tokenizer_init(&tokenizer, cps, cpslen, "pl0.pl0");
 
-  pl0_token tok;
-  while (1) {
-    tok = pl0_nextToken(&tokenizer);
-    printtok(tokenizer, tok);
+  // Define token list
+  struct {
+    pl0_token *buf;
+    size_t size;
+    size_t cap;
+  } toklist = {(pl0_token *)malloc(sizeof(pl0_token) * 4096), 0, 4096};
+  if (!toklist.buf)
+    fprintf(stderr, "Out of memory allocating token list.\n"), exit(1);
+#define add_tok(t)                                                             \
+  do {                                                                         \
+    if (toklist.size == toklist.cap) {                                         \
+      toklist.buf = realloc(toklist.buf, toklist.cap *= 2);                    \
+      if (!toklist.buf)                                                        \
+        fprintf(stderr, "Out of memory reallocating token list.\n"), exit(1);  \
+    }                                                                          \
+    toklist.buf[toklist.size++] = t;                                           \
+  } while (0)
 
-    if (tok.kind == PL0_TOK_STREAMEND)
-      break;
-  }
+  // Parse Tokens
+  pl0_token tok;
+  do {
+    tok = pl0_nextToken(&tokenizer);
+
+    // Discard whitespace, add other tokens to the list.
+    if (!(tok.kind == PL0_TOK_SLCOM | tok.kind == PL0_TOK_MLCOM |
+          tok.kind == PL0_TOK_WS))
+      add_tok(tok);
+
+  } while (tok.kind != PL0_TOK_STREAMEND);
+
+#if 0
+  for (size_t i = 0; i < toklist.size; i++)
+    printtok(tokenizer, toklist.buf[i]);
+#endif
+
+  pgen_allocator allocator = pgen_allocator_new();
+
+  pl0_parser_ctx parser;
+  pl0_parser_ctx_init(&parser, &allocator, toklist.buf, toklist.size);
+
+  pl0_astnode_t *ast = pl0_parse_program(&parser);
+  pl0_astnode_print(ast);
+
+  for (size_t i = 0; i < toklist.size; i++)
+    printtok(tokenizer, toklist.buf[i]);
 
   // Clean up
+  pgen_allocator_destroy(&allocator);
+  free(toklist.buf);
   free(input_str);
   free(cps);
 }

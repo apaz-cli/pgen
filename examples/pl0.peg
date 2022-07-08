@@ -1,33 +1,37 @@
 %oom exit(1)
-//%extra char* node_extra;
 
-program <- b:block DOT {rule=b}
+%node BLOCKLIST
+program <- {rule=list(BLOCKLIST)}
+           (b:block {printf("%p", b)} {add(rule, b)})*
+           DOT
 
-%node CONST
-%node CONSTLIST
 %node VAR
 %node VARLIST
+%node CONST
+%node CONSTLIST
+vdef <- VAR {rule=list(VARLIST)}
+        i:IDENT {add(rule, node(IDENT, i))}
+        (COMMA i:IDENT {add(rule, i)})* SEMI
+        /
+        CONST {rule=list(CONSTLIST)}
+        i:IDENT EQ n:NUM {add(rule, node(CONST, i, n))}
+        (COMMA i:IDENT e:EQ n:NUM {add(rule, node(CONST, i, n))})* SEMI
+
 %node PROC
 %node PROCLIST
-%node STATEMENT
-block <- CONST {rule=list(CONSTLIST)}
-         i:IDENT EQ n:NUM {add(rule, node(CONST, i, n))}
-         (COMMA i:IDENT e:EQ n:NUM {add(rule, node(CONST, i, n))})* SEMI
-         /
-         v:VAR {rule=list(VARLIST)}
-         i:IDENT {add(rule, node(IDENT, i))}
-         (COMMA i:IDENT {add(rule, i)})* SEMI
+block <- v:vdef {rule=v}
          /
          {rule=list(PROCLIST)}
-         (PROC i:IDENT SEMI b:block SEMI
-         {add(rule, node(PROC, i, b))})*
-         s:statement {add(rule, s)}
+         (PROC i:IDENT SEMI v:vdef SEMI
+         {add(rule, node(PROC, i, v))})*
+         s:statement {add(rule, s)} SEMI
 
 %node CEQ
 %node CALL
 %node BEGIN
 %node IF
 %node WHILE
+%node STATEMENT
 statement <- id:IDENT ceq:CEQ e:expression
              {rule=node(IDENT, id, e)}
              /

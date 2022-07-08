@@ -2,3 +2,4 @@ pgen
 packcc/bootstrap
 src/pgen
 **/a.out
+**/*.swp

@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #define PGEN_ALIGNMENT _Alignof(max_align_t)
@@ -18,7 +19,6 @@
 #endif
 
 #ifndef PGEN_OOM
-#include <stdio.h>
 #define PGEN_OOM()                                                             \
   do {                                                                         \
     fprintf(stderr, "Parser out of memory on line %i in %s in %s.\n",          \
@@ -58,7 +58,7 @@ typedef struct {
   size_t prew;
 } pgen_parser_rewind_t;
 
-#define PGEN_REWIND_START ((pgen_allocator_rewind_t){0, 0})
+#define PGEN_REWIND_START ((pgen_allocator_rewind_t){{0, 0}, 0})
 
 typedef struct {
   void (*freefn)(void *);
@@ -126,6 +126,7 @@ static inline void pgen_allocator_destroy(pgen_allocator *allocator) {
     if (a.freefn)
       a.freefn(a.buf);
   }
+  free(allocator->freelist.entries);
 }
 
 #define PGEN_ALLOC_OF(allocator, type)                                         \
@@ -189,6 +190,16 @@ static inline void pgen_allocator_realloced(pgen_allocator *allocator,
                                             void (*new_free_fn)(void *),
                                             pgen_allocator_rewind_t new_rew) {
 
+  printf("realloc(%p -> %p), (%u, %u)): ", old_ptr, new_ptr, new_rew.arena_idx,
+         new_rew.filled);
+  for (size_t i = 0; i < allocator->freelist.len; i++) {
+    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
+           allocator->freelist.entries->ptr,
+           allocator->freelist.entries->rew.arena_idx,
+           allocator->freelist.entries->rew.filled);
+  }
+  puts("");
+
   for (size_t i = 0; i < allocator->freelist.len; i++) {
     void *ptr = allocator->freelist.entries[i].ptr;
     if (ptr == old_ptr) {
@@ -198,10 +209,27 @@ static inline void pgen_allocator_realloced(pgen_allocator *allocator,
       return;
     }
   }
+
+  printf("Realloced: ");
+  for (size_t i = 0; i < allocator->freelist.len; i++) {
+    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
+           allocator->freelist.entries->ptr,
+           allocator->freelist.entries->rew.arena_idx,
+           allocator->freelist.entries->rew.filled);
+  }
 }
 
 static inline void pgen_defer(pgen_allocator *allocator, void (*freefn)(void *),
                               void *ptr, pgen_allocator_rewind_t rew) {
+  printf("defer(%p, (%u, %u)): ", ptr, rew.arena_idx, rew.filled);
+  for (size_t i = 0; i < allocator->freelist.len; i++) {
+    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
+           allocator->freelist.entries->ptr,
+           allocator->freelist.entries->rew.arena_idx,
+           allocator->freelist.entries->rew.filled);
+  }
+  puts("");
+
   // Grow list by factor of 2 if too small
   size_t next_len = allocator->freelist.len + 1;
   if (next_len >= allocator->freelist.cap) {
@@ -228,30 +256,53 @@ static inline void pgen_defer(pgen_allocator *allocator, void (*freefn)(void *),
   entry.rew = rew;
   allocator->freelist.entries[allocator->freelist.len] = entry;
   allocator->freelist.len = next_len;
+
+  printf("Deferred: ");
+  for (size_t i = 0; i < allocator->freelist.len; i++) {
+    printf("(%p, (%u, %u)) ", allocator->freelist.entries->ptr,
+           allocator->freelist.entries->rew.arena_idx,
+           allocator->freelist.entries->rew.filled);
+  }
 }
 
 static inline void pgen_allocator_rewind(pgen_allocator *allocator,
                                          pgen_allocator_rewind_t rew) {
-  allocator->rew = rew;
+
+  printf("rewind((%u, %u) -> (%u, %u)): ", rew.arena_idx, rew.filled,
+         allocator->freelist.entries->rew.arena_idx,
+         allocator->freelist.entries->rew.filled);
+  for (size_t i = 0; i < allocator->freelist.len; i++) {
+    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
+           allocator->freelist.entries->ptr,
+           allocator->freelist.entries->rew.arena_idx,
+           allocator->freelist.entries->rew.filled);
+  }
+  puts("");
+
   // Free all the objects associated with nodes implicitly destroyed.
   size_t i = allocator->freelist.len;
-  while (1) {
+  while (i) {
     i--;
 
     pgen_freelist_entry_t entry = allocator->freelist.entries[i];
     uint32_t arena_idx = entry.rew.arena_idx;
     uint32_t filled = entry.rew.filled;
-    if ((i == SIZE_MAX) |             // Relies on unsigned wrapping
-        (rew.arena_idx < arena_idx) | //
-        (rew.filled < filled)) {
+
+    if ((rew.arena_idx < arena_idx) | (rew.filled < filled))
       break;
-    }
 
     entry.freefn(entry.ptr);
   }
-  allocator->freelist.len = i + 1;
+  allocator->freelist.len = i;
+  allocator->rew = rew;
+
+  printf("rewound(%u, %u): ", rew.arena_idx, rew.filled);
+  for (size_t i = 0; i < allocator->freelist.len; i++) {
+    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
+           allocator->freelist.entries->ptr,
+           allocator->freelist.entries->rew.arena_idx,
+           allocator->freelist.entries->rew.filled);
+  }
 }
-
-
 
 #endif /* PGEN_ARENA_INCLUDED */
