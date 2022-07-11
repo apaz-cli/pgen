@@ -7,9 +7,10 @@ typedef struct {
   char *tokenizerTarget; // May not be null
   char *grammarTarget;   // May be null
   char *outputTarget;    // May be null
-  bool h;
-  bool g;
-  bool d;
+  bool h; // Help
+  bool d; // Debug prompt
+  bool m; // Memory allocator debugging
+  bool u; // Generate Unsafe (but fast) code.
 } Args;
 
 static inline Args argparse(int argc, char **argv) {
@@ -18,19 +19,22 @@ static inline Args argparse(int argc, char **argv) {
   args.grammarTarget = NULL;
   args.outputTarget = NULL;
   args.h = 0;
-  args.g = 0;
   args.d = 0;
+  args.m = 0;
+  args.u = 0;
 
   for (int i = 1; i < argc; i++) {
     char *a = argv[i];
     // Flags
     if (!strcmp(a, "-h") || !strcmp(a, "--help")) {
       args.h = 1;
-    } else if (!strcmp(a, "-g")) {
-      args.g = 1;
-    } else if (!strcmp(a, "-d")) {
+    } else if (!strcmp(a, "-d") || !strcmp(a, "--debug")) {
       args.d = 1;
-    } else if (!strcmp(a, "-o")) {
+    } else if (!strcmp(a, "-m") || !strcmp(a, "--memdebug")) {
+      args.m = 1;
+    } else if (!strcmp(a, "-u") || !strcmp(a, "--unsafe")) {
+      args.u = 1;
+    } else if (!strcmp(a, "-o") || !strcmp(a, "--output")) {
       if (i != argc - 1) {
         args.outputTarget = argv[++i];
       } else {
@@ -60,8 +64,11 @@ static inline Args argparse(int argc, char **argv) {
   printf("tokenizerTarget: %s\n", args.tokenizerTarget);
   printf("grammarTarget: %s\n", args.grammarTarget);
   printf("outputTarget: %s\n", args.outputTarget);
-  printf("g: %i\n", (int)args.g);
+  
   printf("h: %i\n", (int)args.h);
+  printf("d: %i\n", (int)args.d);
+  printf("m: %i\n", (int)args.m);
+  printf("u: %i\n", (int)args.u);
   fflush(stdout);
 #endif
 

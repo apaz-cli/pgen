@@ -22,6 +22,7 @@ DIV: "/";
 // Keywords
 VAR: "var";
 PROC: "procedure";
+WRITE: "write";
 CONST: "const";
 BEGIN: "begin";
 END: "end";

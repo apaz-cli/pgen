@@ -88,28 +88,28 @@ int main(void) {
   do {
     tok = pl0_nextToken(&tokenizer);
 
-    // Discard whitespace, add other tokens to the list.
+    // Discard whitespace and end of stream, add other tokens to the list.
     if (!(tok.kind == PL0_TOK_SLCOM | tok.kind == PL0_TOK_MLCOM |
-          tok.kind == PL0_TOK_WS))
+          tok.kind == PL0_TOK_WS | tok.kind == PL0_TOK_STREAMEND))
       add_tok(tok);
 
   } while (tok.kind != PL0_TOK_STREAMEND);
 
-#if 0
+  // Print tokens
   for (size_t i = 0; i < toklist.size; i++)
     printtok(tokenizer, toklist.buf[i]);
-#endif
+  puts("");
 
+  // Init Parser
   pgen_allocator allocator = pgen_allocator_new();
-
   pl0_parser_ctx parser;
   pl0_parser_ctx_init(&parser, &allocator, toklist.buf, toklist.size);
 
+  // Parse AST
   pl0_astnode_t *ast = pl0_parse_program(&parser);
-  pl0_astnode_print(ast);
 
-  for (size_t i = 0; i < toklist.size; i++)
-    printtok(tokenizer, toklist.buf[i]);
+  // Print AST
+  pl0_astnode_print(ast);
 
   // Clean up
   pgen_allocator_destroy(&allocator);

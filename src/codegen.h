@@ -307,7 +307,6 @@ static inline void tok_write_charsetcheck(codegen_ctx *ctx, ASTNode *charset) {
 
   // Single char
   if (!charset->num_children) {
-    // printf("%s\n", charset->name);
     if (strcmp(charset->name, "CharSet") == 0) {
       cwrite("%i", (int)*(bool *)charset->extra);
     } else { // single char
@@ -601,6 +600,9 @@ static inline void peg_write_directives(codegen_ctx *ctx) {
       if (oom_written)
         ERROR("Duplicate %%oom directives.");
 
+      if (ctx->args.u)
+        ERROR("Comment out your %%oom directive to use unsafe codegen.");
+
       cwrite("#define PGEN_OOM() %s\n", (char *)dir->extra);
       oom_written = 1;
     }
@@ -745,7 +747,6 @@ static inline void peg_write_astnode_def(codegen_ctx *ctx) {
   cwrite("  size_t num_children;\n");
   cwrite("  size_t max_children;\n");
   cwrite("  %s_astnode_t** children;\n", ctx->lower);
-  cwrite("  pgen_allocator_rewind_t rew;\n");
   cwrite("};\n\n");
 }
 
@@ -757,18 +758,21 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
          "                             %s_astnode_kind kind,\n"
          "                             size_t initial_size) {\n",
          ctx->lower);
-  cwrite("  pgen_allocator_ret_t ret = pgen_alloc(alloc,\n"
-         "                                        sizeof(%s_astnode_t),\n"
-         "                                        _Alignof(%s_astnode_t));\n",
+  cwrite("  char* ret = pgen_alloc(alloc,\n"
+         "                         sizeof(%s_astnode_t),\n"
+         "                         _Alignof(%s_astnode_t));\n",
          ctx->lower, ctx->lower);
-  cwrite("  %s_astnode_t *node = (pl0_astnode_t*)ret.buf;\n\n", ctx->lower);
+  if (!ctx->args.u)
+    cwrite("  if (!ret) PGEN_OOM();\n");
+  cwrite("  %s_astnode_t *node = (pl0_astnode_t*)ret;\n\n", ctx->lower);
   cwrite("  %s_astnode_t **children;\n", ctx->lower);
   cwrite("  if (initial_size) {\n");
   cwrite("    children = (%s_astnode_t**)"
          "malloc(sizeof(%s_astnode_t*) * initial_size);\n",
          ctx->lower, ctx->lower);
-  cwrite("    if (!children)\n      PGEN_OOM();\n");
-  cwrite("    pgen_defer(alloc, free, children, ret.rew);\n");
+  if (!ctx->args.u)
+    cwrite("    if (!children)\n      PGEN_OOM();\n");
+  cwrite("    pgen_defer(alloc, free, children, alloc->rew);\n");
   cwrite("  } else {\n");
   cwrite("    children = NULL;\n");
   cwrite("  }\n\n");
@@ -776,7 +780,6 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   cwrite("  node->max_children = initial_size;\n");
   cwrite("  node->num_children = 0;\n");
   cwrite("  node->children = children;\n");
-  cwrite("  node->rew = ret.rew;\n");
   cwrite("  return node;\n");
   cwrite("}\n\n");
 
@@ -785,18 +788,19 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   cwrite("                             pgen_allocator* alloc,\n"
          "                             %s_astnode_kind kind) {\n",
          ctx->lower);
-  cwrite("  pgen_allocator_ret_t ret = pgen_alloc(alloc,\n"
-         "                                        sizeof(%s_astnode_t),\n"
-         "                                        _Alignof(%s_astnode_t));\n",
+  cwrite("  char* ret = pgen_alloc(alloc,\n"
+         "                         sizeof(%s_astnode_t),\n"
+         "                         _Alignof(%s_astnode_t));\n",
          ctx->lower, ctx->lower);
-  cwrite("  %s_astnode_t *node = (%s_astnode_t *)ret.buf;\n", ctx->lower,
+  if (!ctx->args.u)
+    cwrite("  if (!ret) PGEN_OOM();\n");
+  cwrite("  %s_astnode_t *node = (%s_astnode_t *)ret;\n", ctx->lower,
          ctx->lower);
   cwrite("  %s_astnode_t *children = NULL;\n", ctx->lower);
   cwrite("  node->kind = kind;\n");
   cwrite("  node->max_children = 0;\n");
   cwrite("  node->num_children = 0;\n");
   cwrite("  node->children = NULL;\n");
-  cwrite("  node->rew = ret.rew;\n");
   cwrite("  return node;\n");
   cwrite("}\n\n");
 
@@ -811,15 +815,16 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
       cwrite("                             %s_astnode_t* n%zu%s", ctx->lower, j,
              j != i - 1 ? ",\n" : "");
     cwrite(") {\n");
-    cwrite("  pgen_allocator_ret_t ret = pgen_alloc(alloc,\n"
-           "                                        sizeof(%s_astnode_t) +\n"
-           "                                        sizeof(%s_astnode_t *) * "
-           "%zu,\n",
+    cwrite("  char* ret = pgen_alloc(alloc,\n"
+           "                         sizeof(%s_astnode_t) +\n"
+           "                         sizeof(%s_astnode_t *) * %zu,\n",
            ctx->lower, ctx->lower, i);
     cwrite("                                        "
            "_Alignof(%s_astnode_t));\n",
            ctx->lower);
-    cwrite("  %s_astnode_t *node = (%s_astnode_t *)ret.buf;\n", ctx->lower,
+    if (!ctx->args.u)
+      cwrite("  if (!ret) PGEN_OOM();\n");
+    cwrite("  %s_astnode_t *node = (%s_astnode_t *)ret;\n", ctx->lower,
            ctx->lower);
     cwrite("  %s_astnode_t **children = (%s_astnode_t **)(node + 1);\n",
            ctx->lower, ctx->lower);
@@ -827,7 +832,6 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
     cwrite("  node->max_children = 0;\n");
     cwrite("  node->num_children = %zu;\n", i);
     cwrite("  node->children = children;\n");
-    cwrite("  node->rew = ret.rew;\n");
     for (size_t j = 0; j < i; j++)
       cwrite("  children[%zu] = n%zu;\n", j, j);
     cwrite("  return node;\n");
@@ -848,7 +852,7 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
          "(ctx->alloc, %s_NODE_##kind, __VA_ARGS__)\n",
          ctx->lower, ctx->upper);
   cwrite("#define list(kind)               "
-         "%s_astnode_list(ctx->alloc, %s_NODE_##kind, 32)\n",
+         "%s_astnode_list(ctx->alloc, %s_NODE_##kind, 16)\n",
          ctx->lower, ctx->upper);
   cwrite("#define leaf(kind)               "
          "%s_astnode_leaf(ctx->alloc, %s_NODE_##kind)\n",
@@ -867,39 +871,17 @@ static inline void peg_write_astnode_add(codegen_ctx *ctx) {
   cwrite("static inline void %s_astnode_add("
          "pgen_allocator* alloc, %s_astnode_t *list, %s_astnode_t *node) {\n",
          ctx->lower, ctx->lower, ctx->lower);
-  cwrite("  if (list->num_children > list->max_children)\n"
-         "    PGEN_OOM();\n\n");
   cwrite("  if (list->max_children == list->num_children) {\n");
   cwrite("    size_t new_max = list->max_children * 2;\n");
   cwrite("    void* old_ptr = list->children;\n");
   cwrite("    void* new_ptr = realloc(list->children, new_max);\n");
-  cwrite("    if (!new_ptr)\n      PGEN_OOM();\n");
+  if (!ctx->args.u)
+    cwrite("    if (!new_ptr)\n      PGEN_OOM();\n");
   cwrite("    list->children = (pl0_astnode_t **)new_ptr;\n");
   cwrite("    list->max_children = new_max;\n");
-  cwrite("    pgen_allocator_realloced(alloc, old_ptr, new_ptr, free, "
-         "list->rew);\n");
-  cwrite("  }\n\n");
-  cwrite("  printf(\"list: %%p, children: %%zu\", list, list ? list->num_children : 500);\n");
-  cwrite("  fflush(stdout);\n");
+  cwrite("    pgen_allocator_realloced(alloc, old_ptr, new_ptr, free);\n");
+  cwrite("  }\n");
   cwrite("  list->children[list->num_children++] = node;\n");
-  cwrite("}\n\n");
-}
-
-static inline void peg_write_astnode_print(codegen_ctx *ctx) {
-  cwrite("static inline void %s_astnode_print_h(%s_astnode_t *node, size_t "
-         "depth) {\n",
-         ctx->lower, ctx->lower);
-  cwrite("  for (size_t i = 0; i < depth; i++) putchar(' ');\n");
-  // cwrite("  puts(%s_nodekind_name[node->kind]);\n", ctx->lower);
-  cwrite("  printf(\"%%p\\n\", node);\n");
-  cwrite("  for (size_t i = 0; i < depth; i++)\n"
-         "    %s_astnode_print_h(node->children[i], depth + 1);\n",
-         ctx->lower);
-  cwrite("}\n\n");
-
-  cwrite("static inline void %s_astnode_print(%s_astnode_t *node) {\n",
-         ctx->lower, ctx->lower);
-  cwrite("  %s_astnode_print_h(node, 0);\n", ctx->lower);
   cwrite("}\n\n");
 }
 
@@ -909,6 +891,26 @@ static inline void peg_write_parser_rewind(codegen_ctx *ctx) {
          ctx->lower, ctx->lower);
   cwrite("  pgen_allocator_rewind(ctx->alloc, rew.arew);\n");
   cwrite("  ctx->pos = rew.prew;\n");
+  cwrite("}\n\n");
+}
+
+static inline void peg_write_astnode_print(codegen_ctx *ctx) {
+  cwrite("static inline void %s_astnode_print_h(%s_astnode_t *node, size_t "
+         "depth) {\n",
+         ctx->lower, ctx->lower);
+  cwrite("  for (size_t i = 0; i < depth; i++) putchar(' ');\n");
+  cwrite("  if (node == SUCC)\n");
+  cwrite("    puts(\"ERROR, CAPTURED SUCC.\");\n");
+  cwrite("  else\n");
+  cwrite("    puts(pl0_nodekind_name[node->kind]);\n");
+  cwrite("  for (size_t i = 0; i < node->num_children; i++)\n"
+         "    %s_astnode_print_h(node->children[i], depth + 1);\n",
+         ctx->lower);
+  cwrite("}\n\n");
+
+  cwrite("static inline void %s_astnode_print(%s_astnode_t *node) {\n",
+         ctx->lower, ctx->lower);
+  cwrite("  %s_astnode_print_h(node, 0);\n", ctx->lower);
   cwrite("}\n\n");
 }
 
@@ -977,10 +979,17 @@ static inline void end_block_0(codegen_ctx *ctx) {
     cwrite(__VA_ARGS__);                                                       \
   } while (0)
 
+static inline void peg_write_debug_macro(codegen_ctx *ctx) {
+  cwrite("#ifndef PGEN_DEBUG\n");
+  cwrite("#define PGEN_DEBUG %i\n\n", (int)ctx->args.d);
+  cwrite("#define PGEN_ALLOCATOR_DEBUG %i\n\n", (int)ctx->args.m);
+  cwrite("#endif /* PGEN_DEBUG */\n\n");
+}
+
 static inline void peg_write_debug_stack(codegen_ctx *ctx) {
+
   if (ctx->args.d) {
-    cwrite("#ifndef PGEN_DEBUG\n");
-    cwrite("#define PGEN_DEBUG\n\n");
+    cwrite("#if PGEN_DEBUG\n");
 
     // Find max name length
     size_t max_len = 0;
@@ -1090,8 +1099,6 @@ static inline void peg_write_debug_stack(codegen_ctx *ctx) {
     cwrite("  }\n");
     cwrite("}\n\n");
 
-    cwrite("#endif /* PGEN_DEBUG */\n\n");
-
     cwrite("static inline void dbg_enter(%s_parser_ctx* ctx,"
            " const char* name, size_t pos) {\n",
            ctx->lower);
@@ -1114,7 +1121,8 @@ static inline void peg_write_debug_stack(codegen_ctx *ctx) {
     cwrite("  dbg_stack.size--;\n");
     cwrite("  dbg_stack.status = -1;\n");
     cwrite("  dbg_display(ctx, rejecting);\n");
-    cwrite("}\n\n");
+    cwrite("}\n");
+    cwrite("#endif /* PGEN_DEBUG */\n\n");
   }
 }
 
@@ -1177,8 +1185,7 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
 
   } else if (!strcmp(expr->name, "ModExpr")) {
     ModExprOpts opts = *(ModExprOpts *)expr->extra;
-    if ((opts.inverted == 0) & 
-    (opts.kleene_plus == 0) & (opts.optional == 0) &
+    if ((opts.inverted == 0) & (opts.kleene_plus == 0) & (opts.optional == 0) &
             (opts.rewinds == 0) &&
         expr->num_children == 1) {
       // Forward capture in trivial case.
@@ -1329,7 +1336,7 @@ static inline void peg_write_definition(codegen_ctx *ctx, ASTNode *def) {
 
   size_t ult_ret = ctx->expr_cnt++;
   size_t ret = ctx->expr_cnt++;
-  
+
   cwrite("  %s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
   cwrite("  %s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ult_ret);
   cwrite("  #define rule expr_ret_%zu\n\n", ult_ret);
@@ -1384,9 +1391,9 @@ static inline void peg_write_parser(codegen_ctx *ctx) {
   peg_write_astnode_def(ctx);
   peg_write_astnode_init(ctx);
   peg_write_astnode_add(ctx);
-  peg_write_astnode_print(ctx);
   peg_write_parser_rewind(ctx);
   peg_write_parsermacros(ctx);
+  peg_write_astnode_print(ctx);
   peg_write_debug_stack(ctx);
   peg_write_parser_body(ctx);
   peg_write_footer(ctx);
@@ -1401,6 +1408,8 @@ static inline void codegen_write(codegen_ctx *ctx) {
   if (ctx->tokast) {
     write_utf8_lib(ctx);
   }
+
+  peg_write_debug_macro(ctx);
   if (ctx->pegast) {
     peg_write_directives(ctx);
     write_arena_lib(ctx);

@@ -2,7 +2,7 @@
 
 %node BLOCKLIST
 program <- {rule=list(BLOCKLIST)}
-           (b:block {printf("%p", b)} {add(rule, b)})*
+           (b:block {add(rule, b)})*
            DOT
 
 %node VAR
@@ -22,12 +22,13 @@ vdef <- VAR {rule=list(VARLIST)}
 block <- v:vdef {rule=v}
          /
          {rule=list(PROCLIST)}
-         (PROC i:IDENT SEMI v:vdef SEMI
-         {add(rule, node(PROC, i, v))})*
+         (PROC i:IDENT SEMI v:vdef?
+         {add(rule, v != SUCC ? node(PROC, i, v) : node(PROC, i))})*
          s:statement {add(rule, s)} SEMI
 
 %node CEQ
 %node CALL
+%node WRITE
 %node BEGIN
 %node IF
 %node WHILE
@@ -35,11 +36,15 @@ block <- v:vdef {rule=v}
 statement <- id:IDENT ceq:CEQ e:expression
              {rule=node(IDENT, id, e)}
              /
-             c:CALL id:IDENT
+             CALL id:IDENT
              {rule=node(CALL, id)}
              /
+             WRITE id:IDENT
+             {rule=node(WRITE, id)}
+             /
+             BEGIN
              {rule=list(BEGIN)}
-             BEGIN smt:statement
+             smt:statement
              {add(rule, node(STATEMENT, smt))}
              (SEMI smt:statement {add(rule, node(STATEMENT, smt))})*
              END

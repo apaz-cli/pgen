@@ -2,14 +2,13 @@
 /* Multi Line Comment UwU. */
 
 const max = 100;
-var arg, ret;
+var arg, ret, i;
 
 /*
 procedure isprime;
-var i;
 begin
 	ret := 1;
-	i := 2
+	i := 2;
 	while i < arg do
 	begin
 		if arg / i * i = arg then
@@ -20,6 +19,7 @@ begin
 		i := i + 1
 	end
 end;
+*/
 
 procedure primes;
 begin
@@ -31,6 +31,7 @@ begin
 		arg := arg + 1
 	end
 end;
-*/
+
 call primes;
+
 .
