@@ -7,6 +7,7 @@
 #include "parserctx.h"
 #include "pegparser.h"
 #include "utf8.h"
+#include <stdio.h>
 
 #define NODE_NUM_FIXED 5
 
@@ -600,11 +601,14 @@ static inline void peg_write_directives(codegen_ctx *ctx) {
       if (oom_written)
         ERROR("Duplicate %%oom directives.");
 
-      if (ctx->args.u)
-        ERROR("Comment out your %%oom directive to use unsafe codegen.");
-
-      cwrite("#define PGEN_OOM() %s\n", (char *)dir->extra);
-      oom_written = 1;
+      if (ctx->args.u) {
+        fprintf(stderr,
+                "PGEN error: "
+                "Comment out your %%oom directive to use unsafe codegen.\n");
+      } else {
+        cwrite("#define PGEN_OOM() %s\n", (char *)dir->extra);
+        oom_written = 1;
+      }
     }
     // %include directive
     else if (!strcmp((char *)dir->children[0]->extra, "include")) {
