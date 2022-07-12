@@ -96,9 +96,11 @@ int main(void) {
   } while (tok.kind != PL0_TOK_STREAMEND);
 
   // Print tokens
+  /*
   for (size_t i = 0; i < toklist.size; i++)
     printtok(tokenizer, toklist.buf[i]);
   puts("");
+  */
 
   // Init Parser
   pgen_allocator allocator = pgen_allocator_new();
@@ -109,7 +111,7 @@ int main(void) {
   pl0_astnode_t *ast = pl0_parse_program(&parser);
 
   // Print AST
-  pl0_astnode_print(ast);
+  pl0_astnode_print_json(ast);
 
   // Clean up
   pgen_allocator_destroy(&allocator);
