@@ -1301,6 +1301,7 @@ struct pl0_astnode_t {
   // No %extra directives.
 
   pl0_astnode_kind kind;
+  pl0_astnode_t* parent;
   size_t num_children;
   size_t max_children;
   pl0_astnode_t** children;
@@ -1327,6 +1328,7 @@ static inline pl0_astnode_t* pl0_astnode_list(
   }
 
   node->kind = kind;
+  node->parent = NULL;
   node->max_children = initial_size;
   node->num_children = 0;
   node->children = children;
@@ -1343,6 +1345,7 @@ static inline pl0_astnode_t* pl0_astnode_leaf(
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t *children = NULL;
   node->kind = kind;
+  node->parent = NULL;
   node->max_children = 0;
   node->num_children = 0;
   node->children = NULL;
@@ -1361,6 +1364,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_1(
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
+  node->parent = NULL;
   node->max_children = 0;
   node->num_children = 1;
   node->children = children;
@@ -1381,6 +1385,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_2(
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
+  node->parent = NULL;
   node->max_children = 0;
   node->num_children = 2;
   node->children = children;
@@ -1403,6 +1408,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_3(
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
+  node->parent = NULL;
   node->max_children = 0;
   node->num_children = 3;
   node->children = children;
@@ -1427,6 +1433,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_4(
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
+  node->parent = NULL;
   node->max_children = 0;
   node->num_children = 4;
   node->children = children;
@@ -1453,6 +1460,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_5(
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
+  node->parent = NULL;
   node->max_children = 0;
   node->num_children = 5;
   node->children = children;
@@ -1475,6 +1483,7 @@ static inline void pl0_astnode_add(pgen_allocator* alloc, pl0_astnode_t *list, p
     list->max_children = new_max;
     pgen_allocator_realloced(alloc, old_ptr, new_ptr, free);
   }
+  node->parent = list;
   list->children[list->num_children++] = node;
 }
 
@@ -1488,8 +1497,8 @@ static inline void pl0_parser_rewind(pl0_parser_ctx *ctx, pgen_parser_rewind_t r
 #define node(kind, ...)          PGEN_CAT(pl0_astnode_fixed_, PGEN_NARG(__VA_ARGS__))(ctx->alloc, PL0_NODE_##kind, __VA_ARGS__)
 #define list(kind)               pl0_astnode_list(ctx->alloc, PL0_NODE_##kind, 16)
 #define leaf(kind)               pl0_astnode_leaf(ctx->alloc, PL0_NODE_##kind)
-#define add(list, node)          pl0_astnode_add(ctx->alloc, list, node)
-#define defer(node, freefn, ptr) pgen_defer(ctx->alloc, freefn, ptr, node->rew)
+#define add(list, node)  pl0_astnode_add(ctx->alloc, list, node)
+#define defer(node, freefn, ptr) pgen_defer(ctx->alloc, freefn, ptr, ctx->alloc->rew)
 #define SUCC                     ((pl0_astnode_t*)(void*)(uintptr_t)_Alignof(pl0_astnode_t))
 
 static inline void pl0_astnode_print_h(pl0_astnode_t *node, size_t depth) {
@@ -3258,6 +3267,15 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
 }
 
 
+
+#undef rec
+#undef rew
+#undef node
+#undef list
+#undef leaf
+#undef add
+#undef defer
+#undef SUCC
 
 #endif /* PGEN_PL0_ASTNODE_INCLUDE */
 

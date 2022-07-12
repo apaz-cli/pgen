@@ -602,13 +602,14 @@ static inline void peg_write_directives(codegen_ctx *ctx) {
         ERROR("Duplicate %%oom directives.");
 
       if (ctx->args.u) {
+        // Falls back to default handler.
         fprintf(stderr,
                 "PGEN error: "
                 "Comment out your %%oom directive to use unsafe codegen.\n");
       } else {
         cwrite("#define PGEN_OOM() %s\n", (char *)dir->extra);
-        oom_written = 1;
       }
+      oom_written = 1;
     }
     // %include directive
     else if (!strcmp((char *)dir->children[0]->extra, "include")) {
@@ -748,6 +749,7 @@ static inline void peg_write_astnode_def(codegen_ctx *ctx) {
     cwrite("  // No %%extra directives.\n\n");
 
   cwrite("  %s_astnode_kind kind;\n", ctx->lower);
+  cwrite("  %s_astnode_t* parent;\n", ctx->lower);
   cwrite("  size_t num_children;\n");
   cwrite("  size_t max_children;\n");
   cwrite("  %s_astnode_t** children;\n", ctx->lower);
@@ -781,6 +783,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   cwrite("    children = NULL;\n");
   cwrite("  }\n\n");
   cwrite("  node->kind = kind;\n");
+  cwrite("  node->parent = NULL;\n");
   cwrite("  node->max_children = initial_size;\n");
   cwrite("  node->num_children = 0;\n");
   cwrite("  node->children = children;\n");
@@ -802,6 +805,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
          ctx->lower);
   cwrite("  %s_astnode_t *children = NULL;\n", ctx->lower);
   cwrite("  node->kind = kind;\n");
+  cwrite("  node->parent = NULL;\n");
   cwrite("  node->max_children = 0;\n");
   cwrite("  node->num_children = 0;\n");
   cwrite("  node->children = NULL;\n");
@@ -833,6 +837,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
     cwrite("  %s_astnode_t **children = (%s_astnode_t **)(node + 1);\n",
            ctx->lower, ctx->lower);
     cwrite("  node->kind = kind;\n");
+    cwrite("  node->parent = NULL;\n");
     cwrite("  node->max_children = 0;\n");
     cwrite("  node->num_children = %zu;\n", i);
     cwrite("  node->children = children;\n");
@@ -861,11 +866,11 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
   cwrite("#define leaf(kind)               "
          "%s_astnode_leaf(ctx->alloc, %s_NODE_##kind)\n",
          ctx->lower, ctx->upper);
-  cwrite("#define add(list, node)          "
+  cwrite("#define add(list, node)  "
          "%s_astnode_add(ctx->alloc, list, node)\n",
          ctx->lower);
   cwrite("#define defer(node, freefn, ptr) "
-         "pgen_defer(ctx->alloc, freefn, ptr, node->rew)\n");
+         "pgen_defer(ctx->alloc, freefn, ptr, ctx->alloc->rew)\n");
   cwrite("#define SUCC                     "
          "((%s_astnode_t*)(void*)(uintptr_t)_Alignof(%s_astnode_t))\n\n",
          ctx->lower, ctx->lower);
@@ -885,6 +890,7 @@ static inline void peg_write_astnode_add(codegen_ctx *ctx) {
   cwrite("    list->max_children = new_max;\n");
   cwrite("    pgen_allocator_realloced(alloc, old_ptr, new_ptr, free);\n");
   cwrite("  }\n");
+  cwrite("  node->parent = list;\n");
   cwrite("  list->children[list->num_children++] = node;\n");
   cwrite("}\n\n");
 }
@@ -1387,6 +1393,17 @@ static inline void peg_write_parser_body(codegen_ctx *ctx) {
   cwrite("\n\n");
 }
 
+static inline void peg_write_undef_parsermacros(codegen_ctx *ctx) {
+  cwrite("#undef rec\n");
+  cwrite("#undef rew\n");
+  cwrite("#undef node\n");
+  cwrite("#undef list\n");
+  cwrite("#undef leaf\n");
+  cwrite("#undef add\n");
+  cwrite("#undef defer\n");
+  cwrite("#undef SUCC\n\n");
+}
+
 static inline void peg_write_parser(codegen_ctx *ctx) {
   peg_write_header(ctx);
   peg_write_parser_ctx(ctx);
@@ -1400,6 +1417,7 @@ static inline void peg_write_parser(codegen_ctx *ctx) {
   peg_write_astnode_print(ctx);
   peg_write_debug_stack(ctx);
   peg_write_parser_body(ctx);
+  peg_write_undef_parsermacros(ctx);
   peg_write_footer(ctx);
 }
 
