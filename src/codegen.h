@@ -906,21 +906,43 @@ static inline void peg_write_parser_rewind(codegen_ctx *ctx) {
 
 static inline void peg_write_astnode_print(codegen_ctx *ctx) {
   cwrite("static inline void %s_astnode_print_h(%s_astnode_t *node, size_t "
-         "depth) {\n",
+         "depth, int fl) {\n",
          ctx->lower, ctx->lower);
-  cwrite("  for (size_t i = 0; i < depth; i++) putchar(' ');\n");
+  cwrite("  #define indent() "
+         "for (size_t i = 0; i < depth; i++) printf(\"  \")\n");
   cwrite("  if (node == SUCC)\n");
-  cwrite("    puts(\"ERROR, CAPTURED SUCC.\");\n");
-  cwrite("  else\n");
-  cwrite("    puts(pl0_nodekind_name[node->kind]);\n");
-  cwrite("  for (size_t i = 0; i < node->num_children; i++)\n"
-         "    %s_astnode_print_h(node->children[i], depth + 1);\n",
-         ctx->lower);
-  cwrite("}\n\n");
+  cwrite("    puts(\"ERROR, CAPTURED SUCC.\"), exit(1);\n\n");
 
-  cwrite("static inline void %s_astnode_print(%s_astnode_t *node) {\n",
+  cwrite("  indent(); puts(\"{\");\n");
+  cwrite("  depth++;\n");
+  // cwrite("  indent(); puts(\"\");\n");
+
+  cwrite("  indent(); printf(\"\\\"kind\\\": \"); "
+         "printf(\"\\\"%%s\\\",\\n\", %s_nodekind_name[node->kind] + %zu);\n",
+         ctx->lower, strlen(ctx->lower) + 6);
+
+  cwrite("  size_t cnum = node->num_children;\n");
+  cwrite("  indent(); printf(\"\\\"num_children\\\": %%zu,\\n\", cnum);\n");
+  cwrite("  indent(); printf(\"\\\"children\\\": [\");");
+  cwrite("  if (cnum) {\n");
+  cwrite("    putchar('\\n');\n");
+  cwrite("    for (size_t i = 0; i < cnum; i++)\n"
+         "      %s_astnode_print_h(node->children[i], depth + 1, "
+         "i == cnum - 1);\n",
+         ctx->lower);
+  cwrite("    indent();\n");
+  cwrite("  }\n");
+
+  cwrite("  printf(\"]\\n\");\n");
+  cwrite("  depth--;\n");
+  cwrite(
+      "  indent(); putchar('}'); if (fl != 1) putchar(','); putchar('\\n');\n");
+
+  cwrite("}\n\n"); // End of print helper fn
+
+  cwrite("static inline void %s_astnode_print_json(%s_astnode_t *node) {\n",
          ctx->lower, ctx->lower);
-  cwrite("  %s_astnode_print_h(node, 0);\n", ctx->lower);
+  cwrite("  %s_astnode_print_h(node, 0, 1);\n", ctx->lower);
   cwrite("}\n\n");
 }
 

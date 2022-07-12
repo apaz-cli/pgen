@@ -1501,18 +1501,29 @@ static inline void pl0_parser_rewind(pl0_parser_ctx *ctx, pgen_parser_rewind_t r
 #define defer(node, freefn, ptr) pgen_defer(ctx->alloc, freefn, ptr, ctx->alloc->rew)
 #define SUCC                     ((pl0_astnode_t*)(void*)(uintptr_t)_Alignof(pl0_astnode_t))
 
-static inline void pl0_astnode_print_h(pl0_astnode_t *node, size_t depth) {
-  for (size_t i = 0; i < depth; i++) putchar(' ');
+static inline void pl0_astnode_print_h(pl0_astnode_t *node, size_t depth, int fl) {
+  #define indent() for (size_t i = 0; i < depth; i++) printf("  ")
   if (node == SUCC)
-    puts("ERROR, CAPTURED SUCC.");
-  else
-    puts(pl0_nodekind_name[node->kind]);
-  for (size_t i = 0; i < node->num_children; i++)
-    pl0_astnode_print_h(node->children[i], depth + 1);
+    puts("ERROR, CAPTURED SUCC."), exit(1);
+
+  indent(); puts("{");
+  depth++;
+  indent(); printf("\"kind\": "); printf("\"%s\",\n", pl0_nodekind_name[node->kind] + 9);
+  size_t cnum = node->num_children;
+  indent(); printf("\"num_children\": %zu,\n", cnum);
+  indent(); printf("\"children\": [");  if (cnum) {
+    putchar('\n');
+    for (size_t i = 0; i < cnum; i++)
+      pl0_astnode_print_h(node->children[i], depth + 1, i == cnum - 1);
+    indent();
+  }
+  printf("]\n");
+  depth--;
+  indent(); putchar('}'); if (fl != 1) putchar(','); putchar('\n');
 }
 
-static inline void pl0_astnode_print(pl0_astnode_t *node) {
-  pl0_astnode_print_h(node, 0);
+static inline void pl0_astnode_print_json(pl0_astnode_t *node) {
+  pl0_astnode_print_h(node, 0, 1);
 }
 
 static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx);
