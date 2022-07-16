@@ -39,7 +39,8 @@ ModExprList    <- (_ ModExpr)+
 
 ModExpr        <- (LowerIdent _ ':' _)? (('&' / '!') _)* BaseExpr _ ('?' / '*' / '+')*
 
-BaseExpr       <- UpperIdent
+BaseExpr       <- ('prev' / 'next')
+                / UpperIdent
                 / LowerIdent _ !'<'
                 / CodeExpr
                 / '(' _ SlashExpr _ ')'
