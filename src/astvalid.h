@@ -122,6 +122,10 @@ static inline void resolvePrevNext(ASTNode *pegast) {
   list_ASTNodePtr_clear(&defs);
 }
 
-static inline void validatePegast(ASTNode *pegast) { resolvePrevNext(pegast); }
+static inline void validatePegast(ASTNode *pegast) {
+  if (!pegast)
+    return;
+  resolvePrevNext(pegast);
+}
 
 #endif /* PGEN_ASTVALID_INCLUDE */
