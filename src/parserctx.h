@@ -56,11 +56,54 @@ static inline void parser_ctx_init(parser_ctx *ctx,
 
 static int ctx_debug = 0;
 
+#ifdef _POSIX_C_SOURCE
+#include <sys/ioctl.h>
+#include <unistd.h>
+#endif
 static inline void print_unconsumed(parser_ctx *ctx) {
+#ifdef _POSIX_C_SOURCE
+  struct winsize w;
+  ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+  unsigned short cols = w.ws_col;
+  unsigned short rows = w.ws_row;
+
+  Codepoint_String_View cpsv;
+  cpsv.str = ctx->str + ctx->pos;
+  cpsv.len = ctx->len - ctx->pos;
+
+  String_View sv = UTF8_encode_view(cpsv);
+  if (!sv.str)
+    return;
+  size_t current = 0;
+  unsigned short printable_lines = rows - 2;
+  for (unsigned short i = 0; i < printable_lines; i++) {
+    int done = 0;
+    size_t last = current;
+    if (!sv.str)
+      exit(1);
+    for (;;) {
+      if (sv.str[current] == '\n') {
+        current++;
+        break;
+      } else if (sv.str[current] == '\0') {
+        done = 1;
+        break;
+      } else {
+        current++;
+      }
+    }
+    if (done)
+      break;
+
+    fwrite_unlocked(sv.str + last, current - last, 1, stdout);
+  }
+  free(sv.str);
+#else
   Codepoint_String_View cpsv;
   cpsv.str = ctx->str + ctx->pos;
   cpsv.len = ctx->len - ctx->pos;
   printCodepointStringView(cpsv);
+#endif
 }
 
 static inline void ctx_rule_debug(int status, const char *rulename,

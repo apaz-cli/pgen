@@ -8,6 +8,7 @@
 
 
 int main(int argc, char **argv) {
+  
 
   ASTNode* tokast = NULL, *pegast = NULL;
 
@@ -17,6 +18,7 @@ int main(int argc, char **argv) {
 
   // Parse command line arguments
   Args args = argparse(argc, argv);
+  ctx_debug = args.g;
 
   // Read the tokenizer file
   tokenFile = readFileCodepoints(args.tokenizerTarget);

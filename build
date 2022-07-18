@@ -19,7 +19,7 @@ clang src/pgen.c -o pgen -fsanitize=address -g -Wall -Wextra -Wpedantic -Wno-unu
 # Run pl0 example.
 cd examples/
 clang pl0.c -fsanitize=address -g
-#cc pl0.c
+cc pl0.c
 ./a.out
 cd ..
 
