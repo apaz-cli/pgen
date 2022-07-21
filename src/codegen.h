@@ -770,7 +770,8 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
          ctx->lower, ctx->lower);
   if (!ctx->args.u)
     cwrite("  if (!ret) PGEN_OOM();\n");
-  cwrite("  %s_astnode_t *node = (pl0_astnode_t*)ret;\n\n", ctx->lower);
+  cwrite("  %s_astnode_t *node = (%s_astnode_t*)ret;\n\n", ctx->lower,
+         ctx->lower);
   cwrite("  %s_astnode_t **children;\n", ctx->lower);
   cwrite("  if (initial_size) {\n");
   cwrite("    children = (%s_astnode_t**)"
@@ -886,7 +887,7 @@ static inline void peg_write_astnode_add(codegen_ctx *ctx) {
   cwrite("    void* new_ptr = realloc(list->children, new_max);\n");
   if (!ctx->args.u)
     cwrite("    if (!new_ptr)\n      PGEN_OOM();\n");
-  cwrite("    list->children = (pl0_astnode_t **)new_ptr;\n");
+  cwrite("    list->children = (%s_astnode_t **)new_ptr;\n", ctx->lower);
   cwrite("    list->max_children = new_max;\n");
   cwrite("    pgen_allocator_realloced(alloc, old_ptr, new_ptr, free);\n");
   cwrite("  }\n");
