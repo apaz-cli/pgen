@@ -12,6 +12,9 @@
 // TODO: Make sure that no labels are named rule or ret.
 // TODO: Make sure that labeled ModExprs do not have ModExprLists in them with
 // more than one child.
+// TODO: Make sure each %node is not defined more than once.
+
+// TODO: Add `.` to capture any token.
 
 static inline void validateTokast(ASTNode *tokast) {
   // Cross compare for duplicate rules.
@@ -122,10 +125,36 @@ static inline void resolvePrevNext(ASTNode *pegast) {
   list_ASTNodePtr_clear(&defs);
 }
 
-static inline void validatePegast(ASTNode *pegast) {
+static inline int validateIsTokName(ASTNode *tokast, char *name) {
+
+  for (size_t i = 0; i < tokast->num_children; i++) {
+    ASTNode *tokendef = tokast->children[i];
+    ASTNode *tokident = tokendef->children[0];
+    char *tokname = (char *)tokident->extra;
+    if (!strcmp(name, tokname))
+      return 1;
+  }
+  return 0;
+}
+
+static inline void validatePegVisit(ASTNode *node, ASTNode *tokast) {
+  if (!strcmp(node->name, "UpperIdent")) {
+    char *name = (char *)node->extra;
+    if (!validateIsTokName(tokast, name))
+      ERROR("%s appears in the parser, but does not have a token definition.",
+            name);
+  }
+
+  for (size_t i = 0; i < node->num_children; i++) {
+    validatePegVisit(node->children[i], tokast);
+  }
+}
+
+static inline void validatePegast(ASTNode *pegast, ASTNode *tokast) {
   if (!pegast)
     return;
   resolvePrevNext(pegast);
+  validatePegVisit(pegast, tokast);
 }
 
 #endif /* PGEN_ASTVALID_INCLUDE */
