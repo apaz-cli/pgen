@@ -88,7 +88,7 @@ static inline ASTNode *peg_parse_Directive(parser_ctx *ctx) {
       capture_size++;
       NEXT();
     }
-    if (CURRENT() == '\n')
+    if (HAS_CURRENT() && CURRENT() == '\n')
       NEXT();
     if (!capture_size) {
       REWIND(begin);
@@ -264,7 +264,6 @@ static inline ASTNode *peg_parse_ModExprList(parser_ctx *ctx) {
 
   INIT("ModExprList");
 
-  size_t times = 0;
   while (1) {
     WS();
 
@@ -273,13 +272,6 @@ static inline ASTNode *peg_parse_ModExprList(parser_ctx *ctx) {
       break;
 
     ASTNode_addChild(node, me);
-    times++;
-  }
-
-  if (!times) {
-    ASTNode_destroy(node);
-    REWIND(begin);
-    RETURN(NULL);
   }
 
   RETURN(node);
