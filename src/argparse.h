@@ -9,6 +9,7 @@ typedef struct {
   char *outputTarget;    // May be null
   bool h;                // Help
   bool d;                // Debug prompt
+  bool t;                // Tokenizer debug prompt
   bool g;                // Grammar debug prompt
   bool m;                // Memory allocator debugging
   bool u;                // Generate Unsafe (but fast) code.
@@ -21,6 +22,7 @@ static inline Args argparse(int argc, char **argv) {
   args.outputTarget = NULL;
   args.h = 0;
   args.d = 0;
+  args.t = 0;
   args.g = 0;
   args.m = 0;
   args.u = 0;
@@ -32,6 +34,8 @@ static inline Args argparse(int argc, char **argv) {
       args.h = 1;
     } else if (!strcmp(a, "-d") || !strcmp(a, "--debug")) {
       args.d = 1;
+    } else if (!strcmp(a, "-t") || !strcmp(a, "--tokenizer-debug")) {
+      args.t = 1;
     } else if (!strcmp(a, "-g") || !strcmp(a, "--grammar-debug")) {
       args.g = 1;
     } else if (!strcmp(a, "-m") || !strcmp(a, "--memdebug")) {

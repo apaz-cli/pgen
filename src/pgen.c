@@ -18,7 +18,6 @@ int main(int argc, char **argv) {
 
   // Parse command line arguments
   Args args = argparse(argc, argv);
-  ctx_debug = args.g;
 
   // Read the tokenizer file
   tokenFile = readFileCodepoints(args.tokenizerTarget);
@@ -26,6 +25,7 @@ int main(int argc, char **argv) {
     ERROR("Could not read the token file.");
 
   // Parse the tokenizer's AST
+  ctx_debug = args.t;
   parser_ctx tpctx;
   parser_ctx_init(&tpctx, tokenFile);
   tokast = tok_parse_TokenFile(&tpctx);
@@ -40,6 +40,7 @@ int main(int argc, char **argv) {
       ERROR("Could not read the parser file.");
 
     // Parse the parser's AST
+    ctx_debug = args.g;
     parser_ctx ppctx;
     parser_ctx_init(&ppctx, parserFile);
     pegast = peg_parse_GrammarFile(&ppctx);
