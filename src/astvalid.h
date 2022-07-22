@@ -6,13 +6,8 @@
 // TODO: Make sure that every SM transition from has
 //       an SM transition to unless it's zero.
 
-// TODO: Make sure that no names of labels and rules overlap
-// TODO: Make sure that no labels are named rule or ret.
 // TODO: Make sure that labeled ModExprs do not have ModExprLists in them with
 // more than one child.
-// TODO: Make sure each %node is not defined more than once.
-
-// TODO: Add `.` to capture any token.
 
 static inline void validateTokast(ASTNode *tokast) {
   // Cross compare for duplicate rules.
@@ -131,6 +126,8 @@ static inline list_charptr resolvePrevNext(ASTNode *pegast) {
 
 static inline void validateVisitLabel(ASTNode *label, list_charptr *names) {
   char *lname = (char *)label->extra;
+  if (!strcmp(lname, "rule") || !strcmp(lname, "ret"))
+    ERROR("Labels cannot be named \"rule\" or \"ret\".");
   for (size_t i = 0; i < names->len; i++) {
     if (!strcmp(lname, names->buf[i]))
       ERROR("Cannot use %s as both a rule and a label.", lname);
@@ -168,7 +165,7 @@ static inline void validatePegVisit(ASTNode *node, ASTNode *tokast,
 
   // Recurse to everything but labels.
   for (size_t i = 0; i < node->num_children; i++) {
-    if (!strcmp(node->name, "Directive")) { // nop
+    if (!strcmp(node->name, "Directive")) {
     } else if (!strcmp(node->name, "ModExpr")) {
       validatePegVisit(node->children[0], tokast, names);
       if (node->num_children > 1)
@@ -180,13 +177,49 @@ static inline void validatePegVisit(ASTNode *node, ASTNode *tokast,
   }
 }
 
+static inline void validateDirectives(list_ASTNodePtr *directives) {
+  for (size_t i = 0; i < directives->len; i++) {
+    // puts((char*)directives->buf[i]->extra);
+  }
+
+  for (size_t i = 0; i < directives->len; i++) {
+    for (size_t j = i + 1; j < directives->len; j++) {
+      char *dir_name1 = (char *)directives->buf[i]->children[0]->extra;
+      char *dir_name2 = (char *)directives->buf[j]->children[0]->extra;
+      if (!strcmp(dir_name1, "node") && !strcmp(dir_name2, "node")) {
+        // Note: invalid identifiers are taken care of in codegen.
+        char *nname1 = (char *)directives->buf[i]->extra;
+        char *nname2 = (char *)directives->buf[j]->extra;
+        if (!strcmp(nname1, nname2)) {
+          ERROR("There are two %%node directives both naming %s.", nname1);
+        }
+      }
+    }
+  }
+
+  for (size_t i = 0; i < directives->len; i++) {
+    puts((char *)directives->buf[i]->extra);
+  }
+}
+
 static inline void validatePegast(ASTNode *pegast, ASTNode *tokast) {
   if (!pegast)
     return;
 
+  list_ASTNodePtr directives = list_ASTNodePtr_new();
+  for (size_t i = 0; i < pegast->num_children; i++) {
+    ASTNode *node = pegast->children[i];
+    if (!strcmp(node->name, "Directive"))
+      list_ASTNodePtr_add(&directives, node);
+  }
+
   list_charptr names = resolvePrevNext(pegast);
+
   validatePegVisit(pegast, tokast, &names);
+  validateDirectives(&directives);
+
   list_charptr_clear(&names);
+  list_ASTNodePtr_clear(&directives);
 }
 
 #endif /* PGEN_ASTVALID_INCLUDE */
