@@ -179,10 +179,6 @@ static inline void validatePegVisit(ASTNode *node, ASTNode *tokast,
 
 static inline void validateDirectives(list_ASTNodePtr *directives) {
   for (size_t i = 0; i < directives->len; i++) {
-    // puts((char*)directives->buf[i]->extra);
-  }
-
-  for (size_t i = 0; i < directives->len; i++) {
     for (size_t j = i + 1; j < directives->len; j++) {
       char *dir_name1 = (char *)directives->buf[i]->children[0]->extra;
       char *dir_name2 = (char *)directives->buf[j]->children[0]->extra;
@@ -195,10 +191,6 @@ static inline void validateDirectives(list_ASTNodePtr *directives) {
         }
       }
     }
-  }
-
-  for (size_t i = 0; i < directives->len; i++) {
-    puts((char *)directives->buf[i]->extra);
   }
 }
 
