@@ -1,16 +1,14 @@
 #include "argparse.h"
-#include "parserctx.h"
-#include "tokparser.h"
-#include "pegparser.h"
 #include "astvalid.h"
 #include "automata.h"
 #include "codegen.h"
-
+#include "parserctx.h"
+#include "pegparser.h"
+#include "tokparser.h"
 
 int main(int argc, char **argv) {
-  
 
-  ASTNode* tokast = NULL, *pegast = NULL;
+  ASTNode *tokast = NULL, *pegast = NULL;
 
   Codepoint_String_View tokenFile, parserFile;
   tokenFile.str = parserFile.str = NULL;
@@ -32,7 +30,7 @@ int main(int argc, char **argv) {
   if (!tokast) {
     ERROR("Tokenizer file syntax error.");
   }
-  
+
   // Read the parser's file
   if (args.grammarTarget) {
     parserFile = readFileCodepoints(args.grammarTarget);
@@ -50,8 +48,8 @@ int main(int argc, char **argv) {
   }
 
   // Validate the ASTs.
-  validateTokast(tokast);
-  validatePegast(pegast, tokast);
+  validateTokast(args, tokast);
+  validatePegast(args, pegast, tokast);
 
   // Create the automata (Tokenizer IR).
   TrieAutomaton trie = createTrieAutomaton(tokast);

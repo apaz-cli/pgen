@@ -3,13 +3,16 @@ A PEG tokenizer/parser-generator.
 
 This is the program that generates the tokenizer and parser for the
 [Daisho](https://github.com/apaz-cli/Daisho) programming language.
-Right now, it's a WIP. The project is not usable.
+
+Given the specification of a grammar, `pgen` generates a very fast
+tokenizer and parser for that grammar.
+
 
 The syntax of pgen is based on the paper ["Parsing Expression Grammars: A Recognition-Based Syntactic Foundation"](https://bford.info/pub/lang/peg.pdf)
 by [Bryan Ford](https://scholar.google.com/citations?hl=en&user=TwyzQP4AAAAJ).
 This specific parser is inspired by [packcc](https://github.com/arithy/packcc) by [Arihiro Yoshida](https://github.com/arithy).
-You may see many commonalities. The difference is that while `packcc` does away with the lexer (tokenizer), 
-`pgen` re-introduces it.
+You may see many commonalities. The main difference is that while `packcc` does away with the
+lexer (tokenizer), `pgen` re-introduces it.
 
 The job of a parser is to turn a token stream into an abstract syntax tree.
 However, that's not what most parser-generators provide. Instead, what
@@ -41,6 +44,30 @@ programming language. Embracing this fact opens up the ability to
 effortlessly generate Abstract Syntax Trees.
 
 
+## TODO
+* Provide a warning about left recursion.
+* Implement support in the syntax for error handling.
+
+## Tokenizer Syntax
+
+```
+/* Single and multiline C style comments */
+
+/* Literal tokens:
+<uppercase unique name> : <string literal> ;
+*/
+CLASS: "class";
+PLUS:  "+";
+
+/*
+: set
+
+*/
+
+```
+
+The syntax of pg
+
 ## Roadmap
 
 - [x] Completed `tok` grammar
@@ -50,9 +77,10 @@ effortlessly generate Abstract Syntax Trees.
 - [x] Validity checking
 - [x] Automaton construction and minimization
 - [x] Tokenizer codegen
-- [ ] Optimizations
-- [ ] Parser codegen
-- [ ] Finishing polish
+- [x] Optimizations
+- [x] Parser codegen
+- [x] Error checking
+- [ ] Documentation
 
 
 ## License

@@ -4,28 +4,50 @@
 xxd -i src/utf8.h  | sed 's/\([0-9a-f]\)$/\0, 0x00/' > src/strutf8.xxd
 xxd -i src/arena.h | sed 's/\([0-9a-f]\)$/\0, 0x00/' > src/strarena.xxd
 
-# Build pgen
-rm pgen examples/pl0.h examples/a.out 2>/dev/null
-# Debug
-clang src/pgen.c -o pgen -fsanitize=address -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable
-# Profile
-#cc src/pgen.c -o pgen -O3 -fno-omit-frame-pointer
-# Release
-#cc src/pgen.c -o pgen -O3
+# Clean
 
-#gcc   src/pgen.c -o pgen                    -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable
-./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h
-
-# Run pl0 example.
-#cd examples/
-#clang pl0.c -fsanitize=address -g
-#cc pl0.c
-#./a.out
-#cd ..
-
-# Install the binary
 if [ "$1" = "install" ]; then
+  # Build release
+  cc src/pgen.c -o pgen -O3 -march=native
+
+  # Install binary
   sudo cp pgen /bin/pgen
   echo "Installed pgen."
+elif [ "$1" = "profile" ]; then
+  # Build pgen and generate tokenizer and parser.
+  cc src/pgen.c -o pgen
+  ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h
+
+  cd examples/
+
+  # Build pl0 tokenizer/parser for profiling with callgrind
+  cc pl0.c -O3 -march=native -ggdb3
+
+  # Profile
+  valgrind --tool=callgrind ./a.out 2>/dev/null
+  callgrind_annotate callgrind.out* > calls
+  nano calls
+
+  # Dump the instructions for nextToken
+  gdb -batch -ex "disassemble/rs pl0_nextToken" a.out > tok_dump.c
+  nano tok_dump.c
+
+  # Clean up
+  rm tok_dump.c calls callgrind.out.* 2>/dev/null
+  cd ..
+else
+  # Build debug
+  clang src/pgen.c -o pgen -fsanitize=address -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable
+
+  # Build and run pl0 example
+  ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h
+  cd examples/
+  clang pl0.c -fsanitize=address -g
+  cc pl0.c
+  ./a.out
+  cd ..
 fi
+
+
+
 

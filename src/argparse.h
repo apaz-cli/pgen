@@ -27,6 +27,17 @@ static inline Args argparse(int argc, char **argv) {
   args.m = 0;
   args.u = 0;
 
+  char exitmsg[] =
+      "pgen - A tokenizer and parser generator.\n"
+      "    pgen [OPTION]... INPUT_TOK [INPUT_PEG] [-o OUTPUT_PATH]\n"
+      "  where:\n"
+      "    -h, --help               Display this help message and exit.  \n"
+      "    -d, --debug              Display this help message and exit.  \n"
+      "    -t, --tokenizer-debug    Generate an interactive tokenizer.   \n"
+      "    -g, --grammar-debug      Generate an interactive parser.      \n"
+      "    -m, --memdebug           Debug the generated memory allocator.\n"
+      "    -u, --unsafe             Don't check for errors. Much faster. \n";
+
   for (int i = 1; i < argc; i++) {
     char *a = argv[i];
     // Flags
@@ -67,26 +78,17 @@ static inline Args argparse(int argc, char **argv) {
     }
   }
 
-#if 0
-  printf("Args:\n");
-  printf("tokenizerTarget: %s\n", args.tokenizerTarget);
-  printf("grammarTarget: %s\n", args.grammarTarget);
-  printf("outputTarget: %s\n", args.outputTarget);
-  
-  printf("h: %i\n", (int)args.h);
-  printf("d: %i\n", (int)args.d);
-  printf("m: %i\n", (int)args.m);
-  printf("u: %i\n", (int)args.u);
-  fflush(stdout);
-#endif
-
   // Help message
   if (args.h) {
-    puts("pgen - A tokenizer and parser generator.\n"
-         "    pgen [-h] [-g] INPUT_TOK [INPUT_PEG] [-o OUTPUT_PATH]\n");
+    puts(exitmsg);
     exit(0);
   }
-
+  bool h; // Help
+  bool d; // Debug prompt
+  bool t; // Tokenizer debug prompt
+  bool g; // Grammar debug prompt
+  bool m; // Memory allocator debugging
+  bool u; // Generate Unsafe (but fast) code.
   if (!args.tokenizerTarget) {
     puts("Please provide a tokenizer file as an argument.");
     exit(1);

@@ -111,7 +111,9 @@ int main(void) {
   pl0_astnode_t *ast = pl0_parse_program(&parser);
 
   // Print AST
+  /*
   pl0_astnode_print_json(ast);
+  */
 
   // Clean up
   pgen_allocator_destroy(&allocator);

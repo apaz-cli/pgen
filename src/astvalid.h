@@ -1,5 +1,6 @@
 #ifndef PGEN_ASTVALID_INCLUDE
 #define PGEN_ASTVALID_INCLUDE
+#include "argparse.h"
 #include "ast.h"
 #include "util.h"
 
@@ -9,7 +10,7 @@
 // TODO: Make sure that labeled ModExprs do not have ModExprLists in them with
 // more than one child.
 
-static inline void validateTokast(ASTNode *tokast) {
+static inline void validateTokast(Args args, ASTNode *tokast) {
   // Cross compare for duplicate rules.
   // Also make sure that there's no token named STREAMEND.
   for (size_t n = 0; n < tokast->num_children; n++) {
@@ -100,6 +101,8 @@ LIST_DEFINE(charptr)
 
 // Also pulls out all the names of the rules.
 static inline list_charptr resolvePrevNext(ASTNode *pegast) {
+  if (!pegast)
+    return list_charptr_new();
 
   // Filter for definitions, pull out names
   list_ASTNodePtr defs = list_ASTNodePtr_new();
@@ -194,24 +197,30 @@ static inline void validateDirectives(list_ASTNodePtr *directives) {
   }
 }
 
-static inline void validatePegast(ASTNode *pegast, ASTNode *tokast) {
+static inline void validatePegast(Args args, ASTNode *pegast, ASTNode *tokast) {
   if (!pegast)
     return;
 
-  list_ASTNodePtr directives = list_ASTNodePtr_new();
-  for (size_t i = 0; i < pegast->num_children; i++) {
-    ASTNode *node = pegast->children[i];
-    if (!strcmp(node->name, "Directive"))
-      list_ASTNodePtr_add(&directives, node);
+  list_ASTNodePtr directives;
+  if (!args.u) {
+    directives = list_ASTNodePtr_new();
+    for (size_t i = 0; i < pegast->num_children; i++) {
+      ASTNode *node = pegast->children[i];
+      if (!strcmp(node->name, "Directive"))
+        list_ASTNodePtr_add(&directives, node);
+    }
   }
 
   list_charptr names = resolvePrevNext(pegast);
 
-  validatePegVisit(pegast, tokast, &names);
-  validateDirectives(&directives);
+  if (!args.u) {
+    validatePegVisit(pegast, tokast, &names);
+    validateDirectives(&directives);
+    
+    list_ASTNodePtr_clear(&directives);
+  }
 
   list_charptr_clear(&names);
-  list_ASTNodePtr_clear(&directives);
 }
 
 #endif /* PGEN_ASTVALID_INCLUDE */
