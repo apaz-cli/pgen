@@ -20,20 +20,28 @@ elif [ "$1" = "profile" ]; then
 
   cd examples/
 
-  # Build pl0 tokenizer/parser for profiling with callgrind
+  # Build pl0 tokenizer/parser for profiling
   cc pl0.c -O3 -march=native -ggdb3
 
-  # Profile
+  # Profile with Callgrind
   valgrind --tool=callgrind ./a.out 2>/dev/null
   callgrind_annotate callgrind.out* > calls
   nano calls
 
-  # Dump the instructions for nextToken
-  gdb -batch -ex "disassemble/rs pl0_nextToken" a.out > tok_dump.c
-  nano tok_dump.c
+  # Profile with Cachegrind
+  valgrind --tool=cachegrind --branch-sim=yes ./a.out 2>/dev/null
+  cg_annotate cachegrind.out.* > cache
+  nano cache
+
+  # Dump the instructions
+  objdump -D a.out > dump
+  nano dump
+
+  # Make a flamegraph
+  #flamegraph ./a.out
 
   # Clean up
-  rm tok_dump.c calls callgrind.out.* 2>/dev/null
+  rm dump calls cache cachegrind.out.* callgrind.out.* 2>/dev/null
   cd ..
 else
   # Build debug

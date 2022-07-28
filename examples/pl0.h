@@ -687,7 +687,7 @@ static inline void pl0_tokenizer_init(pl0_tokenizer* tokenizer, codepoint_t* sta
 #endif
 }
 
-pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
+static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
   codepoint_t* current = tokenizer->start + tokenizer->pos;
   size_t remaining = tokenizer->len - tokenizer->pos;
 

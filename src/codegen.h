@@ -360,7 +360,7 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   int has_trie = trie.accepting.len ? 1 : 0;
   int has_smauts = smauts.len ? 1 : 0;
 
-  cwrite("%s_token %s_nextToken(%s_tokenizer* tokenizer) {\n"
+  cwrite("static inline %s_token %s_nextToken(%s_tokenizer* tokenizer) {\n"
          "  codepoint_t* current = tokenizer->start + tokenizer->pos;\n"
          "  size_t remaining = tokenizer->len - tokenizer->pos;\n\n",
          ctx->lower, ctx->lower, ctx->lower);
