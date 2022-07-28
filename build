@@ -21,10 +21,10 @@ elif [ "$1" = "profile" ]; then
   cd examples/
 
   # Build pl0 tokenizer/parser for profiling
-  cc pl0.c -O3 -march=native -ggdb3
+  cc pl0.c -static -O3 -march=native -ggdb3
 
   # Profile with Callgrind
-  valgrind --tool=callgrind ./a.out 2>/dev/null
+  valgrind --tool=callgrind --collect-jumps=yes --dump-instr=yes ./a.out 2>/dev/null
   callgrind_annotate callgrind.out* > calls
   nano calls
 

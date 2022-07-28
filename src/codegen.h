@@ -604,11 +604,11 @@ static inline void peg_write_directives(codegen_ctx *ctx) {
       if (ctx->args.u) {
         // Falls back to default handler.
         fprintf(stderr,
-                "PGEN error: "
-                "Comment out your %%oom directive to use unsafe codegen.\n");
-      } else {
-        cwrite("#define PGEN_OOM() %s\n", (char *)dir->extra);
+                "PGEN warning: "
+                "Comment out your %%oom directive if you're using unsafe codegen.\n");
       }
+
+      cwrite("#define PGEN_OOM() %s\n", (char *)dir->extra);
       oom_written = 1;
     }
     // %include directive
