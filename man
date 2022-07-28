@@ -1,3 +1,0 @@
-#!/bin/sh
-
-pandoc man.md -s -tman | man -l -
