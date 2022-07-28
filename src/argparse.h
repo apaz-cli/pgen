@@ -29,12 +29,12 @@ static inline Args argparse(int argc, char **argv) {
 
   char exitmsg[] =
       "pgen - A tokenizer and parser generator.\n"
-      "    pgen [OPTION]... INPUT_TOK [INPUT_PEG] [-o OUTPUT_PATH]\n"
-      "  where:\n"
+      "    pgen [OPTION]... INPUT_TOK [INPUT_PEG] [-o OUTPUT_PATH]\n\n"
+      "  Options:\n"
       "    -h, --help               Display this help message and exit.  \n"
-      "    -d, --debug              Display this help message and exit.  \n"
-      "    -t, --tokenizer-debug    Generate an interactive tokenizer.   \n"
-      "    -g, --grammar-debug      Generate an interactive parser.      \n"
+      "    -d, --debug              Generate an interactive parser.      \n"
+      "    -t, --tokenizer-debug    Troubleshoot .tok syntax errors.     \n"
+      "    -g, --grammar-debug      Troubleshoot .peg syntax errors.     \n"
       "    -m, --memdebug           Debug the generated memory allocator.\n"
       "    -u, --unsafe             Don't check for errors. Much faster. \n";
 
@@ -83,12 +83,7 @@ static inline Args argparse(int argc, char **argv) {
     puts(exitmsg);
     exit(0);
   }
-  bool h; // Help
-  bool d; // Debug prompt
-  bool t; // Tokenizer debug prompt
-  bool g; // Grammar debug prompt
-  bool m; // Memory allocator debugging
-  bool u; // Generate Unsafe (but fast) code.
+
   if (!args.tokenizerTarget) {
     puts("Please provide a tokenizer file as an argument.");
     exit(1);

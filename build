@@ -16,7 +16,7 @@ if [ "$1" = "install" ]; then
 elif [ "$1" = "profile" ]; then
   # Build pgen and generate tokenizer and parser.
   cc src/pgen.c -o pgen
-  ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h
+  ./pgen -u examples/pl0.tok examples/pl0.peg -o examples/pl0.h
 
   cd examples/
 
