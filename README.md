@@ -44,29 +44,76 @@ programming language. Embracing this fact opens up the ability to
 effortlessly generate Abstract Syntax Trees.
 
 
-## TODO
-* Provide a warning about left recursion.
-* Implement support in the syntax for error handling.
 
 ## Tokenizer Syntax
-
 ```
 /* Single and multiline C style comments */
 
-/* Literal tokens:
-<uppercase unique name> : <string literal> ;
-*/
+// Literal tokens:
+// <uppercase unique name> : <string literal> ;
+
 CLASS: "class";
 PLUS:  "+";
 
-/*
-: set
+// State machine tokens:
+// <uppercase unique name> : <set of accepting states> {
+//   ( <set of from states> , <on set of characters> ) -> <new state> ;
+//   ...
+// }
 
+// A state machine that parses single line comments.
+SLCOM: (2, 3) {
+  (0, '/') -> 1;
+  (1, '/') -> 2;
+  (2, [^\n]) -> 2;
+  (2, [\n]) -> 3;
+};
+
+/*
+For more details on the grammar of tokenizer files, see `grammar/tok_grammar.peg`.
+For an example tokenizer, see `examples/pl0.tok`.
 */
+```
+
+## Parser Syntax
+```peg
+/* pgen's syntax, written in itself. */
+
+// Operators:
+// /  - Try to match the left side, then try to match the right side. If not ambiguous, Returns the one that matched.
+// &  - Try to parse, perform the match, but rewind back to the starting position.
+// !  - Try to parse, return SUCC if doesn't match and NULL if it does.
+// ?  - Optionally match. Failure to match does not cause the rule to fail.
+// *  - Match zero or more. Returns a list of matches.
+// +  - Match one or more. Returns a list of matches.
+// () - Matches if all expressions within match.
+// {} - Code to insert into the parser. Must return an ASTNode* or NULL to check for match.
+// :  - Capture the info from a match inside the node for the current rule.
+
+// Notes:
+// Instead of using an unbalancing { or } inside a codeexpr, use the macros LB or RB.
+// Instead of using "{" or "}" use the macros LBSTR or RBSTR.
+
+
+grammar <- (directive / definition)*
+
+directive <- PERCENT LOWERIDENT (&(!EOL) WS)* EOL
+
+definition <- LOWERIDENT ARROW slashexpr
+
+slashexpr <- modexprlist (DIV modexprlist)
+
+modexprlist <- modexpr*
+
+modexpr <- (LOWERIDENT COLON)? (AMPERSAND / EXCLAIMATION)* baseexpr (QUESTION / STAR / PLUS)*
+
+baseexpr <- UPPERIDENT
+          / LOWERIDENT !ARROW
+          / CODEEXPR
+          / OPENPAREN slashexpr CLOSEPAREN
 
 ```
 
-The syntax of pg
 
 ## Roadmap
 
@@ -81,6 +128,11 @@ The syntax of pg
 - [x] Parser codegen
 - [x] Error checking
 - [ ] Documentation
+
+
+## TODO
+* Provide a warning about left recursion.
+* Implement support in the syntax for error handling.
 
 
 ## License
