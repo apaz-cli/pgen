@@ -10,6 +10,8 @@
 // TODO: Make sure that labeled ModExprs do not have ModExprLists in them with
 // more than one child.
 
+// TODO: Warn on token definitions not used in the parser.
+
 static inline void validateTokast(Args args, ASTNode *tokast) {
   // Cross compare for duplicate rules.
   // Also make sure that there's no token named STREAMEND.

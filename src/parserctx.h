@@ -129,7 +129,7 @@ static inline void ctx_rule_debug(int status, const char *rulename,
   }
 }
 
-static inline bool ctx_is_current(parser_ctx *ctx, const char *s) {
+static inline int ctx_is_current(parser_ctx *ctx, const char *s) {
   size_t len = strlen(s);
   if (!HAS_REMAINING(len))
     return 0;

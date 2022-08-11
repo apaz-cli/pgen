@@ -394,7 +394,8 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   // Inner loop (automaton, unrolled)
   // Trie aut
   if (has_trie) {
-    cwrite("    // Trie\n");
+    if (!ctx->args.u)
+      cwrite("    // Trie\n");
     cwrite("    if (trie_state != -1) {\n");
     cwrite("      all_dead = 0;\n");
 
@@ -430,7 +431,8 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
     cwrite("      }\n\n");
 
     eels = 0;
-    cwrite("      // Check accept\n");
+    if (!ctx->args.u)
+      cwrite("      // Check accept\n");
     for (size_t i = 0; i < trie.accepting.len; i++) {
       cwrite("      %sif (trie_state == %i) {\n", eels++ ? "else " : "",
              trie.accepting.buf[i].num);
@@ -446,7 +448,8 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   if (has_smauts) {
     for (size_t a = 0; a < smauts.len; a++) {
       SMAutomaton aut = smauts.buf[a];
-      cwrite("    // Transition %s State Machine\n", aut.ident);
+      if (!ctx->args.u)
+        cwrite("    // Transition %s State Machine\n", aut.ident);
       cwrite("    if (smaut_state_%zu != -1) {\n", a);
       cwrite("      all_dead = 0;\n\n");
 
@@ -468,7 +471,8 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
       cwrite("        smaut_state_%zu = -1;\n", a);
       cwrite("      }\n\n");
 
-      cwrite("      // Check accept\n");
+      if (!ctx->args.u)
+        cwrite("      // Check accept\n");
 
       cwrite("      if (");
       tok_write_statecheck(ctx, a, aut.accepting);
@@ -483,7 +487,8 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   cwrite("      break;\n");
   cwrite("  }\n\n"); // For each remaining character
 
-  cwrite("  // Determine what token was accepted, if any.\n");
+  if (!ctx->args.u)
+    cwrite("  // Determine what token was accepted, if any.\n");
   cwrite("  %s_token_kind kind = %s_TOK_STREAMEND;\n", ctx->lower, ctx->upper);
   cwrite("  size_t max_munch = 0;\n");
   if (has_smauts) {
@@ -603,9 +608,9 @@ static inline void peg_write_directives(codegen_ctx *ctx) {
 
       if (ctx->args.u) {
         // Falls back to default handler.
-        fprintf(stderr,
-                "PGEN warning: "
-                "Comment out your %%oom directive if you're using unsafe codegen.\n");
+        fprintf(stderr, "PGEN warning: "
+                        "Comment out your %%oom directive if you're using "
+                        "unsafe codegen.\n");
       }
 
       cwrite("#define PGEN_OOM() %s\n", (char *)dir->extra);
@@ -1000,10 +1005,12 @@ static inline void end_block_0(codegen_ctx *ctx) {
 }
 #define comment(...)                                                           \
   do {                                                                         \
-    indent(ctx);                                                               \
-    cwrite("// ");                                                             \
-    cwrite(__VA_ARGS__);                                                       \
-    cwrite("\n");                                                              \
+    if (!ctx->args.u) {                                                        \
+      indent(ctx);                                                             \
+      cwrite("// ");                                                           \
+      cwrite(__VA_ARGS__);                                                     \
+      cwrite("\n");                                                            \
+    }                                                                          \
   } while (0)
 
 #define iwrite(...)                                                            \
@@ -1186,7 +1193,7 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
 
       end_block(ctx);
     }
-    iwrite("// SlashExpr end\n");
+    comment("SlashExpr end");
     iwrite("if (!expr_ret_%zu) rew(slash_%zu);\n", ret, ret);
     iwrite("expr_ret_%zu = expr_ret_%zu;\n\n", ret_to, ret);
 
@@ -1208,7 +1215,7 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       }
     }
 
-    iwrite("// ModExprList end\n");
+    comment("ModExprList end");
     iwrite("if (!expr_ret_%zu) rew(mod_%zu);\n", ret, ret);
     if (expr->num_children == 1) {
       iwrite("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
@@ -1276,17 +1283,17 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
 
     // Apply optional/inverted to ret
     if (opts.optional) {
-      iwrite("// optional\n");
+      comment("optional");
       iwrite("if (!expr_ret_%zu)\n", ret);
       iwrite("  expr_ret_%zu = SUCC;\n", ret);
     } else if (opts.inverted) {
-      iwrite("// invert\n");
+      comment("invert");
       iwrite("expr_ret_%zu = expr_ret_%zu ? NULL : SUCC;\n", ret, ret);
     }
 
     // Rewind if applicable
     if (opts.rewinds) {
-      iwrite("// rewind\n");
+      comment("rewind");
       iwrite("rew(mexpr_state_%zu);\n", ret);
     }
 
@@ -1309,12 +1316,15 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
            tokname);
     start_block_0(ctx);
     if (capture) {
-      iwrite("// Capturing %s.\n", tokname);
+      if (!ctx->args.u)
+        comment("Capturing %s.", tokname);
       iwrite("expr_ret_%zu = leaf(%s);\n", ret_to, tokname);
       // Make sure that it actually exists and the code will compile.
       peg_ensure_kind(ctx, tokname);
     } else {
-      iwrite("expr_ret_%zu = SUCC; // Not capturing %s.\n", ret_to, tokname);
+      if (!ctx->args.u)
+        comment("Not capturing %s.", tokname);
+      iwrite("expr_ret_%zu = SUCC;\n", ret_to);
     }
     iwrite("ctx->pos++;\n");
     end_block_0(ctx);
