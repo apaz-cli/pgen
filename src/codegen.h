@@ -220,20 +220,24 @@ static inline void tok_write_enum(codegen_ctx *ctx) {
   cwrite("typedef enum {\n");
 
   size_t num_defs = ctx->tokast->num_children;
-  cwrite("  %s_TOK_STREAMEND,\n", ctx->upper);
+  cwrite("  %s_TOK_STREAMBEGIN,\n  %s_TOK_STREAMEND,\n", ctx->upper,
+         ctx->upper);
   for (size_t i = 0; i < num_defs; i++)
     cwrite("  %s_TOK_%s,\n", ctx->upper,
            (char *)(ctx->tokast->children[i]->children[0]->extra));
 
   cwrite("} %s_token_kind;\n\n", ctx->lower);
 
-  cwrite("// The 0th token is end of stream.\n// Tokens 1 through %zu are the "
-         "ones you defined.\n// This totals %zu kinds of tokens.\n",
-         num_defs, num_defs + 1);
-  cwrite("#define %s_NUM_TOKENKINDS %zu\n", ctx->upper, num_defs + 1);
-  cwrite("static const char* %s_tokenkind_name[%s_NUM_TOKENKINDS] = {\n  "
-         "\"%s_TOK_STREAMEND\",\n",
-         ctx->lower, ctx->upper, ctx->upper);
+  cwrite("// The 0th token is beginning of stream.\n"
+         "// The 1st token isend of stream.\n"
+         "// Tokens 1 through %zu are the ones you defined.\n"
+         "// This totals %zu kinds of tokens.\n",
+         num_defs, num_defs + 2);
+  cwrite("#define %s_NUM_TOKENKINDS %zu\n", ctx->upper, num_defs + 2);
+  cwrite("static const char* %s_tokenkind_name[%s_NUM_TOKENKINDS] = {\n"
+         "  \"%s_TOK_STREAMBEGIN\",\n"
+         "  \"%s_TOK_STREAMEND\",\n",
+         ctx->lower, ctx->upper, ctx->upper, ctx->upper);
   for (size_t i = 0; i < num_defs; i++)
     cwrite("  \"%s_TOK_%s\",\n", ctx->upper,
            (char *)(ctx->tokast->children[i]->children[0]->extra));

@@ -572,6 +572,7 @@ static inline void pgen_allocator_rewind(pgen_allocator *allocator,
 #endif
 
 typedef enum {
+  PL0_TOK_STREAMBEGIN,
   PL0_TOK_STREAMEND,
   PL0_TOK_EQ,
   PL0_TOK_CEQ,
@@ -608,11 +609,13 @@ typedef enum {
   PL0_TOK_SLCOM,
 } pl0_token_kind;
 
-// The 0th token is end of stream.
+// The 0th token is beginning of stream.
+// The 1st token isend of stream.
 // Tokens 1 through 33 are the ones you defined.
-// This totals 34 kinds of tokens.
-#define PL0_NUM_TOKENKINDS 34
+// This totals 35 kinds of tokens.
+#define PL0_NUM_TOKENKINDS 35
 static const char* pl0_tokenkind_name[PL0_NUM_TOKENKINDS] = {
+  "PL0_TOK_STREAMBEGIN",
   "PL0_TOK_STREAMEND",
   "PL0_TOK_EQ",
   "PL0_TOK_CEQ",
@@ -709,6 +712,7 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
     codepoint_t c = current[iidx];
     int all_dead = 1;
 
+    // Trie
     if (trie_state != -1) {
       all_dead = 0;
       if (trie_state == 0) {
@@ -900,6 +904,7 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         trie_state = -1;
       }
 
+      // Check accept
       if (trie_state == 1) {
         trie_tokenkind =  PL0_TOK_EQ;
         trie_munch_size = iidx + 1;
@@ -1014,6 +1019,7 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       }
     }
 
+    // Transition IDENT State Machine
     if (smaut_state_0 != -1) {
       all_dead = 0;
 
@@ -1029,11 +1035,13 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         smaut_state_0 = -1;
       }
 
+      // Check accept
       if ((smaut_state_0 == 1) | (smaut_state_0 == 2)) {
         smaut_munch_size_0 = iidx + 1;
       }
     }
 
+    // Transition NUM State Machine
     if (smaut_state_1 != -1) {
       all_dead = 0;
 
@@ -1049,11 +1057,13 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         smaut_state_1 = -1;
       }
 
+      // Check accept
       if (smaut_state_1 == 2) {
         smaut_munch_size_1 = iidx + 1;
       }
     }
 
+    // Transition WS State Machine
     if (smaut_state_2 != -1) {
       all_dead = 0;
 
@@ -1065,11 +1075,13 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         smaut_state_2 = -1;
       }
 
+      // Check accept
       if (smaut_state_2 == 1) {
         smaut_munch_size_2 = iidx + 1;
       }
     }
 
+    // Transition MLCOM State Machine
     if (smaut_state_3 != -1) {
       all_dead = 0;
 
@@ -1105,11 +1117,13 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         smaut_state_3 = -1;
       }
 
+      // Check accept
       if (smaut_state_3 == 4) {
         smaut_munch_size_3 = iidx + 1;
       }
     }
 
+    // Transition SLCOM State Machine
     if (smaut_state_4 != -1) {
       all_dead = 0;
 
@@ -1133,6 +1147,7 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
         smaut_state_4 = -1;
       }
 
+      // Check accept
       if ((smaut_state_4 == 2) | (smaut_state_4 == 3)) {
         smaut_munch_size_4 = iidx + 1;
       }
@@ -1142,6 +1157,7 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       break;
   }
 
+  // Determine what token was accepted, if any.
   pl0_token_kind kind = PL0_TOK_STREAMEND;
   size_t max_munch = 0;
   if (smaut_munch_size_4 >= max_munch) {
@@ -1301,11 +1317,14 @@ static inline pl0_astnode_t* pl0_astnode_list(
   char* ret = pgen_alloc(alloc,
                          sizeof(pl0_astnode_t),
                          _Alignof(pl0_astnode_t));
+  if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t*)ret;
 
   pl0_astnode_t **children;
   if (initial_size) {
     children = (pl0_astnode_t**)malloc(sizeof(pl0_astnode_t*) * initial_size);
+    if (!children)
+      PGEN_OOM();
     pgen_defer(alloc, free, children, alloc->rew);
   } else {
     children = NULL;
@@ -1325,6 +1344,7 @@ static inline pl0_astnode_t* pl0_astnode_leaf(
   char* ret = pgen_alloc(alloc,
                          sizeof(pl0_astnode_t),
                          _Alignof(pl0_astnode_t));
+  if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t *children = NULL;
   node->kind = kind;
@@ -1343,6 +1363,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_1(
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 1,
                                         _Alignof(pl0_astnode_t));
+  if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
@@ -1363,6 +1384,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_2(
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 2,
                                         _Alignof(pl0_astnode_t));
+  if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
@@ -1385,6 +1407,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_3(
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 3,
                                         _Alignof(pl0_astnode_t));
+  if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
@@ -1409,6 +1432,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_4(
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 4,
                                         _Alignof(pl0_astnode_t));
+  if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
@@ -1435,6 +1459,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_5(
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 5,
                                         _Alignof(pl0_astnode_t));
+  if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
@@ -1455,6 +1480,8 @@ static inline void pl0_astnode_add(pgen_allocator* alloc, pl0_astnode_t *list, p
     size_t new_max = list->max_children * 2;
     void* old_ptr = list->children;
     void* new_ptr = realloc(list->children, new_max);
+    if (!new_ptr)
+      PGEN_OOM();
     list->children = (pl0_astnode_t **)new_ptr;
     list->max_children = new_max;
     pgen_allocator_realloced(alloc, old_ptr, new_ptr, free);
@@ -1520,7 +1547,9 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
 
   pl0_astnode_t* expr_ret_2 = NULL;
   rec(mod_2);
+  // ModExprList 0
   {
+    // CodeExpr
     #define ret expr_ret_2
     ret = SUCC;
 
@@ -1529,6 +1558,7 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
     #undef ret
   }
 
+  // ModExprList 1
   if (expr_ret_2)
   {
     pl0_astnode_t* expr_ret_3 = NULL;
@@ -1537,6 +1567,7 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
     {
       pl0_astnode_t* expr_ret_4 = NULL;
       rec(mod_4);
+      // ModExprList 0
       {
         pl0_astnode_t* expr_ret_5 = NULL;
         expr_ret_5 = pl0_parse_block(ctx);
@@ -1544,8 +1575,10 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
         b = expr_ret_5;
       }
 
+      // ModExprList 1
       if (expr_ret_4)
       {
+        // CodeExpr
         #define ret expr_ret_4
         ret = SUCC;
 
@@ -1554,6 +1587,7 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
         #undef ret
       }
 
+      // ModExprList end
       if (!expr_ret_4) rew(mod_4);
       expr_ret_3 = expr_ret_4 ? SUCC : NULL;
     }
@@ -1562,9 +1596,11 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
     expr_ret_2 = expr_ret_3;
   }
 
+  // ModExprList 2
   if (expr_ret_2)
   {
     if (ctx->tokens[ctx->pos].kind == PL0_TOK_DOT) {
+      // Not capturing DOT.
       expr_ret_2 = SUCC;
       ctx->pos++;
     } else {
@@ -1573,6 +1609,7 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
 
   }
 
+  // ModExprList end
   if (!expr_ret_2) rew(mod_2);
   expr_ret_1 = expr_ret_2 ? SUCC : NULL;
   return expr_ret_1 ? rule : NULL;
@@ -1591,12 +1628,15 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
 
   rec(slash_8);
 
+  // SlashExpr 0
   if (!expr_ret_8)
   {
     pl0_astnode_t* expr_ret_9 = NULL;
     rec(mod_9);
+    // ModExprList 0
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_VAR) {
+        // Not capturing VAR.
         expr_ret_9 = SUCC;
         ctx->pos++;
       } else {
@@ -1605,8 +1645,10 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList 1
     if (expr_ret_9)
     {
+      // CodeExpr
       #define ret expr_ret_9
       ret = SUCC;
 
@@ -1615,10 +1657,12 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList 2
     if (expr_ret_9)
     {
       pl0_astnode_t* expr_ret_10 = NULL;
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
+        // Capturing IDENT.
         expr_ret_10 = leaf(IDENT);
         ctx->pos++;
       } else {
@@ -1629,8 +1673,10 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       i = expr_ret_10;
     }
 
+    // ModExprList 3
     if (expr_ret_9)
     {
+      // CodeExpr
       #define ret expr_ret_9
       ret = SUCC;
 
@@ -1639,6 +1685,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList 4
     if (expr_ret_9)
     {
       pl0_astnode_t* expr_ret_11 = NULL;
@@ -1647,8 +1694,10 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       {
         pl0_astnode_t* expr_ret_12 = NULL;
         rec(mod_12);
+        // ModExprList 0
         {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_COMMA) {
+            // Not capturing COMMA.
             expr_ret_12 = SUCC;
             ctx->pos++;
           } else {
@@ -1657,10 +1706,12 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
 
         }
 
+        // ModExprList 1
         if (expr_ret_12)
         {
           pl0_astnode_t* expr_ret_13 = NULL;
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
+            // Capturing IDENT.
             expr_ret_13 = leaf(IDENT);
             ctx->pos++;
           } else {
@@ -1671,8 +1722,10 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
           i = expr_ret_13;
         }
 
+        // ModExprList 2
         if (expr_ret_12)
         {
+          // CodeExpr
           #define ret expr_ret_12
           ret = SUCC;
 
@@ -1681,6 +1734,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
           #undef ret
         }
 
+        // ModExprList end
         if (!expr_ret_12) rew(mod_12);
         expr_ret_11 = expr_ret_12 ? SUCC : NULL;
       }
@@ -1689,9 +1743,11 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       expr_ret_9 = expr_ret_11;
     }
 
+    // ModExprList 5
     if (expr_ret_9)
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_SEMI) {
+        // Not capturing SEMI.
         expr_ret_9 = SUCC;
         ctx->pos++;
       } else {
@@ -1700,16 +1756,20 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList end
     if (!expr_ret_9) rew(mod_9);
     expr_ret_8 = expr_ret_9 ? SUCC : NULL;
   }
 
+  // SlashExpr 1
   if (!expr_ret_8)
   {
     pl0_astnode_t* expr_ret_14 = NULL;
     rec(mod_14);
+    // ModExprList 0
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_CONST) {
+        // Not capturing CONST.
         expr_ret_14 = SUCC;
         ctx->pos++;
       } else {
@@ -1718,8 +1778,10 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList 1
     if (expr_ret_14)
     {
+      // CodeExpr
       #define ret expr_ret_14
       ret = SUCC;
 
@@ -1728,10 +1790,12 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList 2
     if (expr_ret_14)
     {
       pl0_astnode_t* expr_ret_15 = NULL;
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
+        // Capturing IDENT.
         expr_ret_15 = leaf(IDENT);
         ctx->pos++;
       } else {
@@ -1742,9 +1806,11 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       i = expr_ret_15;
     }
 
+    // ModExprList 3
     if (expr_ret_14)
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_EQ) {
+        // Not capturing EQ.
         expr_ret_14 = SUCC;
         ctx->pos++;
       } else {
@@ -1753,10 +1819,12 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList 4
     if (expr_ret_14)
     {
       pl0_astnode_t* expr_ret_16 = NULL;
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_NUM) {
+        // Capturing NUM.
         expr_ret_16 = leaf(NUM);
         ctx->pos++;
       } else {
@@ -1767,8 +1835,10 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       n = expr_ret_16;
     }
 
+    // ModExprList 5
     if (expr_ret_14)
     {
+      // CodeExpr
       #define ret expr_ret_14
       ret = SUCC;
 
@@ -1777,6 +1847,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList 6
     if (expr_ret_14)
     {
       pl0_astnode_t* expr_ret_17 = NULL;
@@ -1785,8 +1856,10 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       {
         pl0_astnode_t* expr_ret_18 = NULL;
         rec(mod_18);
+        // ModExprList 0
         {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_COMMA) {
+            // Not capturing COMMA.
             expr_ret_18 = SUCC;
             ctx->pos++;
           } else {
@@ -1795,10 +1868,12 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
 
         }
 
+        // ModExprList 1
         if (expr_ret_18)
         {
           pl0_astnode_t* expr_ret_19 = NULL;
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
+            // Capturing IDENT.
             expr_ret_19 = leaf(IDENT);
             ctx->pos++;
           } else {
@@ -1809,10 +1884,12 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
           i = expr_ret_19;
         }
 
+        // ModExprList 2
         if (expr_ret_18)
         {
           pl0_astnode_t* expr_ret_20 = NULL;
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_EQ) {
+            // Capturing EQ.
             expr_ret_20 = leaf(EQ);
             ctx->pos++;
           } else {
@@ -1823,10 +1900,12 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
           e = expr_ret_20;
         }
 
+        // ModExprList 3
         if (expr_ret_18)
         {
           pl0_astnode_t* expr_ret_21 = NULL;
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_NUM) {
+            // Capturing NUM.
             expr_ret_21 = leaf(NUM);
             ctx->pos++;
           } else {
@@ -1837,8 +1916,10 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
           n = expr_ret_21;
         }
 
+        // ModExprList 4
         if (expr_ret_18)
         {
+          // CodeExpr
           #define ret expr_ret_18
           ret = SUCC;
 
@@ -1847,6 +1928,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
           #undef ret
         }
 
+        // ModExprList end
         if (!expr_ret_18) rew(mod_18);
         expr_ret_17 = expr_ret_18 ? SUCC : NULL;
       }
@@ -1855,9 +1937,11 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       expr_ret_14 = expr_ret_17;
     }
 
+    // ModExprList 7
     if (expr_ret_14)
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_SEMI) {
+        // Not capturing SEMI.
         expr_ret_14 = SUCC;
         ctx->pos++;
       } else {
@@ -1866,10 +1950,12 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList end
     if (!expr_ret_14) rew(mod_14);
     expr_ret_8 = expr_ret_14 ? SUCC : NULL;
   }
 
+  // SlashExpr end
   if (!expr_ret_8) rew(slash_8);
   expr_ret_7 = expr_ret_8;
 
@@ -1889,10 +1975,12 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
 
   rec(slash_24);
 
+  // SlashExpr 0
   if (!expr_ret_24)
   {
     pl0_astnode_t* expr_ret_25 = NULL;
     rec(mod_25);
+    // ModExprList 0
     {
       pl0_astnode_t* expr_ret_26 = NULL;
       expr_ret_26 = pl0_parse_vdef(ctx);
@@ -1900,8 +1988,10 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       v = expr_ret_26;
     }
 
+    // ModExprList 1
     if (expr_ret_25)
     {
+      // CodeExpr
       #define ret expr_ret_25
       ret = SUCC;
 
@@ -1910,15 +2000,19 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList end
     if (!expr_ret_25) rew(mod_25);
     expr_ret_24 = expr_ret_25 ? SUCC : NULL;
   }
 
+  // SlashExpr 1
   if (!expr_ret_24)
   {
     pl0_astnode_t* expr_ret_27 = NULL;
     rec(mod_27);
+    // ModExprList 0
     {
+      // CodeExpr
       #define ret expr_ret_27
       ret = SUCC;
 
@@ -1927,6 +2021,7 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList 1
     if (expr_ret_27)
     {
       pl0_astnode_t* expr_ret_28 = NULL;
@@ -1935,8 +2030,10 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       {
         pl0_astnode_t* expr_ret_29 = NULL;
         rec(mod_29);
+        // ModExprList 0
         {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_PROC) {
+            // Not capturing PROC.
             expr_ret_29 = SUCC;
             ctx->pos++;
           } else {
@@ -1945,10 +2042,12 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
 
         }
 
+        // ModExprList 1
         if (expr_ret_29)
         {
           pl0_astnode_t* expr_ret_30 = NULL;
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
+            // Capturing IDENT.
             expr_ret_30 = leaf(IDENT);
             ctx->pos++;
           } else {
@@ -1959,9 +2058,11 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
           i = expr_ret_30;
         }
 
+        // ModExprList 2
         if (expr_ret_29)
         {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_SEMI) {
+            // Not capturing SEMI.
             expr_ret_29 = SUCC;
             ctx->pos++;
           } else {
@@ -1970,18 +2071,22 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
 
         }
 
+        // ModExprList 3
         if (expr_ret_29)
         {
           pl0_astnode_t* expr_ret_31 = NULL;
           expr_ret_31 = pl0_parse_vdef(ctx);
+          // optional
           if (!expr_ret_31)
             expr_ret_31 = SUCC;
           expr_ret_29 = expr_ret_31;
           v = expr_ret_31;
         }
 
+        // ModExprList 4
         if (expr_ret_29)
         {
+          // CodeExpr
           #define ret expr_ret_29
           ret = SUCC;
 
@@ -1990,6 +2095,7 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
           #undef ret
         }
 
+        // ModExprList end
         if (!expr_ret_29) rew(mod_29);
         expr_ret_28 = expr_ret_29 ? SUCC : NULL;
       }
@@ -1998,6 +2104,7 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       expr_ret_27 = expr_ret_28;
     }
 
+    // ModExprList 2
     if (expr_ret_27)
     {
       pl0_astnode_t* expr_ret_32 = NULL;
@@ -2006,8 +2113,10 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       s = expr_ret_32;
     }
 
+    // ModExprList 3
     if (expr_ret_27)
     {
+      // CodeExpr
       #define ret expr_ret_27
       ret = SUCC;
 
@@ -2016,9 +2125,11 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList 4
     if (expr_ret_27)
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_SEMI) {
+        // Not capturing SEMI.
         expr_ret_27 = SUCC;
         ctx->pos++;
       } else {
@@ -2027,10 +2138,12 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList end
     if (!expr_ret_27) rew(mod_27);
     expr_ret_24 = expr_ret_27 ? SUCC : NULL;
   }
 
+  // SlashExpr end
   if (!expr_ret_24) rew(slash_24);
   expr_ret_23 = expr_ret_24;
 
@@ -2052,13 +2165,16 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
 
   rec(slash_35);
 
+  // SlashExpr 0
   if (!expr_ret_35)
   {
     pl0_astnode_t* expr_ret_36 = NULL;
     rec(mod_36);
+    // ModExprList 0
     {
       pl0_astnode_t* expr_ret_37 = NULL;
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
+        // Capturing IDENT.
         expr_ret_37 = leaf(IDENT);
         ctx->pos++;
       } else {
@@ -2069,10 +2185,12 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       id = expr_ret_37;
     }
 
+    // ModExprList 1
     if (expr_ret_36)
     {
       pl0_astnode_t* expr_ret_38 = NULL;
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_CEQ) {
+        // Capturing CEQ.
         expr_ret_38 = leaf(CEQ);
         ctx->pos++;
       } else {
@@ -2083,6 +2201,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       ceq = expr_ret_38;
     }
 
+    // ModExprList 2
     if (expr_ret_36)
     {
       pl0_astnode_t* expr_ret_39 = NULL;
@@ -2091,8 +2210,10 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       e = expr_ret_39;
     }
 
+    // ModExprList 3
     if (expr_ret_36)
     {
+      // CodeExpr
       #define ret expr_ret_36
       ret = SUCC;
 
@@ -2101,16 +2222,20 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList end
     if (!expr_ret_36) rew(mod_36);
     expr_ret_35 = expr_ret_36 ? SUCC : NULL;
   }
 
+  // SlashExpr 1
   if (!expr_ret_35)
   {
     pl0_astnode_t* expr_ret_40 = NULL;
     rec(mod_40);
+    // ModExprList 0
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_CALL) {
+        // Not capturing CALL.
         expr_ret_40 = SUCC;
         ctx->pos++;
       } else {
@@ -2119,10 +2244,12 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList 1
     if (expr_ret_40)
     {
       pl0_astnode_t* expr_ret_41 = NULL;
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
+        // Capturing IDENT.
         expr_ret_41 = leaf(IDENT);
         ctx->pos++;
       } else {
@@ -2133,8 +2260,10 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       id = expr_ret_41;
     }
 
+    // ModExprList 2
     if (expr_ret_40)
     {
+      // CodeExpr
       #define ret expr_ret_40
       ret = SUCC;
 
@@ -2143,16 +2272,20 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList end
     if (!expr_ret_40) rew(mod_40);
     expr_ret_35 = expr_ret_40 ? SUCC : NULL;
   }
 
+  // SlashExpr 2
   if (!expr_ret_35)
   {
     pl0_astnode_t* expr_ret_42 = NULL;
     rec(mod_42);
+    // ModExprList 0
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_WRITE) {
+        // Not capturing WRITE.
         expr_ret_42 = SUCC;
         ctx->pos++;
       } else {
@@ -2161,10 +2294,12 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList 1
     if (expr_ret_42)
     {
       pl0_astnode_t* expr_ret_43 = NULL;
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
+        // Capturing IDENT.
         expr_ret_43 = leaf(IDENT);
         ctx->pos++;
       } else {
@@ -2175,8 +2310,10 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       id = expr_ret_43;
     }
 
+    // ModExprList 2
     if (expr_ret_42)
     {
+      // CodeExpr
       #define ret expr_ret_42
       ret = SUCC;
 
@@ -2185,16 +2322,20 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList end
     if (!expr_ret_42) rew(mod_42);
     expr_ret_35 = expr_ret_42 ? SUCC : NULL;
   }
 
+  // SlashExpr 3
   if (!expr_ret_35)
   {
     pl0_astnode_t* expr_ret_44 = NULL;
     rec(mod_44);
+    // ModExprList 0
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_BEGIN) {
+        // Not capturing BEGIN.
         expr_ret_44 = SUCC;
         ctx->pos++;
       } else {
@@ -2203,8 +2344,10 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList 1
     if (expr_ret_44)
     {
+      // CodeExpr
       #define ret expr_ret_44
       ret = SUCC;
 
@@ -2213,6 +2356,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList 2
     if (expr_ret_44)
     {
       pl0_astnode_t* expr_ret_45 = NULL;
@@ -2221,8 +2365,10 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       smt = expr_ret_45;
     }
 
+    // ModExprList 3
     if (expr_ret_44)
     {
+      // CodeExpr
       #define ret expr_ret_44
       ret = SUCC;
 
@@ -2231,6 +2377,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList 4
     if (expr_ret_44)
     {
       pl0_astnode_t* expr_ret_46 = NULL;
@@ -2239,8 +2386,10 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       {
         pl0_astnode_t* expr_ret_47 = NULL;
         rec(mod_47);
+        // ModExprList 0
         {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_SEMI) {
+            // Not capturing SEMI.
             expr_ret_47 = SUCC;
             ctx->pos++;
           } else {
@@ -2249,6 +2398,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
 
         }
 
+        // ModExprList 1
         if (expr_ret_47)
         {
           pl0_astnode_t* expr_ret_48 = NULL;
@@ -2257,8 +2407,10 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
           smt = expr_ret_48;
         }
 
+        // ModExprList 2
         if (expr_ret_47)
         {
+          // CodeExpr
           #define ret expr_ret_47
           ret = SUCC;
 
@@ -2267,6 +2419,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
           #undef ret
         }
 
+        // ModExprList end
         if (!expr_ret_47) rew(mod_47);
         expr_ret_46 = expr_ret_47 ? SUCC : NULL;
       }
@@ -2275,9 +2428,11 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       expr_ret_44 = expr_ret_46;
     }
 
+    // ModExprList 5
     if (expr_ret_44)
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_END) {
+        // Not capturing END.
         expr_ret_44 = SUCC;
         ctx->pos++;
       } else {
@@ -2286,16 +2441,20 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList end
     if (!expr_ret_44) rew(mod_44);
     expr_ret_35 = expr_ret_44 ? SUCC : NULL;
   }
 
+  // SlashExpr 4
   if (!expr_ret_35)
   {
     pl0_astnode_t* expr_ret_49 = NULL;
     rec(mod_49);
+    // ModExprList 0
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_IF) {
+        // Not capturing IF.
         expr_ret_49 = SUCC;
         ctx->pos++;
       } else {
@@ -2304,6 +2463,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList 1
     if (expr_ret_49)
     {
       pl0_astnode_t* expr_ret_50 = NULL;
@@ -2312,9 +2472,11 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       c = expr_ret_50;
     }
 
+    // ModExprList 2
     if (expr_ret_49)
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_THEN) {
+        // Not capturing THEN.
         expr_ret_49 = SUCC;
         ctx->pos++;
       } else {
@@ -2323,6 +2485,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList 3
     if (expr_ret_49)
     {
       pl0_astnode_t* expr_ret_51 = NULL;
@@ -2331,8 +2494,10 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       smt = expr_ret_51;
     }
 
+    // ModExprList 4
     if (expr_ret_49)
     {
+      // CodeExpr
       #define ret expr_ret_49
       ret = SUCC;
 
@@ -2341,16 +2506,20 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList end
     if (!expr_ret_49) rew(mod_49);
     expr_ret_35 = expr_ret_49 ? SUCC : NULL;
   }
 
+  // SlashExpr 5
   if (!expr_ret_35)
   {
     pl0_astnode_t* expr_ret_52 = NULL;
     rec(mod_52);
+    // ModExprList 0
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_WHILE) {
+        // Not capturing WHILE.
         expr_ret_52 = SUCC;
         ctx->pos++;
       } else {
@@ -2359,6 +2528,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList 1
     if (expr_ret_52)
     {
       pl0_astnode_t* expr_ret_53 = NULL;
@@ -2367,9 +2537,11 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       c = expr_ret_53;
     }
 
+    // ModExprList 2
     if (expr_ret_52)
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_DO) {
+        // Not capturing DO.
         expr_ret_52 = SUCC;
         ctx->pos++;
       } else {
@@ -2378,6 +2550,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList 3
     if (expr_ret_52)
     {
       pl0_astnode_t* expr_ret_54 = NULL;
@@ -2386,8 +2559,10 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       smt = expr_ret_54;
     }
 
+    // ModExprList 4
     if (expr_ret_52)
     {
+      // CodeExpr
       #define ret expr_ret_52
       ret = SUCC;
 
@@ -2396,10 +2571,12 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList end
     if (!expr_ret_52) rew(mod_52);
     expr_ret_35 = expr_ret_52 ? SUCC : NULL;
   }
 
+  // SlashExpr end
   if (!expr_ret_35) rew(slash_35);
   expr_ret_34 = expr_ret_35;
 
@@ -2419,12 +2596,15 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
 
   rec(slash_57);
 
+  // SlashExpr 0
   if (!expr_ret_57)
   {
     pl0_astnode_t* expr_ret_58 = NULL;
     rec(mod_58);
+    // ModExprList 0
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_ODD) {
+        // Not capturing ODD.
         expr_ret_58 = SUCC;
         ctx->pos++;
       } else {
@@ -2433,6 +2613,7 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList 1
     if (expr_ret_58)
     {
       pl0_astnode_t* expr_ret_59 = NULL;
@@ -2441,8 +2622,10 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
       ex = expr_ret_59;
     }
 
+    // ModExprList 2
     if (expr_ret_58)
     {
+      // CodeExpr
       #define ret expr_ret_58
       ret = SUCC;
 
@@ -2451,14 +2634,17 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList end
     if (!expr_ret_58) rew(mod_58);
     expr_ret_57 = expr_ret_58 ? SUCC : NULL;
   }
 
+  // SlashExpr 1
   if (!expr_ret_57)
   {
     pl0_astnode_t* expr_ret_60 = NULL;
     rec(mod_60);
+    // ModExprList 0
     {
       pl0_astnode_t* expr_ret_61 = NULL;
       expr_ret_61 = pl0_parse_expression(ctx);
@@ -2466,6 +2652,7 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
       ex = expr_ret_61;
     }
 
+    // ModExprList 1
     if (expr_ret_60)
     {
       pl0_astnode_t* expr_ret_62 = NULL;
@@ -2473,96 +2660,121 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
 
       rec(slash_63);
 
+      // SlashExpr 0
       if (!expr_ret_63)
       {
         pl0_astnode_t* expr_ret_64 = NULL;
         rec(mod_64);
+        // ModExprList Forwarding
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_EQ) {
+          // Capturing EQ.
           expr_ret_64 = leaf(EQ);
           ctx->pos++;
         } else {
           expr_ret_64 = NULL;
         }
 
+        // ModExprList end
         if (!expr_ret_64) rew(mod_64);
         expr_ret_63 = expr_ret_64;
       }
 
+      // SlashExpr 1
       if (!expr_ret_63)
       {
         pl0_astnode_t* expr_ret_65 = NULL;
         rec(mod_65);
+        // ModExprList Forwarding
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_HASH) {
+          // Capturing HASH.
           expr_ret_65 = leaf(HASH);
           ctx->pos++;
         } else {
           expr_ret_65 = NULL;
         }
 
+        // ModExprList end
         if (!expr_ret_65) rew(mod_65);
         expr_ret_63 = expr_ret_65;
       }
 
+      // SlashExpr 2
       if (!expr_ret_63)
       {
         pl0_astnode_t* expr_ret_66 = NULL;
         rec(mod_66);
+        // ModExprList Forwarding
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_LT) {
+          // Capturing LT.
           expr_ret_66 = leaf(LT);
           ctx->pos++;
         } else {
           expr_ret_66 = NULL;
         }
 
+        // ModExprList end
         if (!expr_ret_66) rew(mod_66);
         expr_ret_63 = expr_ret_66;
       }
 
+      // SlashExpr 3
       if (!expr_ret_63)
       {
         pl0_astnode_t* expr_ret_67 = NULL;
         rec(mod_67);
+        // ModExprList Forwarding
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_LEQ) {
+          // Capturing LEQ.
           expr_ret_67 = leaf(LEQ);
           ctx->pos++;
         } else {
           expr_ret_67 = NULL;
         }
 
+        // ModExprList end
         if (!expr_ret_67) rew(mod_67);
         expr_ret_63 = expr_ret_67;
       }
 
+      // SlashExpr 4
       if (!expr_ret_63)
       {
         pl0_astnode_t* expr_ret_68 = NULL;
         rec(mod_68);
+        // ModExprList Forwarding
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_GT) {
+          // Capturing GT.
           expr_ret_68 = leaf(GT);
           ctx->pos++;
         } else {
           expr_ret_68 = NULL;
         }
 
+        // ModExprList end
         if (!expr_ret_68) rew(mod_68);
         expr_ret_63 = expr_ret_68;
       }
 
+      // SlashExpr 5
       if (!expr_ret_63)
       {
         pl0_astnode_t* expr_ret_69 = NULL;
         rec(mod_69);
+        // ModExprList Forwarding
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_GEQ) {
+          // Capturing GEQ.
           expr_ret_69 = leaf(GEQ);
           ctx->pos++;
         } else {
           expr_ret_69 = NULL;
         }
 
+        // ModExprList end
         if (!expr_ret_69) rew(mod_69);
         expr_ret_63 = expr_ret_69;
       }
 
+      // SlashExpr end
       if (!expr_ret_63) rew(slash_63);
       expr_ret_62 = expr_ret_63;
 
@@ -2570,6 +2782,7 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
       op = expr_ret_62;
     }
 
+    // ModExprList 2
     if (expr_ret_60)
     {
       pl0_astnode_t* expr_ret_70 = NULL;
@@ -2578,8 +2791,10 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
       ex_ = expr_ret_70;
     }
 
+    // ModExprList 3
     if (expr_ret_60)
     {
+      // CodeExpr
       #define ret expr_ret_60
       ret = SUCC;
 
@@ -2588,10 +2803,12 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList end
     if (!expr_ret_60) rew(mod_60);
     expr_ret_57 = expr_ret_60 ? SUCC : NULL;
   }
 
+  // SlashExpr end
   if (!expr_ret_57) rew(slash_57);
   expr_ret_56 = expr_ret_57;
 
@@ -2608,7 +2825,9 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
 
   pl0_astnode_t* expr_ret_73 = NULL;
   rec(mod_73);
+  // ModExprList 0
   {
+    // CodeExpr
     #define ret expr_ret_73
     ret = SUCC;
 
@@ -2617,6 +2836,7 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
     #undef ret
   }
 
+  // ModExprList 1
   if (expr_ret_73)
   {
     pl0_astnode_t* expr_ret_74 = NULL;
@@ -2624,45 +2844,56 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
 
     rec(slash_75);
 
+    // SlashExpr 0
     if (!expr_ret_75)
     {
       pl0_astnode_t* expr_ret_76 = NULL;
       rec(mod_76);
+      // ModExprList Forwarding
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_PLUS) {
+        // Capturing PLUS.
         expr_ret_76 = leaf(PLUS);
         ctx->pos++;
       } else {
         expr_ret_76 = NULL;
       }
 
+      // ModExprList end
       if (!expr_ret_76) rew(mod_76);
       expr_ret_75 = expr_ret_76;
     }
 
+    // SlashExpr 1
     if (!expr_ret_75)
     {
       pl0_astnode_t* expr_ret_77 = NULL;
       rec(mod_77);
+      // ModExprList Forwarding
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_MINUS) {
+        // Capturing MINUS.
         expr_ret_77 = leaf(MINUS);
         ctx->pos++;
       } else {
         expr_ret_77 = NULL;
       }
 
+      // ModExprList end
       if (!expr_ret_77) rew(mod_77);
       expr_ret_75 = expr_ret_77;
     }
 
+    // SlashExpr end
     if (!expr_ret_75) rew(slash_75);
     expr_ret_74 = expr_ret_75;
 
+    // optional
     if (!expr_ret_74)
       expr_ret_74 = SUCC;
     expr_ret_73 = expr_ret_74;
     pm = expr_ret_74;
   }
 
+  // ModExprList 2
   if (expr_ret_73)
   {
     pl0_astnode_t* expr_ret_78 = NULL;
@@ -2671,8 +2902,10 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
     t = expr_ret_78;
   }
 
+  // ModExprList 3
   if (expr_ret_73)
   {
+    // CodeExpr
     #define ret expr_ret_73
     ret = SUCC;
 
@@ -2681,6 +2914,7 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
     #undef ret
   }
 
+  // ModExprList 4
   if (expr_ret_73)
   {
     pl0_astnode_t* expr_ret_79 = NULL;
@@ -2689,42 +2923,52 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
     {
       pl0_astnode_t* expr_ret_80 = NULL;
       rec(mod_80);
+      // ModExprList 0
       {
         pl0_astnode_t* expr_ret_81 = NULL;
         pl0_astnode_t* expr_ret_82 = NULL;
 
         rec(slash_82);
 
+        // SlashExpr 0
         if (!expr_ret_82)
         {
           pl0_astnode_t* expr_ret_83 = NULL;
           rec(mod_83);
+          // ModExprList Forwarding
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_PLUS) {
+            // Capturing PLUS.
             expr_ret_83 = leaf(PLUS);
             ctx->pos++;
           } else {
             expr_ret_83 = NULL;
           }
 
+          // ModExprList end
           if (!expr_ret_83) rew(mod_83);
           expr_ret_82 = expr_ret_83;
         }
 
+        // SlashExpr 1
         if (!expr_ret_82)
         {
           pl0_astnode_t* expr_ret_84 = NULL;
           rec(mod_84);
+          // ModExprList Forwarding
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_MINUS) {
+            // Capturing MINUS.
             expr_ret_84 = leaf(MINUS);
             ctx->pos++;
           } else {
             expr_ret_84 = NULL;
           }
 
+          // ModExprList end
           if (!expr_ret_84) rew(mod_84);
           expr_ret_82 = expr_ret_84;
         }
 
+        // SlashExpr end
         if (!expr_ret_82) rew(slash_82);
         expr_ret_81 = expr_ret_82;
 
@@ -2732,6 +2976,7 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
         pm = expr_ret_81;
       }
 
+      // ModExprList 1
       if (expr_ret_80)
       {
         pl0_astnode_t* expr_ret_85 = NULL;
@@ -2740,8 +2985,10 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
         t = expr_ret_85;
       }
 
+      // ModExprList 2
       if (expr_ret_80)
       {
+        // CodeExpr
         #define ret expr_ret_80
         ret = SUCC;
 
@@ -2750,6 +2997,7 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
         #undef ret
       }
 
+      // ModExprList end
       if (!expr_ret_80) rew(mod_80);
       expr_ret_79 = expr_ret_80 ? SUCC : NULL;
     }
@@ -2758,6 +3006,7 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
     expr_ret_73 = expr_ret_79;
   }
 
+  // ModExprList end
   if (!expr_ret_73) rew(mod_73);
   expr_ret_72 = expr_ret_73 ? SUCC : NULL;
   return expr_ret_72 ? rule : NULL;
@@ -2773,7 +3022,9 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
 
   pl0_astnode_t* expr_ret_88 = NULL;
   rec(mod_88);
+  // ModExprList 0
   {
+    // CodeExpr
     #define ret expr_ret_88
     ret = SUCC;
 
@@ -2782,6 +3033,7 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
     #undef ret
   }
 
+  // ModExprList 1
   if (expr_ret_88)
   {
     pl0_astnode_t* expr_ret_89 = NULL;
@@ -2790,8 +3042,10 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
     f = expr_ret_89;
   }
 
+  // ModExprList 2
   if (expr_ret_88)
   {
+    // CodeExpr
     #define ret expr_ret_88
     ret = SUCC;
 
@@ -2800,6 +3054,7 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
     #undef ret
   }
 
+  // ModExprList 3
   if (expr_ret_88)
   {
     pl0_astnode_t* expr_ret_90 = NULL;
@@ -2808,42 +3063,52 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
     {
       pl0_astnode_t* expr_ret_91 = NULL;
       rec(mod_91);
+      // ModExprList 0
       {
         pl0_astnode_t* expr_ret_92 = NULL;
         pl0_astnode_t* expr_ret_93 = NULL;
 
         rec(slash_93);
 
+        // SlashExpr 0
         if (!expr_ret_93)
         {
           pl0_astnode_t* expr_ret_94 = NULL;
           rec(mod_94);
+          // ModExprList Forwarding
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_STAR) {
+            // Capturing STAR.
             expr_ret_94 = leaf(STAR);
             ctx->pos++;
           } else {
             expr_ret_94 = NULL;
           }
 
+          // ModExprList end
           if (!expr_ret_94) rew(mod_94);
           expr_ret_93 = expr_ret_94;
         }
 
+        // SlashExpr 1
         if (!expr_ret_93)
         {
           pl0_astnode_t* expr_ret_95 = NULL;
           rec(mod_95);
+          // ModExprList Forwarding
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_DIV) {
+            // Capturing DIV.
             expr_ret_95 = leaf(DIV);
             ctx->pos++;
           } else {
             expr_ret_95 = NULL;
           }
 
+          // ModExprList end
           if (!expr_ret_95) rew(mod_95);
           expr_ret_93 = expr_ret_95;
         }
 
+        // SlashExpr end
         if (!expr_ret_93) rew(slash_93);
         expr_ret_92 = expr_ret_93;
 
@@ -2851,6 +3116,7 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
         sd = expr_ret_92;
       }
 
+      // ModExprList 1
       if (expr_ret_91)
       {
         pl0_astnode_t* expr_ret_96 = NULL;
@@ -2859,8 +3125,10 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
         f = expr_ret_96;
       }
 
+      // ModExprList 2
       if (expr_ret_91)
       {
+        // CodeExpr
         #define ret expr_ret_91
         ret = SUCC;
 
@@ -2869,6 +3137,7 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
         #undef ret
       }
 
+      // ModExprList end
       if (!expr_ret_91) rew(mod_91);
       expr_ret_90 = expr_ret_91 ? SUCC : NULL;
     }
@@ -2877,6 +3146,7 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
     expr_ret_88 = expr_ret_90;
   }
 
+  // ModExprList end
   if (!expr_ret_88) rew(mod_88);
   expr_ret_87 = expr_ret_88 ? SUCC : NULL;
   return expr_ret_87 ? rule : NULL;
@@ -2895,13 +3165,16 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
 
   rec(slash_99);
 
+  // SlashExpr 0
   if (!expr_ret_99)
   {
     pl0_astnode_t* expr_ret_100 = NULL;
     rec(mod_100);
+    // ModExprList 0
     {
       pl0_astnode_t* expr_ret_101 = NULL;
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
+        // Capturing IDENT.
         expr_ret_101 = leaf(IDENT);
         ctx->pos++;
       } else {
@@ -2912,8 +3185,10 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       i = expr_ret_101;
     }
 
+    // ModExprList 1
     if (expr_ret_100)
     {
+      // CodeExpr
       #define ret expr_ret_100
       ret = SUCC;
 
@@ -2922,17 +3197,21 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList end
     if (!expr_ret_100) rew(mod_100);
     expr_ret_99 = expr_ret_100 ? SUCC : NULL;
   }
 
+  // SlashExpr 1
   if (!expr_ret_99)
   {
     pl0_astnode_t* expr_ret_102 = NULL;
     rec(mod_102);
+    // ModExprList 0
     {
       pl0_astnode_t* expr_ret_103 = NULL;
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_NUM) {
+        // Capturing NUM.
         expr_ret_103 = leaf(NUM);
         ctx->pos++;
       } else {
@@ -2943,8 +3222,10 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       n = expr_ret_103;
     }
 
+    // ModExprList 1
     if (expr_ret_102)
     {
+      // CodeExpr
       #define ret expr_ret_102
       ret = SUCC;
 
@@ -2953,16 +3234,20 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList end
     if (!expr_ret_102) rew(mod_102);
     expr_ret_99 = expr_ret_102 ? SUCC : NULL;
   }
 
+  // SlashExpr 2
   if (!expr_ret_99)
   {
     pl0_astnode_t* expr_ret_104 = NULL;
     rec(mod_104);
+    // ModExprList 0
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_OPEN) {
+        // Not capturing OPEN.
         expr_ret_104 = SUCC;
         ctx->pos++;
       } else {
@@ -2971,6 +3256,7 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList 1
     if (expr_ret_104)
     {
       pl0_astnode_t* expr_ret_105 = NULL;
@@ -2979,9 +3265,11 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       e = expr_ret_105;
     }
 
+    // ModExprList 2
     if (expr_ret_104)
     {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_CLOSE) {
+        // Not capturing CLOSE.
         expr_ret_104 = SUCC;
         ctx->pos++;
       } else {
@@ -2990,8 +3278,10 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
 
     }
 
+    // ModExprList 3
     if (expr_ret_104)
     {
+      // CodeExpr
       #define ret expr_ret_104
       ret = SUCC;
 
@@ -3000,10 +3290,12 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       #undef ret
     }
 
+    // ModExprList end
     if (!expr_ret_104) rew(mod_104);
     expr_ret_99 = expr_ret_104 ? SUCC : NULL;
   }
 
+  // SlashExpr end
   if (!expr_ret_99) rew(slash_99);
   expr_ret_98 = expr_ret_99;
 

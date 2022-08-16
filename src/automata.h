@@ -55,9 +55,6 @@ LIST_DEFINE(TrieAutomaton)
 LIST_DECLARE(SMAutomaton)
 LIST_DEFINE(SMAutomaton)
 
-// TODO What if there is no trie?
-// TODO How will the tokenizer consume whitespace?
-
 static inline list_int numset_to_list(ASTNode *numset) {
   list_int l = list_int_new();
   if (strcmp(numset->name, "Num") == 0) {

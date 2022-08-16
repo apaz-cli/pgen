@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
   // Read the tokenizer file
   tokenFile = readFileCodepoints(args.tokenizerTarget);
   if (!tokenFile.str)
-    ERROR("Could not read the token file.");
+    ERROR("Could not read the token file. Is it missing or empty?");
 
   // Parse the tokenizer's AST
   ctx_debug = args.t;
