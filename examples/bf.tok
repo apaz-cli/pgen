@@ -1,0 +1,11 @@
+PLUS: "+";
+MINUS: "-";
+RS: ">";
+LS: "<";
+LBRACK: "[";
+RBRACK: "]";
+PUTC: ".";
+GETC: ",";
+COMMENT: 1 {
+  (0, [^+-\[\]><.,]) -> 1;
+};

@@ -1,0 +1,37 @@
+%include <string.h>
+%define ARRSIZE 30000
+%code static char array[ARRSIZE];
+%code static char *ptr;
+
+prog <- {memset(array, 0, ARRSIZE), ptr = array}
+        char*
+
+char <- PLUS   {++*ptr}
+      / MINUS  {--*ptr}
+      / RS     {++ptr}
+      / LS     {--ptr}
+      / LBRACK {
+        if (*ptr == 0) {
+          int m = 1;
+          while(m) {
+            ctx->pos++;
+            if (ctx->tokens[ctx->pos].kind == BF_TOK_LBRACK) m++;
+            if (ctx->tokens[ctx->pos].kind == BF_TOK_RBRACK) m--;
+          }
+          ctx->pos++;
+        }
+      }
+      / RBRACK {
+        if (*ptr) {
+          int m = 1;
+          while (m) {
+            ctx->pos--;
+            if (ctx->tokens[ctx->pos].kind == BF_TOK_LBRACK) m--;
+            if (ctx->tokens[ctx->pos].kind == BF_TOK_RBRACK) m++;
+          }
+          ctx->pos++;
+        }
+      }
+      / PUTC   {putchar(*ptr)}
+      / GETC   {*ptr=getchar()}
+      / COMMENT {}

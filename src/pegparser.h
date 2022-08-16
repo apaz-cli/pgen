@@ -432,7 +432,7 @@ static inline ASTNode *peg_parse_CodeExpr(parser_ctx *ctx) {
   size_t num_opens = 1;
   list_codepoint_t content = list_codepoint_t_new();
 
-  while (num_opens & HAS_CURRENT()) {
+  while (num_opens && HAS_CURRENT()) {
 
     // Escape anything starting with \.
     // If a { or } is escaped, don't count it.
@@ -448,10 +448,9 @@ static inline ASTNode *peg_parse_CodeExpr(parser_ctx *ctx) {
       c = CURRENT();
       NEXT();
     } else {
-      if (CURRENT() == '{')
+      if (CURRENT() == '{') {
         num_opens++;
-      else if (CURRENT() == '}') {
-
+      } else if (CURRENT() == '}') {
         num_opens--;
         if (!num_opens) {
           NEXT();

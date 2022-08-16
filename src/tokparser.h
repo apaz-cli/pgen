@@ -105,7 +105,7 @@ static inline codepoint_t tok_parse_Char(parser_ctx *ctx) {
     else if (ret == '?') // question mark
       return '\?';
     else
-      return REWIND(begin), 0;
+      return ret;
   }
 
   // Normal characters
