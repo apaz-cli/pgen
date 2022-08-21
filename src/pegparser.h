@@ -128,7 +128,7 @@ static inline ASTNode *peg_parse_Definition(parser_ctx *ctx) {
   WS();
 
   ASTNode *stdef = peg_parse_StructDef(ctx);
-  
+
   WS();
 
   if (!IS_CURRENT("<-")) {
@@ -217,11 +217,6 @@ static inline ASTNode *peg_parse_StructDef(parser_ctx *ctx) {
       break;
   }
 
-  printf("Parsed %zu nodes.\n", node->num_children);
-  for (size_t i = 0; i < node->num_children; i++) {
-    puts((char *)node->children[i]->extra);
-    fflush(stdout);
-  }
   RETURN(node);
 }
 
