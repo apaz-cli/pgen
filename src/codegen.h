@@ -870,6 +870,7 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
          "PGEN_NARG(__VA_ARGS__))"
          "(ctx->alloc, %s_NODE_##kind, __VA_ARGS__)\n",
          ctx->lower, ctx->upper);
+  cwrite("#define kind(name) %s_NODE_##name\n", ctx->upper);
   cwrite("#define list(kind)               "
          "%s_astnode_list(ctx->alloc, %s_NODE_##kind, 16)\n",
          ctx->lower, ctx->upper);
@@ -1434,6 +1435,7 @@ static inline void peg_write_undef_parsermacros(codegen_ctx *ctx) {
   cwrite("#undef rec\n");
   cwrite("#undef rew\n");
   cwrite("#undef node\n");
+  cwrite("#undef kind\n");
   cwrite("#undef list\n");
   cwrite("#undef leaf\n");
   cwrite("#undef add\n");
