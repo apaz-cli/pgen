@@ -31,7 +31,7 @@ Definition     <- LowerIdent _ StructDef? _ '<-' _ SlashExpr
 
 StructDef      <- '<' _ StructMember (_ ',' _ StructMember)* _ '>'
 
-StructMember   <- LowerIdent ((_ '.'/_ '[]')*)?
+StructMember   <- (!('>' / ',') .)*
 
 SlashExpr      <- ModExprList (_ '/' ModExprList)*
 

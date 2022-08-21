@@ -128,7 +128,7 @@ static inline ASTNode *peg_parse_Definition(parser_ctx *ctx) {
   WS();
 
   ASTNode *stdef = peg_parse_StructDef(ctx);
-
+  
   WS();
 
   if (!IS_CURRENT("<-")) {
@@ -159,65 +159,69 @@ static inline ASTNode *peg_parse_StructDef(parser_ctx *ctx) {
 
   RULE_BEGIN("StructDef");
 
-  if (!IS_CURRENT("<")) {
+  if (!IS_CURRENT("<") || IS_CURRENT("<-")) {
     RETURN(NULL);
   }
   NEXT();
 
   INIT("StructDef");
 
-  int first = 1;
   while (1) {
+
     WS();
 
-    if (!first) {
-      if (!IS_CURRENT(","))
+    int done = 0;
+    RECORD(spos);
+    while (HAS_CURRENT()) {
+      char c = (char)CURRENT();
+
+      if (c == ',') {
+        done = 0;
         break;
-      NEXT();
-    }
-
-    WS();
-
-    ASTNode *ident = peg_parse_LowerIdent(ctx);
-    if (!ident)
-      break;
-    ASTNode *member = ASTNode_new("Member");
-    ASTNode_addChild(node, member);
-    ASTNode_addChild(member, ident);
-    first = 0;
-
-    WS();
-
-    char isarr = 0;
-    char istok = 0;
-    while (IS_CURRENT(".") | IS_CURRENT("[]")) {
-      if (IS_CURRENT(".")) {
-        istok = true;
-      } else {
-        isarr = true;
-        NEXT();
+      } else if (c == '>') {
+        done = 1;
+        break;
       }
       NEXT();
-      WS();
+    }
+    RECORD(epos);
+
+    size_t diff = _rew_to_epos - _rew_to_spos;
+    if (!diff) {
+      NEXT();
+      ASTNode_destroy(node);
+      RETURN(NULL);
     }
 
-    if (isarr | istok) {
-      char *cptr;
-      member->extra = cptr = (char *)malloc(2);
-      cptr[0] = istok;
-      cptr[1] = isarr;
+    if (HAS_NEXT())
+      NEXT();
+    else
+      ERROR("Unexpected end of input.");
+
+    ASTNode *member = ASTNode_new("Member");
+    ASTNode_addChild(node, member);
+    char *str;
+    member->extra = str = (char *)malloc(diff + 1);
+
+    for (size_t i = 0; i < diff; i++) {
+      codepoint_t c = ctx->str[_rew_to_spos + i];
+      if (c > CHAR_MAX)
+        ERROR("No non-ascii codepoints struct definitions.");
+      str[i] = (char)c;
     }
+    str[diff] = '\0';
+
+    WS();
+
+    if (done)
+      break;
   }
 
-  WS();
-
-  if (!IS_CURRENT(">")) {
-    ASTNode_destroy(node);
-    REWIND(begin);
-    RETURN(NULL);
+  printf("Parsed %zu nodes.\n", node->num_children);
+  for (size_t i = 0; i < node->num_children; i++) {
+    puts((char *)node->children[i]->extra);
+    fflush(stdout);
   }
-  NEXT();
-
   RETURN(node);
 }
 

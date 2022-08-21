@@ -1376,6 +1376,13 @@ static inline void peg_write_definition(codegen_ctx *ctx, ASTNode *def) {
          ctx->lower, ctx->lower, def_name, ctx->lower);
 
   // Visit labels, write variables.
+  if (def->num_children == 3) {
+    ASTNode *sdefs = def->children[2];
+    for (size_t i = 0; i < sdefs->num_children; i++)
+      cwrite("  %s;\n", (char *)sdefs->children[i]->extra);
+    cwrite("\n");
+  }
+
   list_cstr ids = list_cstr_new();
   peg_visit_add_labels(ctx, def_expr, &ids);
   for (size_t i = 0; i < ids.len; i++)
