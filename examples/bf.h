@@ -338,7 +338,7 @@ static inline void pgen_allocator_destroy(pgen_allocator *allocator) {
 }
 
 #define PGEN_ALLOC_OF(allocator, type)                                         \
-  pgen_alloc(allocator, sizeof(type), _Alignof(type))
+  (type *)pgen_alloc(allocator, sizeof(type), _Alignof(type))
 static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
                                size_t alignment) {
 #if PGEN_AlLOCATOR_DEBUG
@@ -541,6 +541,17 @@ static inline void pgen_allocator_rewind(pgen_allocator *allocator,
 
 #ifndef PGEN_PARSER_MACROS_INCLUDED
 #define PGEN_PARSER_MACROS_INCLUDED
+
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && !defined(__cplusplus)
+#  define PGEN_RESTRICT restrict
+#elif defined(__clang__) || \
+     (defined(__GNUC__) && (__GNUC__ >= 4)) || \
+     (defined(_MSC_VER) && (_MSC_VER >= 1900))
+#  define PGEN_RESTRICT __restrict
+#else
+#  define PGEN_RESTRICT
+#endif
+
 #define PGEN_CAT_(x, y) x##y
 #define PGEN_CAT(x, y) PGEN_CAT_(x, y)
 #define PGEN_NARG(...) PGEN_NARG_(__VA_ARGS__, PGEN_RSEQ_N())
@@ -791,7 +802,7 @@ static inline void bf_parser_ctx_init(bf_parser_ctx* parser,
   parser->alloc = allocator;
 }
 typedef enum {
-  bf_NODE_EMPTY,
+  BF_NODE_EMPTY,
 } bf_astnode_kind;
 
 #define BF_NUM_NODEKINDS 1
@@ -802,12 +813,11 @@ static const char* bf_nodekind_name[BF_NUM_NODEKINDS] = {
 struct bf_astnode_t;
 typedef struct bf_astnode_t bf_astnode_t;
 struct bf_astnode_t {
-  // No %extra directives.
-
-  bf_astnode_kind kind;
   bf_astnode_t* parent;
   size_t num_children;
   size_t max_children;
+  bf_astnode_kind kind;
+  // No %extra directives.
   bf_astnode_t** children;
 };
 
@@ -859,7 +869,7 @@ static inline bf_astnode_t* bf_astnode_leaf(
 static inline bf_astnode_t* bf_astnode_fixed_1(
                              pgen_allocator* alloc,
                              bf_astnode_kind kind,
-                             bf_astnode_t* n0) {
+                             bf_astnode_t* PGEN_RESTRICT n0) {
   char* ret = pgen_alloc(alloc,
                          sizeof(bf_astnode_t) +
                          sizeof(bf_astnode_t *) * 1,
@@ -873,14 +883,15 @@ static inline bf_astnode_t* bf_astnode_fixed_1(
   node->num_children = 1;
   node->children = children;
   children[0] = n0;
+  n0->parent = node;
   return node;
 }
 
 static inline bf_astnode_t* bf_astnode_fixed_2(
                              pgen_allocator* alloc,
                              bf_astnode_kind kind,
-                             bf_astnode_t* n0,
-                             bf_astnode_t* n1) {
+                             bf_astnode_t* PGEN_RESTRICT n0,
+                             bf_astnode_t* PGEN_RESTRICT n1) {
   char* ret = pgen_alloc(alloc,
                          sizeof(bf_astnode_t) +
                          sizeof(bf_astnode_t *) * 2,
@@ -894,16 +905,18 @@ static inline bf_astnode_t* bf_astnode_fixed_2(
   node->num_children = 2;
   node->children = children;
   children[0] = n0;
+  n0->parent = node;
   children[1] = n1;
+  n1->parent = node;
   return node;
 }
 
 static inline bf_astnode_t* bf_astnode_fixed_3(
                              pgen_allocator* alloc,
                              bf_astnode_kind kind,
-                             bf_astnode_t* n0,
-                             bf_astnode_t* n1,
-                             bf_astnode_t* n2) {
+                             bf_astnode_t* PGEN_RESTRICT n0,
+                             bf_astnode_t* PGEN_RESTRICT n1,
+                             bf_astnode_t* PGEN_RESTRICT n2) {
   char* ret = pgen_alloc(alloc,
                          sizeof(bf_astnode_t) +
                          sizeof(bf_astnode_t *) * 3,
@@ -917,18 +930,21 @@ static inline bf_astnode_t* bf_astnode_fixed_3(
   node->num_children = 3;
   node->children = children;
   children[0] = n0;
+  n0->parent = node;
   children[1] = n1;
+  n1->parent = node;
   children[2] = n2;
+  n2->parent = node;
   return node;
 }
 
 static inline bf_astnode_t* bf_astnode_fixed_4(
                              pgen_allocator* alloc,
                              bf_astnode_kind kind,
-                             bf_astnode_t* n0,
-                             bf_astnode_t* n1,
-                             bf_astnode_t* n2,
-                             bf_astnode_t* n3) {
+                             bf_astnode_t* PGEN_RESTRICT n0,
+                             bf_astnode_t* PGEN_RESTRICT n1,
+                             bf_astnode_t* PGEN_RESTRICT n2,
+                             bf_astnode_t* PGEN_RESTRICT n3) {
   char* ret = pgen_alloc(alloc,
                          sizeof(bf_astnode_t) +
                          sizeof(bf_astnode_t *) * 4,
@@ -942,20 +958,24 @@ static inline bf_astnode_t* bf_astnode_fixed_4(
   node->num_children = 4;
   node->children = children;
   children[0] = n0;
+  n0->parent = node;
   children[1] = n1;
+  n1->parent = node;
   children[2] = n2;
+  n2->parent = node;
   children[3] = n3;
+  n3->parent = node;
   return node;
 }
 
 static inline bf_astnode_t* bf_astnode_fixed_5(
                              pgen_allocator* alloc,
                              bf_astnode_kind kind,
-                             bf_astnode_t* n0,
-                             bf_astnode_t* n1,
-                             bf_astnode_t* n2,
-                             bf_astnode_t* n3,
-                             bf_astnode_t* n4) {
+                             bf_astnode_t* PGEN_RESTRICT n0,
+                             bf_astnode_t* PGEN_RESTRICT n1,
+                             bf_astnode_t* PGEN_RESTRICT n2,
+                             bf_astnode_t* PGEN_RESTRICT n3,
+                             bf_astnode_t* PGEN_RESTRICT n4) {
   char* ret = pgen_alloc(alloc,
                          sizeof(bf_astnode_t) +
                          sizeof(bf_astnode_t *) * 5,
@@ -969,10 +989,15 @@ static inline bf_astnode_t* bf_astnode_fixed_5(
   node->num_children = 5;
   node->children = children;
   children[0] = n0;
+  n0->parent = node;
   children[1] = n1;
+  n1->parent = node;
   children[2] = n2;
+  n2->parent = node;
   children[3] = n3;
+  n3->parent = node;
   children[4] = n4;
+  n4->parent = node;
   return node;
 }
 
@@ -999,15 +1024,18 @@ static inline void bf_parser_rewind(bf_parser_ctx *ctx, pgen_parser_rewind_t rew
 #define rec(label)               pgen_parser_rewind_t _rew_##label = (pgen_parser_rewind_t){ctx->alloc->rew, ctx->pos};
 #define rew(label)               bf_parser_rewind(ctx, _rew_##label)
 #define node(kind, ...)          PGEN_CAT(bf_astnode_fixed_, PGEN_NARG(__VA_ARGS__))(ctx->alloc, BF_NODE_##kind, __VA_ARGS__)
+#define kind(name)               BF_NODE_##name
 #define list(kind)               bf_astnode_list(ctx->alloc, BF_NODE_##kind, 16)
 #define leaf(kind)               bf_astnode_leaf(ctx->alloc, BF_NODE_##kind)
-#define add(list, node)  bf_astnode_add(ctx->alloc, list, node)
+#define add(list, node)          bf_astnode_add(ctx->alloc, list, node)
 #define defer(node, freefn, ptr) pgen_defer(ctx->alloc, freefn, ptr, ctx->alloc->rew)
 #define SUCC                     ((bf_astnode_t*)(void*)(uintptr_t)_Alignof(bf_astnode_t))
 
 static inline void bf_astnode_print_h(bf_astnode_t *node, size_t depth, int fl) {
   #define indent() for (size_t i = 0; i < depth; i++) printf("  ")
-  if (node == SUCC)
+  if (!node)
+    return;
+  else if (node == SUCC)
     puts("ERROR, CAPTURED SUCC."), exit(1);
 
   indent(); puts("{");
@@ -1035,10 +1063,10 @@ static inline bf_astnode_t* bf_parse_char(bf_parser_ctx* ctx);
 
 
 static inline bf_astnode_t* bf_parse_prog(bf_parser_ctx* ctx) {
-  bf_astnode_t* expr_ret_1 = NULL;
-  bf_astnode_t* expr_ret_0 = NULL;
   #define rule expr_ret_0
 
+  bf_astnode_t* expr_ret_1 = NULL;
+  bf_astnode_t* expr_ret_0 = NULL;
   bf_astnode_t* expr_ret_2 = NULL;
   rec(mod_2);
   // ModExprList 0
@@ -1069,15 +1097,16 @@ static inline bf_astnode_t* bf_parse_prog(bf_parser_ctx* ctx) {
   // ModExprList end
   if (!expr_ret_2) rew(mod_2);
   expr_ret_1 = expr_ret_2 ? SUCC : NULL;
-  return expr_ret_1 ? rule : NULL;
+  rule = rule ? rule : expr_ret_1;
+  return rule;
   #undef rule
 }
 
 static inline bf_astnode_t* bf_parse_char(bf_parser_ctx* ctx) {
-  bf_astnode_t* expr_ret_5 = NULL;
-  bf_astnode_t* expr_ret_4 = NULL;
   #define rule expr_ret_4
 
+  bf_astnode_t* expr_ret_5 = NULL;
+  bf_astnode_t* expr_ret_4 = NULL;
   bf_astnode_t* expr_ret_6 = NULL;
 
   rec(slash_6);
@@ -1412,7 +1441,8 @@ static inline bf_astnode_t* bf_parse_char(bf_parser_ctx* ctx) {
   if (!expr_ret_6) rew(slash_6);
   expr_ret_5 = expr_ret_6;
 
-  return expr_ret_5 ? rule : NULL;
+  rule = rule ? rule : expr_ret_5;
+  return rule;
   #undef rule
 }
 
@@ -1421,6 +1451,7 @@ static inline bf_astnode_t* bf_parse_char(bf_parser_ctx* ctx) {
 #undef rec
 #undef rew
 #undef node
+#undef kind
 #undef list
 #undef leaf
 #undef add

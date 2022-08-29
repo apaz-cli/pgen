@@ -140,7 +140,7 @@ static inline void pgen_allocator_destroy(pgen_allocator *allocator) {
 }
 
 #define PGEN_ALLOC_OF(allocator, type)                                         \
-  pgen_alloc(allocator, sizeof(type), _Alignof(type))
+  (type *)pgen_alloc(allocator, sizeof(type), _Alignof(type))
 static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
                                size_t alignment) {
 #if PGEN_AlLOCATOR_DEBUG

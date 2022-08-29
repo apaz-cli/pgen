@@ -1,7 +1,7 @@
 %include <string.h>
 %define ARRSIZE 30000
-%code static char array[ARRSIZE];
-%code static char *ptr;
+%precode static char array[ARRSIZE];
+%precode static char *ptr;
 
 prog <- {memset(array, 0, ARRSIZE), ptr = array}
         char*

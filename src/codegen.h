@@ -152,7 +152,19 @@ static inline void write_arena_lib(codegen_ctx *ctx) {
 /************************/
 static inline void write_helpermacros(codegen_ctx *ctx) {
   cwrite("#ifndef PGEN_PARSER_MACROS_INCLUDED\n");
-  cwrite("#define PGEN_PARSER_MACROS_INCLUDED\n");
+  cwrite("#define PGEN_PARSER_MACROS_INCLUDED\n\n");
+
+  cwrite("#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && "
+         "!defined(__cplusplus)\n");
+  cwrite("#  define PGEN_RESTRICT restrict\n");
+  cwrite("#elif defined(__clang__) || \\\n");
+  cwrite("     (defined(__GNUC__) && (__GNUC__ >= 4)) || \\\n");
+  cwrite("     (defined(_MSC_VER) && (_MSC_VER >= 1900))\n");
+  cwrite("#  define PGEN_RESTRICT __restrict\n");
+  cwrite("#else\n");
+  cwrite("#  define PGEN_RESTRICT\n");
+  cwrite("#endif\n\n");
+
   cwrite("#define PGEN_CAT_(x, y) x##y\n");
   cwrite("#define PGEN_CAT(x, y) PGEN_CAT_(x, y)\n");
   cwrite("#define PGEN_NARG(...) "
@@ -624,8 +636,8 @@ static inline void peg_write_directives(codegen_ctx *ctx) {
     else if (!strcmp((char *)dir->children[0]->extra, "include")) {
       cwrite("#include %s\n", (char *)dir->extra);
     }
-    // %code directive
-    else if (!strcmp((char *)dir->children[0]->extra, "code")) {
+    // %precode directive
+    else if (!strcmp((char *)dir->children[0]->extra, "precode")) {
       cwrite("%s\n", (char *)dir->extra);
     }
   }
@@ -657,7 +669,7 @@ static inline void peg_write_parser_ctx_init(codegen_ctx *ctx) {
 static inline void peg_write_astnode_kind(codegen_ctx *ctx) {
   size_t num_kinds = 0;
   cwrite("typedef enum {\n");
-  cwrite("  %s_NODE_EMPTY,\n", ctx->lower);
+  cwrite("  %s_NODE_EMPTY,\n", ctx->upper);
   ASTNode *pegast = ctx->pegast;
   for (size_t n = 0; n < pegast->num_children; n++) {
     ASTNode *dir = pegast->children[n];
@@ -734,6 +746,11 @@ static inline void peg_write_astnode_def(codegen_ctx *ctx) {
   cwrite("typedef struct %s_astnode_t %s_astnode_t;\n", ctx->lower, ctx->lower);
   cwrite("struct %s_astnode_t {\n", ctx->lower);
 
+  cwrite("  %s_astnode_t* parent;\n", ctx->lower);
+  cwrite("  size_t num_children;\n");
+  cwrite("  size_t max_children;\n");
+  cwrite("  %s_astnode_kind kind;\n", ctx->lower);
+
   // Insert %extra directives.
   int inserted_extra = 0;
   ASTNode *pegast = ctx->pegast;
@@ -746,21 +763,17 @@ static inline void peg_write_astnode_def(codegen_ctx *ctx) {
     if (!strcmp((char *)dir->children[0]->extra, "extra")) {
       if (!inserted_extra) {
         inserted_extra = 1;
-        cwrite("  // Extra data in %%extra directives:\n\n");
+        cwrite("  // Extra data in %%extra directives:\n");
       }
       cwrite("  %s\n", (char *)dir->extra);
     }
   }
 
   if (inserted_extra)
-    cwrite("\n  // End of extra data.\n\n");
+    cwrite("  // End of extra data.\n");
   else
-    cwrite("  // No %%extra directives.\n\n");
+    cwrite("  // No %%extra directives.\n");
 
-  cwrite("  %s_astnode_kind kind;\n", ctx->lower);
-  cwrite("  %s_astnode_t* parent;\n", ctx->lower);
-  cwrite("  size_t num_children;\n");
-  cwrite("  size_t max_children;\n");
   cwrite("  %s_astnode_t** children;\n", ctx->lower);
   cwrite("};\n\n");
 }
@@ -797,6 +810,23 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   cwrite("  node->max_children = initial_size;\n");
   cwrite("  node->num_children = 0;\n");
   cwrite("  node->children = children;\n");
+
+  // Insert %extrainit directives.
+  int inserted_extrainit = 0;
+  ASTNode *pegast = ctx->pegast;
+  for (size_t n = 0; n < pegast->num_children; n++) {
+    ASTNode *dir = pegast->children[n];
+    if (strcmp(dir->name, "Directive"))
+      continue;
+    if (!strcmp((char *)dir->children[0]->extra, "extrainit")) {
+      if (!inserted_extrainit) {
+        inserted_extrainit = 1;
+        cwrite("  // Extra initialization from %%extrainit directives:\n");
+      }
+      cwrite("  %s\n", (char *)dir->extra);
+    }
+  }
+
   cwrite("  return node;\n");
   cwrite("}\n\n");
 
@@ -819,6 +849,21 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   cwrite("  node->max_children = 0;\n");
   cwrite("  node->num_children = 0;\n");
   cwrite("  node->children = NULL;\n");
+  inserted_extrainit = 0;
+  for (size_t n = 0; n < pegast->num_children; n++) {
+    ASTNode *dir = pegast->children[n];
+    if (strcmp(dir->name, "Directive"))
+      continue;
+
+    // %extra directive
+    if (!strcmp((char *)dir->children[0]->extra, "extrainit")) {
+      if (!inserted_extrainit) {
+        inserted_extrainit = 1;
+        cwrite("  // Extra initialization from %%extrainit directives:\n\n");
+      }
+      cwrite("  %s\n", (char *)dir->extra);
+    }
+  }
   cwrite("  return node;\n");
   cwrite("}\n\n");
 
@@ -830,9 +875,26 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
            "                             %s_astnode_kind kind%s",
            ctx->lower, i ? ",\n" : "");
     for (size_t j = 0; j < i; j++)
-      cwrite("                             %s_astnode_t* n%zu%s", ctx->lower, j,
-             j != i - 1 ? ",\n" : "");
+      cwrite("                             %s_astnode_t* PGEN_RESTRICT n%zu%s",
+             ctx->lower, j, j != i - 1 ? ",\n" : "");
     cwrite(") {\n");
+    if (ctx->args.d) {
+      cwrite("daisho_astnode_t const * const SUCC = "
+             "((daisho_astnode_t*)(void*)(uintptr_t)_Alignof(daisho_astnode_t))"
+             ";\n");
+      cwrite("  if ((!n0)");
+      for (size_t j = 1; j < i; j++)
+        cwrite(" | (!n%zu)", j);
+      for (size_t j = 0; j < i; j++)
+        cwrite(" | (n%zu == SUCC)", j);
+      cwrite(")\n    fprintf(stderr, \"Invalid arguments: node(%%s");
+      for (size_t j = 0; j < i; j++)
+        cwrite(", %%p");
+      cwrite(")\\n\", daisho_nodekind_name[kind]");
+      for (size_t j = 0; j < i; j++)
+        cwrite(", n%zu", j);
+      cwrite(");\n");
+    }
     cwrite("  char* ret = pgen_alloc(alloc,\n"
            "                         sizeof(%s_astnode_t) +\n"
            "                         sizeof(%s_astnode_t *) * %zu,\n",
@@ -851,11 +913,29 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
     cwrite("  node->max_children = 0;\n");
     cwrite("  node->num_children = %zu;\n", i);
     cwrite("  node->children = children;\n");
-    for (size_t j = 0; j < i; j++)
+    for (size_t j = 0; j < i; j++) {
       cwrite("  children[%zu] = n%zu;\n", j, j);
+      cwrite("  n%zu->parent = node;\n", j);
+    }
     cwrite("  return node;\n");
     cwrite("}\n\n");
   }
+}
+
+static inline void peg_write_postinclude(codegen_ctx *ctx) {
+  int inserted_postinclude = 0;
+  ASTNode *pegast = ctx->pegast;
+  for (size_t n = 0; n < pegast->num_children; n++) {
+    ASTNode *dir = pegast->children[n];
+    if (strcmp(dir->name, "Directive"))
+      continue;
+    if (!strcmp((char *)dir->children[0]->extra, "postinclude")) {
+      inserted_postinclude = 1;
+      cwrite("#include %s\n", (char *)dir->extra);
+    }
+  }
+  if (inserted_postinclude)
+    cwrite("\n\n");
 }
 
 static inline void peg_write_parsermacros(codegen_ctx *ctx) {
@@ -870,14 +950,16 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
          "PGEN_NARG(__VA_ARGS__))"
          "(ctx->alloc, %s_NODE_##kind, __VA_ARGS__)\n",
          ctx->lower, ctx->upper);
-  cwrite("#define kind(name) %s_NODE_##name\n", ctx->upper);
+  cwrite("#define kind(name)               "
+         "%s_NODE_##name\n",
+         ctx->upper);
   cwrite("#define list(kind)               "
          "%s_astnode_list(ctx->alloc, %s_NODE_##kind, 16)\n",
          ctx->lower, ctx->upper);
   cwrite("#define leaf(kind)               "
          "%s_astnode_leaf(ctx->alloc, %s_NODE_##kind)\n",
          ctx->lower, ctx->upper);
-  cwrite("#define add(list, node)  "
+  cwrite("#define add(list, node)          "
          "%s_astnode_add(ctx->alloc, list, node)\n",
          ctx->lower);
   cwrite("#define defer(node, freefn, ptr) "
@@ -921,7 +1003,9 @@ static inline void peg_write_astnode_print(codegen_ctx *ctx) {
          ctx->lower, ctx->lower);
   cwrite("  #define indent() "
          "for (size_t i = 0; i < depth; i++) printf(\"  \")\n");
-  cwrite("  if (node == SUCC)\n");
+  cwrite("  if (!node)\n");
+  cwrite("    return;\n");
+  cwrite("  else if (node == SUCC)\n");
   cwrite("    puts(\"ERROR, CAPTURED SUCC.\"), exit(1);\n\n");
 
   cwrite("  indent(); puts(\"{\");\n");
@@ -1099,10 +1183,12 @@ static inline void peg_write_debug_stack(codegen_ctx *ctx) {
     cwrite("  } else if (dbg_stack.status == 0) {\n");
     cwrite("    printf(\"\\x1b[34m\"); // Blue\n");
     cwrite("    printf(\"Entering: %%s\\n\", last);\n");
-    cwrite("  } else {\n");
+    cwrite("  } else if (dbg_stack.status == 1) {\n");
     cwrite("    printf(\"\\x1b[32m\"); // Green\n");
     cwrite("    printf(\"Accepted: %%s\\n\", last);\n");
-    cwrite("    \n");
+    cwrite("  } else {\n");
+    cwrite("    printf(\"\\x1b[33m\"); // Green\n");
+    cwrite("    printf(\"SUCCED: %%s\\n\", last), exit(1);\n");
     cwrite("  }\n");
     cwrite("  printf(\"\\x1b[0m\"); // Clear Formatting\n\n");
 
@@ -1167,6 +1253,14 @@ static inline void peg_write_debug_stack(codegen_ctx *ctx) {
     cwrite("  dbg_stack.status = -1;\n");
     cwrite("  dbg_display(ctx, rejecting);\n");
     cwrite("}\n");
+
+    cwrite("static inline void dbg_succ(%s_parser_ctx* ctx, const char* "
+           "succing) {\n",
+           ctx->lower);
+    cwrite("  dbg_stack.size--;\n");
+    cwrite("  dbg_stack.status = 2;\n");
+    cwrite("  dbg_display(ctx, succing);\n");
+    cwrite("}\n");
     cwrite("#endif /* PGEN_DEBUG */\n\n");
   }
 }
@@ -1188,12 +1282,11 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     for (size_t i = 0; i < expr->num_children; i++) {
 
       comment("SlashExpr %zu", i);
-      int notlast = i != expr->num_children - 1;
       iwrite("if (!expr_ret_%zu)\n", ret);
       start_block(ctx);
 
       // Forward capture through to each candidate.
-      // A SlashExpr can only match a single candidate.
+      // The ModExpr that is accepted will be captured and returned.
       peg_visit_write_exprs(ctx, expr->children[i], ret, capture);
 
       end_block(ctx);
@@ -1391,22 +1484,24 @@ static inline void peg_write_definition(codegen_ctx *ctx, ASTNode *def) {
 
   size_t ult_ret = ctx->expr_cnt++;
   size_t ret = ctx->expr_cnt++;
-
+  cwrite("  #define rule expr_ret_%zu\n\n", ult_ret);
   cwrite("  %s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
   cwrite("  %s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ult_ret);
-  cwrite("  #define rule expr_ret_%zu\n\n", ult_ret);
 
   if (ctx->args.d)
     iwrite("dbg_enter(ctx, \"%s\", ctx->pos);\n", def_name);
 
   peg_visit_write_exprs(ctx, def_expr, ret, 1);
 
-  if (ctx->args.d)
-    iwrite("if (expr_ret_%zu) dbg_accept(ctx, \"%s\"); else dbg_reject(ctx, "
-           "\"%s\");\n",
-           ret, def_name, def_name);
+  iwrite("rule = rule ? rule : expr_ret_%zu;\n", ret);
 
-  cwrite("  return expr_ret_%zu ? rule : NULL;\n", ret);
+  if (ctx->args.d) {
+    iwrite("if (rule==SUCC) dbg_succ(ctx, \"%s\");\n", def_name);
+    iwrite("else if (rule) dbg_accept(ctx, \"%s\");", def_name);
+    iwrite("else dbg_reject(ctx, \"%s\");\n", def_name);
+  }
+
+  cwrite("  return rule;\n");
   cwrite("  #undef rule\n");
   cwrite("}\n\n");
 }
@@ -1424,6 +1519,19 @@ static inline void peg_write_parser_body(codegen_ctx *ctx) {
     peg_write_definition_stub(ctx, def);
   }
   cwrite("\n\n");
+
+  // Write contents of %code directives
+  int written = 0;
+  for (size_t i = 0; i < pegast->num_children; i++) {
+    ASTNode *dir = pegast->children[i];
+    if (strcmp(dir->name, "Directive"))
+      continue;
+    if (strcmp((char *)dir->children[0]->extra, "code"))
+      continue;
+    cwrite("%s\n", (char *)dir->extra), written = 1;
+  }
+  if (written)
+    cwrite("\n\n");
 
   // Write bodies
   for (size_t n = 0; n < pegast->num_children; n++) {
@@ -1461,6 +1569,7 @@ static inline void peg_write_parser(codegen_ctx *ctx) {
   peg_write_parser_rewind(ctx);
   peg_write_parsermacros(ctx);
   peg_write_astnode_print(ctx);
+  peg_write_postinclude(ctx);
   peg_write_debug_stack(ctx);
   peg_write_parser_body(ctx);
   peg_write_undef_parsermacros(ctx);
