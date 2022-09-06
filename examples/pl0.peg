@@ -1,31 +1,82 @@
 %oom exit(1)
 
-%node BLOCKLIST
-program <- {rule=list(BLOCKLIST)}
-           (b:block {add(rule, b)})*
-           DOT
 
+program    <- {rule=list(BLOCKLIST)}
+              (b:block {add(rule, b)})*
+              DOT
+
+
+vdef       <- VAR {rule=list(VARLIST)}
+              i:IDENT {add(rule, node(IDENT, i))}
+              (COMMA i:IDENT {add(rule, i)})* SEMI
+              /
+              CONST {rule=list(CONSTLIST)}
+              i:IDENT EQ n:NUM {add(rule, node(CONST, i, n))}
+              (COMMA i:IDENT e:EQ n:NUM {add(rule, node(CONST, i, n))})* SEMI
+
+block      <- v:vdef {rule=v}
+              /
+              {rule=list(PROCLIST)}
+              (PROC i:IDENT SEMI v:vdef?
+              {add(rule, v != SUCC ? node(PROC, i, v) : node(PROC, i))})*
+              s:statement {add(rule, s)} SEMI
+
+statement  <- id:IDENT ceq:CEQ e:expression
+              {rule=node(IDENT, id, e)}
+              /
+              CALL id:IDENT
+              {rule=node(CALL, id)}
+              /
+              WRITE id:IDENT
+              {rule=node(WRITE, id)}
+              /
+              BEGIN
+              {rule=list(BEGIN)}
+              smt:statement
+              {add(rule, node(STATEMENT, smt))}
+              (SEMI smt:statement {add(rule, node(STATEMENT, smt))})*
+              END
+              /
+              IF c:condition THEN smt:statement
+              {rule=node(IF, c, smt)}
+              /
+              WHILE c:condition DO smt:statement
+              {rule=node(WHILE, c, smt)}
+
+condition  <- ODD ex:expression
+              {rule = node(UNEXPR, ex);}
+              /
+              ex:expression
+              op:(EQ / HASH / LT / LEQ / GT / GEQ)
+              ex_:expression
+              {rule=node(BINEXPR, op, ex, ex_)}
+
+expression <- {rule=list(EXPRS)}
+              pm:(PLUS / MINUS)? t:term
+              {add(rule, pm==SUCC ? t : node(UNEXPR, pm, t))}
+              (pm:(PLUS / MINUS) t:term
+              {add(rule, pm==SUCC ? t : node(BINEXPR, pm, t))})*
+
+term       <- {rule=list(EXPRS)}
+              f:factor {add(rule, f)}
+              (sd:(STAR / DIV) f:factor {add(rule, node(STAR, sd, f))})*
+
+factor     <- i:IDENT {rule=node(IDENT, i)} /
+              n:NUM {rule=node(NUM, n)} /
+              OPEN e:expression CLOSE {rule=e}
+
+
+%node STAR
+%node DIV
+%node IDENT
+%node NUM
+%node BLOCKLIST
 %node VAR
 %node VARLIST
 %node CONST
 %node CONSTLIST
-vdef <- VAR {rule=list(VARLIST)}
-        i:IDENT {add(rule, node(IDENT, i))}
-        (COMMA i:IDENT {add(rule, i)})* SEMI
-        /
-        CONST {rule=list(CONSTLIST)}
-        i:IDENT EQ n:NUM {add(rule, node(CONST, i, n))}
-        (COMMA i:IDENT e:EQ n:NUM {add(rule, node(CONST, i, n))})* SEMI
-
 %node PROC
 %node PROCLIST
-block <- v:vdef {rule=v}
-         /
-         {rule=list(PROCLIST)}
-         (PROC i:IDENT SEMI v:vdef?
-         {add(rule, v != SUCC ? node(PROC, i, v) : node(PROC, i))})*
-         s:statement {add(rule, s)} SEMI
-
 %node CEQ
 %node CALL
 %node WRITE
@@ -33,28 +84,6 @@ block <- v:vdef {rule=v}
 %node IF
 %node WHILE
 %node STATEMENT
-statement <- id:IDENT ceq:CEQ e:expression
-             {rule=node(IDENT, id, e)}
-             /
-             CALL id:IDENT
-             {rule=node(CALL, id)}
-             /
-             WRITE id:IDENT
-             {rule=node(WRITE, id)}
-             /
-             BEGIN
-             {rule=list(BEGIN)}
-             smt:statement
-             {add(rule, node(STATEMENT, smt))}
-             (SEMI smt:statement {add(rule, node(STATEMENT, smt))})*
-             END
-             /
-             IF c:condition THEN smt:statement
-             {rule=node(IF, c, smt)}
-             /
-             WHILE c:condition DO smt:statement
-             {rule=node(WHILE, c, smt)}
-
 %node EXPRS
 %node UNEXPR
 %node BINEXPR
@@ -64,34 +93,6 @@ statement <- id:IDENT ceq:CEQ e:expression
 %node LEQ
 %node GT
 %node GEQ
-condition <- ODD ex:expression
-             {rule = node(UNEXPR, ex);}
-             /
-             ex:expression
-             op:(EQ / HASH / LT / LEQ / GT / GEQ)
-             ex_:expression
-             {rule=node(BINEXPR, op, ex, ex_)}
-
 %node PLUS
 %node MINUS
 %node SIGN
-expression <- {rule=list(EXPRS)}
-              pm:(PLUS / MINUS)? t:term
-              {add(rule, pm==SUCC ? t : node(UNEXPR, pm, t))}
-              (pm:(PLUS / MINUS) t:term
-              {add(rule, pm==SUCC ? t : node(BINEXPR, pm, t))})*
-
-%node STAR
-%node DIV
-term <- {rule=list(EXPRS)}
-        f:factor {add(rule, f)}
-        (sd:(STAR / DIV) f:factor {add(rule, node(STAR, sd, f))})*
-
-%node IDENT
-%node NUM
-// Forward (expr) through
-factor <- i:IDENT {rule=node(IDENT, i)} /
-          n:NUM {rule=node(NUM, n)} /
-          OPEN e:expression CLOSE {rule=e}
-
-

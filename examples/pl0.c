@@ -30,7 +30,7 @@ static inline void readFile(char *filePath, char **str, size_t *len) {
 static inline void printtok(pl0_tokenizer tokenizer, pl0_token tok) {
   printf("Token: (");
   for (size_t i = 0; i < tok.len; i++) {
-    codepoint_t c = *(tokenizer.start + tok.start + i);
+    codepoint_t c = tok.content[i];
     if (c == '\n')
       printf("\\n");
     else if (c == '\t')
@@ -42,13 +42,10 @@ static inline void printtok(pl0_tokenizer tokenizer, pl0_token tok) {
   }
 
 #if PL0_TOKENIZER_SOURCEINFO
-  printf(") {.kind=%s, .start=%zu, .len=%zu, .line=%zu, .col=%zu, "
-         ".sourceFile=\"%s\"}\n",
-         pl0_kind_name[tok.kind], tok.start, tok.len, tok.line, tok.col,
-         tok.sourceFile);
+  printf(") {.kind=%s, .len=%zu, .line=%zu, .col=%zu}\n",
+         pl0_kind_name[tok.kind], tok.len, tok.line, tok.col);
 #else
-  printf(") {.kind=%s, .start=%zu, .len=%zu}\n", pl0_tokenkind_name[tok.kind],
-         tok.start, tok.len);
+  printf(") {.kind=%s, .len=%zu}\n", pl0_tokenkind_name[tok.kind], tok.len);
 #endif
 }
 
@@ -63,7 +60,7 @@ int main(void) {
     fprintf(stderr, "Could not decode to UTF32.\n"), exit(1);
 
   pl0_tokenizer tokenizer;
-  pl0_tokenizer_init(&tokenizer, cps, cpslen, "pl0.pl0");
+  pl0_tokenizer_init(&tokenizer, cps, cpslen);
 
   // Define token list
   struct {
@@ -111,9 +108,7 @@ int main(void) {
   pl0_astnode_t *ast = pl0_parse_program(&parser);
 
   // Print AST
-  /*
   pl0_astnode_print_json(ast);
-  */
 
   // Clean up
   pgen_allocator_destroy(&allocator);

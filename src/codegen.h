@@ -259,14 +259,12 @@ static inline void tok_write_enum(codegen_ctx *ctx) {
 static inline void tok_write_tokenstruct(codegen_ctx *ctx) {
   cwrite("typedef struct {\n"
          "  %s_token_kind kind;\n"
-         "  size_t start; // The token begins at "
+         "  codepoint_t* content; // The token begins at "
          "tokenizer->start[token->start].\n"
-         "  size_t len;   // It goes until tokenizer->start[token->start + "
-         "token->len] (non-inclusive).\n"
+         "  size_t len;\n"
          "#if %s_TOKENIZER_SOURCEINFO\n"
          "  size_t line;\n"
          "  size_t col;\n"
-         "  char* sourceFile;\n"
          "#endif\n"
          "#ifdef %s_TOKEN_EXTRA\n"
          "  %s_TOKEN_EXTRA\n"
@@ -283,22 +281,18 @@ static inline void tok_write_ctxstruct(codegen_ctx *ctx) {
          "#if %s_TOKENIZER_SOURCEINFO\n"
          "  size_t pos_line;\n"
          "  size_t pos_col;\n"
-         "  char* pos_sourceFile;\n"
          "#endif\n"
          "} %s_tokenizer;\n\n",
          ctx->upper, ctx->lower);
 
   cwrite("static inline void %s_tokenizer_init(%s_tokenizer* tokenizer, "
-         "codepoint_t* start, size_t len, char* sourceFile) {\n"
+         "codepoint_t* start, size_t len) {\n"
          "  tokenizer->start = start;\n"
          "  tokenizer->len = len;\n"
          "  tokenizer->pos = 0;\n"
          "#if %s_TOKENIZER_SOURCEINFO\n"
          "  tokenizer->pos_line = 0;\n"
          "  tokenizer->pos_col = 0;\n"
-         "  tokenizer->pos_sourceFile = sourceFile;\n"
-         "#else\n"
-         "  (void)sourceFile;\n"
          "#endif\n"
          "}\n\n",
          ctx->lower, ctx->lower, ctx->upper);
@@ -526,13 +520,12 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
 
   cwrite("  %s_token ret;\n", ctx->lower);
   cwrite("  ret.kind = kind;\n");
-  cwrite("  ret.start = tokenizer->pos;\n");
+  cwrite("  ret.content = tokenizer->start + tokenizer->pos;\n");
   cwrite("  ret.len = max_munch;\n\n");
 
   cwrite("#if %s_TOKENIZER_SOURCEINFO\n", ctx->upper);
   cwrite("  ret.line = tokenizer->pos_line;\n");
   cwrite("  ret.col = tokenizer->pos_col;\n");
-  cwrite("  ret.sourceFile = tokenizer->pos_sourceFile;\n");
   cwrite("\n");
   cwrite("  for (size_t i = 0; i < ret.len; i++) {\n");
   cwrite("    if (current[i] == '\\n') {\n");
@@ -879,9 +872,9 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
              ctx->lower, j, j != i - 1 ? ",\n" : "");
     cwrite(") {\n");
     if (ctx->args.d) {
-      cwrite("daisho_astnode_t const * const SUCC = "
-             "((daisho_astnode_t*)(void*)(uintptr_t)_Alignof(daisho_astnode_t))"
-             ";\n");
+      cwrite("%s_astnode_t const * const SUCC = "
+             "((%s_astnode_t*)(void*)(uintptr_t)_Alignof(%s_astnode_t));\n",
+             ctx->lower, ctx->lower, ctx->lower);
       cwrite("  if ((!n0)");
       for (size_t j = 1; j < i; j++)
         cwrite(" | (!n%zu)", j);
@@ -890,7 +883,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
       cwrite(")\n    fprintf(stderr, \"Invalid arguments: node(%%s");
       for (size_t j = 0; j < i; j++)
         cwrite(", %%p");
-      cwrite(")\\n\", daisho_nodekind_name[kind]");
+      cwrite(")\\n\", %s_nodekind_name[kind]", ctx->lower);
       for (size_t j = 0; j < i; j++)
         cwrite(", n%zu", j);
       cwrite(");\n");
@@ -976,7 +969,9 @@ static inline void peg_write_astnode_add(codegen_ctx *ctx) {
   cwrite("  if (list->max_children == list->num_children) {\n");
   cwrite("    size_t new_max = list->max_children * 2;\n");
   cwrite("    void* old_ptr = list->children;\n");
-  cwrite("    void* new_ptr = realloc(list->children, new_max);\n");
+  cwrite("    void* new_ptr = realloc(list->children, new_max * "
+         "sizeof(%s_astnode_t));\n",
+         ctx->lower);
   if (!ctx->args.u)
     cwrite("    if (!new_ptr)\n      PGEN_OOM();\n");
   cwrite("    list->children = (%s_astnode_t **)new_ptr;\n", ctx->lower);
@@ -1493,11 +1488,12 @@ static inline void peg_write_definition(codegen_ctx *ctx, ASTNode *def) {
 
   peg_visit_write_exprs(ctx, def_expr, ret, 1);
 
-  iwrite("rule = rule ? rule : expr_ret_%zu;\n", ret);
+  iwrite("if (!rule) rule = expr_ret_%zu;\n", ret);
+  iwrite("if (!expr_ret_%zu) rule = NULL;\n", ret);
 
   if (ctx->args.d) {
     iwrite("if (rule==SUCC) dbg_succ(ctx, \"%s\");\n", def_name);
-    iwrite("else if (rule) dbg_accept(ctx, \"%s\");", def_name);
+    iwrite("else if (rule) dbg_accept(ctx, \"%s\");\n", def_name);
     iwrite("else dbg_reject(ctx, \"%s\");\n", def_name);
   }
 
