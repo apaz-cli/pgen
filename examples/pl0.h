@@ -335,7 +335,7 @@ static inline void pgen_allocator_destroy(pgen_allocator *allocator) {
 }
 
 #define PGEN_ALLOC_OF(allocator, type)                                         \
-  pgen_alloc(allocator, sizeof(type), _Alignof(type))
+  (type *)pgen_alloc(allocator, sizeof(type), _Alignof(type))
 static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
                                size_t alignment) {
 #if PGEN_AlLOCATOR_DEBUG
@@ -538,6 +538,17 @@ static inline void pgen_allocator_rewind(pgen_allocator *allocator,
 
 #ifndef PGEN_PARSER_MACROS_INCLUDED
 #define PGEN_PARSER_MACROS_INCLUDED
+
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && !defined(__cplusplus)
+#  define PGEN_RESTRICT restrict
+#elif defined(__clang__) || \
+     (defined(__GNUC__) && (__GNUC__ >= 4)) || \
+     (defined(_MSC_VER) && (_MSC_VER >= 1900))
+#  define PGEN_RESTRICT __restrict
+#else
+#  define PGEN_RESTRICT
+#endif
+
 #define PGEN_CAT_(x, y) x##y
 #define PGEN_CAT(x, y) PGEN_CAT_(x, y)
 #define PGEN_NARG(...) PGEN_NARG_(__VA_ARGS__, PGEN_RSEQ_N())
@@ -654,12 +665,11 @@ static const char* pl0_tokenkind_name[PL0_NUM_TOKENKINDS] = {
 
 typedef struct {
   pl0_token_kind kind;
-  size_t start; // The token begins at tokenizer->start[token->start].
-  size_t len;   // It goes until tokenizer->start[token->start + token->len] (non-inclusive).
+  codepoint_t* content; // The token begins at tokenizer->start[token->start].
+  size_t len;
 #if PL0_TOKENIZER_SOURCEINFO
   size_t line;
   size_t col;
-  char* sourceFile;
 #endif
 #ifdef PL0_TOKEN_EXTRA
   PL0_TOKEN_EXTRA
@@ -673,20 +683,16 @@ typedef struct {
 #if PL0_TOKENIZER_SOURCEINFO
   size_t pos_line;
   size_t pos_col;
-  char* pos_sourceFile;
 #endif
 } pl0_tokenizer;
 
-static inline void pl0_tokenizer_init(pl0_tokenizer* tokenizer, codepoint_t* start, size_t len, char* sourceFile) {
+static inline void pl0_tokenizer_init(pl0_tokenizer* tokenizer, codepoint_t* start, size_t len) {
   tokenizer->start = start;
   tokenizer->len = len;
   tokenizer->pos = 0;
 #if PL0_TOKENIZER_SOURCEINFO
   tokenizer->pos_line = 0;
   tokenizer->pos_col = 0;
-  tokenizer->pos_sourceFile = sourceFile;
-#else
-  (void)sourceFile;
 #endif
 }
 
@@ -1187,13 +1193,12 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
 
   pl0_token ret;
   ret.kind = kind;
-  ret.start = tokenizer->pos;
+  ret.content = tokenizer->start + tokenizer->pos;
   ret.len = max_munch;
 
 #if PL0_TOKENIZER_SOURCEINFO
   ret.line = tokenizer->pos_line;
   ret.col = tokenizer->pos_col;
-  ret.sourceFile = tokenizer->pos_sourceFile;
 
   for (size_t i = 0; i < ret.len; i++) {
     if (current[i] == '\n') {
@@ -1230,7 +1235,11 @@ static inline void pl0_parser_ctx_init(pl0_parser_ctx* parser,
   parser->alloc = allocator;
 }
 typedef enum {
-  pl0_NODE_EMPTY,
+  PL0_NODE_EMPTY,
+  PL0_NODE_STAR,
+  PL0_NODE_DIV,
+  PL0_NODE_IDENT,
+  PL0_NODE_NUM,
   PL0_NODE_BLOCKLIST,
   PL0_NODE_VAR,
   PL0_NODE_VARLIST,
@@ -1257,15 +1266,15 @@ typedef enum {
   PL0_NODE_PLUS,
   PL0_NODE_MINUS,
   PL0_NODE_SIGN,
-  PL0_NODE_STAR,
-  PL0_NODE_DIV,
-  PL0_NODE_IDENT,
-  PL0_NODE_NUM,
 } pl0_astnode_kind;
 
 #define PL0_NUM_NODEKINDS 31
 static const char* pl0_nodekind_name[PL0_NUM_NODEKINDS] = {
   "PL0_NODE_EMPTY",
+  "PL0_NODE_STAR",
+  "PL0_NODE_DIV",
+  "PL0_NODE_IDENT",
+  "PL0_NODE_NUM",
   "PL0_NODE_BLOCKLIST",
   "PL0_NODE_VAR",
   "PL0_NODE_VARLIST",
@@ -1292,21 +1301,16 @@ static const char* pl0_nodekind_name[PL0_NUM_NODEKINDS] = {
   "PL0_NODE_PLUS",
   "PL0_NODE_MINUS",
   "PL0_NODE_SIGN",
-  "PL0_NODE_STAR",
-  "PL0_NODE_DIV",
-  "PL0_NODE_IDENT",
-  "PL0_NODE_NUM",
 };
 
 struct pl0_astnode_t;
 typedef struct pl0_astnode_t pl0_astnode_t;
 struct pl0_astnode_t {
-  // No %extra directives.
-
-  pl0_astnode_kind kind;
   pl0_astnode_t* parent;
   size_t num_children;
   size_t max_children;
+  pl0_astnode_kind kind;
+  // No %extra directives.
   pl0_astnode_t** children;
 };
 
@@ -1358,7 +1362,7 @@ static inline pl0_astnode_t* pl0_astnode_leaf(
 static inline pl0_astnode_t* pl0_astnode_fixed_1(
                              pgen_allocator* alloc,
                              pl0_astnode_kind kind,
-                             pl0_astnode_t* n0) {
+                             pl0_astnode_t* PGEN_RESTRICT n0) {
   char* ret = pgen_alloc(alloc,
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 1,
@@ -1372,14 +1376,15 @@ static inline pl0_astnode_t* pl0_astnode_fixed_1(
   node->num_children = 1;
   node->children = children;
   children[0] = n0;
+  n0->parent = node;
   return node;
 }
 
 static inline pl0_astnode_t* pl0_astnode_fixed_2(
                              pgen_allocator* alloc,
                              pl0_astnode_kind kind,
-                             pl0_astnode_t* n0,
-                             pl0_astnode_t* n1) {
+                             pl0_astnode_t* PGEN_RESTRICT n0,
+                             pl0_astnode_t* PGEN_RESTRICT n1) {
   char* ret = pgen_alloc(alloc,
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 2,
@@ -1393,16 +1398,18 @@ static inline pl0_astnode_t* pl0_astnode_fixed_2(
   node->num_children = 2;
   node->children = children;
   children[0] = n0;
+  n0->parent = node;
   children[1] = n1;
+  n1->parent = node;
   return node;
 }
 
 static inline pl0_astnode_t* pl0_astnode_fixed_3(
                              pgen_allocator* alloc,
                              pl0_astnode_kind kind,
-                             pl0_astnode_t* n0,
-                             pl0_astnode_t* n1,
-                             pl0_astnode_t* n2) {
+                             pl0_astnode_t* PGEN_RESTRICT n0,
+                             pl0_astnode_t* PGEN_RESTRICT n1,
+                             pl0_astnode_t* PGEN_RESTRICT n2) {
   char* ret = pgen_alloc(alloc,
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 3,
@@ -1416,18 +1423,21 @@ static inline pl0_astnode_t* pl0_astnode_fixed_3(
   node->num_children = 3;
   node->children = children;
   children[0] = n0;
+  n0->parent = node;
   children[1] = n1;
+  n1->parent = node;
   children[2] = n2;
+  n2->parent = node;
   return node;
 }
 
 static inline pl0_astnode_t* pl0_astnode_fixed_4(
                              pgen_allocator* alloc,
                              pl0_astnode_kind kind,
-                             pl0_astnode_t* n0,
-                             pl0_astnode_t* n1,
-                             pl0_astnode_t* n2,
-                             pl0_astnode_t* n3) {
+                             pl0_astnode_t* PGEN_RESTRICT n0,
+                             pl0_astnode_t* PGEN_RESTRICT n1,
+                             pl0_astnode_t* PGEN_RESTRICT n2,
+                             pl0_astnode_t* PGEN_RESTRICT n3) {
   char* ret = pgen_alloc(alloc,
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 4,
@@ -1441,20 +1451,24 @@ static inline pl0_astnode_t* pl0_astnode_fixed_4(
   node->num_children = 4;
   node->children = children;
   children[0] = n0;
+  n0->parent = node;
   children[1] = n1;
+  n1->parent = node;
   children[2] = n2;
+  n2->parent = node;
   children[3] = n3;
+  n3->parent = node;
   return node;
 }
 
 static inline pl0_astnode_t* pl0_astnode_fixed_5(
                              pgen_allocator* alloc,
                              pl0_astnode_kind kind,
-                             pl0_astnode_t* n0,
-                             pl0_astnode_t* n1,
-                             pl0_astnode_t* n2,
-                             pl0_astnode_t* n3,
-                             pl0_astnode_t* n4) {
+                             pl0_astnode_t* PGEN_RESTRICT n0,
+                             pl0_astnode_t* PGEN_RESTRICT n1,
+                             pl0_astnode_t* PGEN_RESTRICT n2,
+                             pl0_astnode_t* PGEN_RESTRICT n3,
+                             pl0_astnode_t* PGEN_RESTRICT n4) {
   char* ret = pgen_alloc(alloc,
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 5,
@@ -1468,10 +1482,15 @@ static inline pl0_astnode_t* pl0_astnode_fixed_5(
   node->num_children = 5;
   node->children = children;
   children[0] = n0;
+  n0->parent = node;
   children[1] = n1;
+  n1->parent = node;
   children[2] = n2;
+  n2->parent = node;
   children[3] = n3;
+  n3->parent = node;
   children[4] = n4;
+  n4->parent = node;
   return node;
 }
 
@@ -1479,7 +1498,7 @@ static inline void pl0_astnode_add(pgen_allocator* alloc, pl0_astnode_t *list, p
   if (list->max_children == list->num_children) {
     size_t new_max = list->max_children * 2;
     void* old_ptr = list->children;
-    void* new_ptr = realloc(list->children, new_max);
+    void* new_ptr = realloc(list->children, new_max * sizeof(pl0_astnode_t));
     if (!new_ptr)
       PGEN_OOM();
     list->children = (pl0_astnode_t **)new_ptr;
@@ -1498,16 +1517,18 @@ static inline void pl0_parser_rewind(pl0_parser_ctx *ctx, pgen_parser_rewind_t r
 #define rec(label)               pgen_parser_rewind_t _rew_##label = (pgen_parser_rewind_t){ctx->alloc->rew, ctx->pos};
 #define rew(label)               pl0_parser_rewind(ctx, _rew_##label)
 #define node(kind, ...)          PGEN_CAT(pl0_astnode_fixed_, PGEN_NARG(__VA_ARGS__))(ctx->alloc, PL0_NODE_##kind, __VA_ARGS__)
-#define kind(name) PL0_NODE_##name
+#define kind(name)               PL0_NODE_##name
 #define list(kind)               pl0_astnode_list(ctx->alloc, PL0_NODE_##kind, 16)
 #define leaf(kind)               pl0_astnode_leaf(ctx->alloc, PL0_NODE_##kind)
-#define add(list, node)  pl0_astnode_add(ctx->alloc, list, node)
+#define add(list, node)          pl0_astnode_add(ctx->alloc, list, node)
 #define defer(node, freefn, ptr) pgen_defer(ctx->alloc, freefn, ptr, ctx->alloc->rew)
 #define SUCC                     ((pl0_astnode_t*)(void*)(uintptr_t)_Alignof(pl0_astnode_t))
 
 static inline void pl0_astnode_print_h(pl0_astnode_t *node, size_t depth, int fl) {
   #define indent() for (size_t i = 0; i < depth; i++) printf("  ")
-  if (node == SUCC)
+  if (!node)
+    return;
+  else if (node == SUCC)
     puts("ERROR, CAPTURED SUCC."), exit(1);
 
   indent(); puts("{");
@@ -1542,10 +1563,10 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx);
 
 static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
   pl0_astnode_t* b = NULL;
-  pl0_astnode_t* expr_ret_1 = NULL;
-  pl0_astnode_t* expr_ret_0 = NULL;
   #define rule expr_ret_0
 
+  pl0_astnode_t* expr_ret_1 = NULL;
+  pl0_astnode_t* expr_ret_0 = NULL;
   pl0_astnode_t* expr_ret_2 = NULL;
   rec(mod_2);
   // ModExprList 0
@@ -1613,7 +1634,9 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
   // ModExprList end
   if (!expr_ret_2) rew(mod_2);
   expr_ret_1 = expr_ret_2 ? SUCC : NULL;
-  return expr_ret_1 ? rule : NULL;
+  if (!rule) rule = expr_ret_1;
+  if (!expr_ret_1) rule = NULL;
+  return rule;
   #undef rule
 }
 
@@ -1621,10 +1644,10 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
   pl0_astnode_t* i = NULL;
   pl0_astnode_t* n = NULL;
   pl0_astnode_t* e = NULL;
-  pl0_astnode_t* expr_ret_7 = NULL;
-  pl0_astnode_t* expr_ret_6 = NULL;
   #define rule expr_ret_6
 
+  pl0_astnode_t* expr_ret_7 = NULL;
+  pl0_astnode_t* expr_ret_6 = NULL;
   pl0_astnode_t* expr_ret_8 = NULL;
 
   rec(slash_8);
@@ -1960,7 +1983,9 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
   if (!expr_ret_8) rew(slash_8);
   expr_ret_7 = expr_ret_8;
 
-  return expr_ret_7 ? rule : NULL;
+  if (!rule) rule = expr_ret_7;
+  if (!expr_ret_7) rule = NULL;
+  return rule;
   #undef rule
 }
 
@@ -1968,10 +1993,10 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
   pl0_astnode_t* v = NULL;
   pl0_astnode_t* i = NULL;
   pl0_astnode_t* s = NULL;
-  pl0_astnode_t* expr_ret_23 = NULL;
-  pl0_astnode_t* expr_ret_22 = NULL;
   #define rule expr_ret_22
 
+  pl0_astnode_t* expr_ret_23 = NULL;
+  pl0_astnode_t* expr_ret_22 = NULL;
   pl0_astnode_t* expr_ret_24 = NULL;
 
   rec(slash_24);
@@ -2148,7 +2173,9 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
   if (!expr_ret_24) rew(slash_24);
   expr_ret_23 = expr_ret_24;
 
-  return expr_ret_23 ? rule : NULL;
+  if (!rule) rule = expr_ret_23;
+  if (!expr_ret_23) rule = NULL;
+  return rule;
   #undef rule
 }
 
@@ -2158,10 +2185,10 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
   pl0_astnode_t* e = NULL;
   pl0_astnode_t* smt = NULL;
   pl0_astnode_t* c = NULL;
-  pl0_astnode_t* expr_ret_34 = NULL;
-  pl0_astnode_t* expr_ret_33 = NULL;
   #define rule expr_ret_33
 
+  pl0_astnode_t* expr_ret_34 = NULL;
+  pl0_astnode_t* expr_ret_33 = NULL;
   pl0_astnode_t* expr_ret_35 = NULL;
 
   rec(slash_35);
@@ -2581,7 +2608,9 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
   if (!expr_ret_35) rew(slash_35);
   expr_ret_34 = expr_ret_35;
 
-  return expr_ret_34 ? rule : NULL;
+  if (!rule) rule = expr_ret_34;
+  if (!expr_ret_34) rule = NULL;
+  return rule;
   #undef rule
 }
 
@@ -2589,10 +2618,10 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
   pl0_astnode_t* ex = NULL;
   pl0_astnode_t* op = NULL;
   pl0_astnode_t* ex_ = NULL;
-  pl0_astnode_t* expr_ret_56 = NULL;
-  pl0_astnode_t* expr_ret_55 = NULL;
   #define rule expr_ret_55
 
+  pl0_astnode_t* expr_ret_56 = NULL;
+  pl0_astnode_t* expr_ret_55 = NULL;
   pl0_astnode_t* expr_ret_57 = NULL;
 
   rec(slash_57);
@@ -2813,17 +2842,19 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
   if (!expr_ret_57) rew(slash_57);
   expr_ret_56 = expr_ret_57;
 
-  return expr_ret_56 ? rule : NULL;
+  if (!rule) rule = expr_ret_56;
+  if (!expr_ret_56) rule = NULL;
+  return rule;
   #undef rule
 }
 
 static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
   pl0_astnode_t* pm = NULL;
   pl0_astnode_t* t = NULL;
-  pl0_astnode_t* expr_ret_72 = NULL;
-  pl0_astnode_t* expr_ret_71 = NULL;
   #define rule expr_ret_71
 
+  pl0_astnode_t* expr_ret_72 = NULL;
+  pl0_astnode_t* expr_ret_71 = NULL;
   pl0_astnode_t* expr_ret_73 = NULL;
   rec(mod_73);
   // ModExprList 0
@@ -3010,17 +3041,19 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
   // ModExprList end
   if (!expr_ret_73) rew(mod_73);
   expr_ret_72 = expr_ret_73 ? SUCC : NULL;
-  return expr_ret_72 ? rule : NULL;
+  if (!rule) rule = expr_ret_72;
+  if (!expr_ret_72) rule = NULL;
+  return rule;
   #undef rule
 }
 
 static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
   pl0_astnode_t* f = NULL;
   pl0_astnode_t* sd = NULL;
-  pl0_astnode_t* expr_ret_87 = NULL;
-  pl0_astnode_t* expr_ret_86 = NULL;
   #define rule expr_ret_86
 
+  pl0_astnode_t* expr_ret_87 = NULL;
+  pl0_astnode_t* expr_ret_86 = NULL;
   pl0_astnode_t* expr_ret_88 = NULL;
   rec(mod_88);
   // ModExprList 0
@@ -3150,7 +3183,9 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
   // ModExprList end
   if (!expr_ret_88) rew(mod_88);
   expr_ret_87 = expr_ret_88 ? SUCC : NULL;
-  return expr_ret_87 ? rule : NULL;
+  if (!rule) rule = expr_ret_87;
+  if (!expr_ret_87) rule = NULL;
+  return rule;
   #undef rule
 }
 
@@ -3158,10 +3193,10 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
   pl0_astnode_t* i = NULL;
   pl0_astnode_t* n = NULL;
   pl0_astnode_t* e = NULL;
-  pl0_astnode_t* expr_ret_98 = NULL;
-  pl0_astnode_t* expr_ret_97 = NULL;
   #define rule expr_ret_97
 
+  pl0_astnode_t* expr_ret_98 = NULL;
+  pl0_astnode_t* expr_ret_97 = NULL;
   pl0_astnode_t* expr_ret_99 = NULL;
 
   rec(slash_99);
@@ -3300,7 +3335,9 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
   if (!expr_ret_99) rew(slash_99);
   expr_ret_98 = expr_ret_99;
 
-  return expr_ret_98 ? rule : NULL;
+  if (!rule) rule = expr_ret_98;
+  if (!expr_ret_98) rule = NULL;
+  return rule;
   #undef rule
 }
 

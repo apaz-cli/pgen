@@ -47,8 +47,10 @@ else
   # Build debug
   clang src/pgen.c -o pgen -fsanitize=address -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable
 
-  # Build and run pl0 example
+  # Generate pl0 example
   ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h
+
+  # Build and run pl0 example
   cd examples/
   clang pl0.c -fsanitize=address -g
   cc pl0.c
