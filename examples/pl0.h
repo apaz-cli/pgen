@@ -224,7 +224,10 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
 
 #ifndef PGEN_DEBUG
 #define PGEN_DEBUG 0
-#define PGEN_AlLOCATOR_DEBUG 0
+#endif
+
+#ifndef PGEN_ALLOCATOR_DEBUG
+#define PGEN_ALLOCATOR_DEBUG 0
 #endif
 
 #if SIZE_MAX < UINT32_MAX
@@ -239,7 +242,9 @@ _Static_assert(PGEN_BUFFER_SIZE <= UINT32_MAX,
 #endif
 
 static inline size_t pgen_align(size_t n, size_t align) {
-  return (n + align - (n % align));
+  if (align == 1)
+    return n;
+  return (n + align - 1) & -align;
 }
 
 typedef struct {
@@ -334,13 +339,32 @@ static inline void pgen_allocator_destroy(pgen_allocator *allocator) {
   free(allocator->freelist.entries);
 }
 
+#if PGEN_ALLOCATOR_DEBUG
+static inline void pgen_allocator_print_freelist(pgen_allocator *allocator) {
+
+  if (allocator->freelist.len) {
+    puts("Freelist:");
+    for (size_t i = 0; i < allocator->freelist.len; i++) {
+      printf("  {.freefn=%p, .ptr=%p, {.arena_idx=%u, .filled=%u}}\n",
+             allocator->freelist.entries->freefn,
+             allocator->freelist.entries->ptr,
+             allocator->freelist.entries->rew.arena_idx,
+             allocator->freelist.entries->rew.filled);
+    }
+  }
+  puts("");
+}
+#endif
+
 #define PGEN_ALLOC_OF(allocator, type)                                         \
   (type *)pgen_alloc(allocator, sizeof(type), _Alignof(type))
 static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
                                size_t alignment) {
-#if PGEN_AlLOCATOR_DEBUG
-  printf("Allocating, from: (%u, %u)\n", allocator->rew.arena_idx,
-         allocator->rew.filled);
+#if PGEN_ALLOCATOR_DEBUG
+  printf("alloc({.arena_idx=%u, .filled=%u, .freelist_len=%u}, "
+         "{.n=%zu, .alignment=%zu})\n",
+         allocator->rew.arena_idx, allocator->rew.filled,
+         allocator->freelist.len, n, alignment);
 #endif
 
   char *ret = NULL;
@@ -389,29 +413,28 @@ static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
   ret = allocator->arenas[allocator->rew.arena_idx].buf + bufcurrent;
   allocator->rew.filled = bufnext;
 
-#if PGEN_AlLOCATOR_DEBUG
-  printf("Allocated, to: (%u, %u)", allocator->rew.arena_idx,
-         allocator->rew.filled);
+#if PGEN_ALLOCATOR_DEBUG
+  printf("New allocator state: {.arena_idx=%u, .filled=%u, .freelist_len=%u}"
+         "\n\n",
+         allocator->freelist.entries->rew.arena_idx,
+         allocator->freelist.entries->rew.filled, allocator->freelist.len);
 #endif
 
   return ret;
 }
 
-// Does not take a pgen_allocator_rewind_t, so does not rebind the
+// Does not take a pgen_allocator_rewind_t, does not rebind the
 // lifetime of the reallocated object.
 static inline void pgen_allocator_realloced(pgen_allocator *allocator,
                                             void *old_ptr, void *new_ptr,
                                             void (*new_free_fn)(void *)) {
 
-#if PGEN_AlLOCATOR_DEBUG
-  printf("realloc(%p -> %p): ", old_ptr, new_ptr);
-  for (size_t i = 0; i < allocator->freelist.len; i++) {
-    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
-           allocator->freelist.entries->ptr,
-           allocator->freelist.entries->rew.arena_idx,
-           allocator->freelist.entries->rew.filled);
-  }
-  puts("");
+#if PGEN_ALLOCATOR_DEBUG
+  printf("realloc({.arena_idx=%u, .filled=%u, .freelist_len=%u}, "
+         "{.old_ptr=%p, .new_ptr=%p, new_free_fn=%p})\n",
+         allocator->rew.arena_idx, allocator->rew.filled,
+         allocator->freelist.len, old_ptr, new_ptr, new_free_fn);
+  pgen_allocator_print_freelist(allocator);
 #endif
 
   for (size_t i = 0; i < allocator->freelist.len; i++) {
@@ -423,29 +446,20 @@ static inline void pgen_allocator_realloced(pgen_allocator *allocator,
     }
   }
 
-#if PGEN_AlLOCATOR_DEBUG
-  printf("Realloced: ");
-  for (size_t i = 0; i < allocator->freelist.len; i++) {
-    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
-           allocator->freelist.entries->ptr,
-           allocator->freelist.entries->rew.arena_idx,
-           allocator->freelist.entries->rew.filled);
-  }
+#if PGEN_ALLOCATOR_DEBUG
+  puts("Realloced.");
+  pgen_allocator_print_freelist(allocator);
 #endif
 }
 
 static inline void pgen_defer(pgen_allocator *allocator, void (*freefn)(void *),
                               void *ptr, pgen_allocator_rewind_t rew) {
-#if PGEN_AlLOCATOR_DEBUG
-  printf("defer(%p, (%u, %u)) (%u): ", ptr, rew.arena_idx, rew.filled,
-         allocator->freelist.len);
-  for (size_t i = 0; i < allocator->freelist.len; i++) {
-    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
-           allocator->freelist.entries->ptr,
-           allocator->freelist.entries->rew.arena_idx,
-           allocator->freelist.entries->rew.filled);
-  }
-  puts("");
+#if PGEN_ALLOCATOR_DEBUG
+  printf("defer({.arena_idx=%u, .filled=%u, .freelist_len=%u}, "
+         "{.freefn=%p, ptr=%p, {.arena_idx=%u, .filled=%u}})\n",
+         allocator->rew.arena_idx, allocator->rew.filled,
+         allocator->freelist.len, ptr, rew.arena_idx, rew.filled);
+  pgen_allocator_print_freelist(allocator);
 #endif
 
   // Grow list by factor of 2 if too small
@@ -475,31 +489,22 @@ static inline void pgen_defer(pgen_allocator *allocator, void (*freefn)(void *),
   allocator->freelist.entries[allocator->freelist.len] = entry;
   allocator->freelist.len = next_len;
 
-#if PGEN_AlLOCATOR_DEBUG
-  printf("Deferred: (%u) ", allocator->freelist.len);
-  for (size_t i = 0; i < allocator->freelist.len; i++) {
-    printf("(%p, (%u, %u)) ", allocator->freelist.entries->ptr,
-           allocator->freelist.entries->rew.arena_idx,
-           allocator->freelist.entries->rew.filled);
-  }
+#if PGEN_ALLOCATOR_DEBUG
+  puts("Deferred.");
+  pgen_allocator_print_freelist(allocator);
 #endif
 }
 
 static inline void pgen_allocator_rewind(pgen_allocator *allocator,
                                          pgen_allocator_rewind_t rew) {
 
-#if PGEN_AlLOCATOR_DEBUG
-  printf("rewind((%u, %u) -> (%u, %u)): (%u) ",
+#if PGEN_ALLOCATOR_DEBUG
+  printf("rewind({.arena_idx=%u, .filled=%u, .freelist_len=%u}, "
+         "{.arena_idx=%u, .filled=%u})\n",
          allocator->freelist.entries->rew.arena_idx,
-         allocator->freelist.entries->rew.filled, rew.arena_idx, rew.filled,
-         allocator->freelist.len);
-  for (size_t i = 0; i < allocator->freelist.len; i++) {
-    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
-           allocator->freelist.entries->ptr,
-           allocator->freelist.entries->rew.arena_idx,
-           allocator->freelist.entries->rew.filled);
-  }
-  puts("");
+         allocator->freelist.entries->rew.filled, allocator->freelist.len,
+         rew.arena_idx, rew.filled);
+  pgen_allocator_print_freelist(allocator);
 #endif
 
   // Free all the objects associated with nodes implicitly destroyed.
@@ -522,19 +527,16 @@ static inline void pgen_allocator_rewind(pgen_allocator *allocator,
     allocator->freelist.len = i;
   allocator->rew = rew;
 
-#if PGEN_AlLOCATOR_DEBUG
-  printf("rewound(%u, %u): (%u) ", rew.arena_idx, rew.filled,
-         allocator->freelist.len);
-  for (size_t i = 0; i < allocator->freelist.len; i++) {
-    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
-           allocator->freelist.entries->ptr,
-           allocator->freelist.entries->rew.arena_idx,
-           allocator->freelist.entries->rew.filled);
-  }
+#if PGEN_ALLOCATOR_DEBUG
+  printf("rewound to: {.arena_idx=%u, .filled=%u, .freelist_len=%u}\n",
+         allocator->freelist.entries->rew.arena_idx,
+         allocator->freelist.entries->rew.filled, allocator->freelist.len);
+  pgen_allocator_print_freelist(allocator);
 #endif
 }
 
 #endif /* PGEN_ARENA_INCLUDED */
+
 
 #ifndef PGEN_PARSER_MACROS_INCLUDED
 #define PGEN_PARSER_MACROS_INCLUDED
@@ -578,8 +580,8 @@ static inline void pgen_allocator_rewind(pgen_allocator *allocator,
 #ifndef PL0_TOKENIZER_INCLUDE
 #define PL0_TOKENIZER_INCLUDE
 
-#ifndef PL0_TOKENIZER_SOURCEINFO
-#define PL0_TOKENIZER_SOURCEINFO 1
+#ifndef PL0_SOURCEINFO
+#define PL0_SOURCEINFO 1
 #endif
 
 typedef enum {
@@ -667,7 +669,7 @@ typedef struct {
   pl0_token_kind kind;
   codepoint_t* content; // The token begins at tokenizer->start[token->start].
   size_t len;
-#if PL0_TOKENIZER_SOURCEINFO
+#if PL0_SOURCEINFO
   size_t line;
   size_t col;
 #endif
@@ -680,7 +682,7 @@ typedef struct {
   codepoint_t* start;
   size_t len;
   size_t pos;
-#if PL0_TOKENIZER_SOURCEINFO
+#if PL0_SOURCEINFO
   size_t pos_line;
   size_t pos_col;
 #endif
@@ -690,7 +692,7 @@ static inline void pl0_tokenizer_init(pl0_tokenizer* tokenizer, codepoint_t* sta
   tokenizer->start = start;
   tokenizer->len = len;
   tokenizer->pos = 0;
-#if PL0_TOKENIZER_SOURCEINFO
+#if PL0_SOURCEINFO
   tokenizer->pos_line = 0;
   tokenizer->pos_col = 0;
 #endif
@@ -1196,7 +1198,7 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
   ret.content = tokenizer->start + tokenizer->pos;
   ret.len = max_munch;
 
-#if PL0_TOKENIZER_SOURCEINFO
+#if PL0_SOURCEINFO
   ret.line = tokenizer->pos_line;
   ret.col = tokenizer->pos_col;
 
@@ -1307,12 +1309,31 @@ struct pl0_astnode_t;
 typedef struct pl0_astnode_t pl0_astnode_t;
 struct pl0_astnode_t {
   pl0_astnode_t* parent;
-  size_t num_children;
-  size_t max_children;
+  uint16_t num_children;
+  uint16_t max_children;
   pl0_astnode_kind kind;
+#if PL0_SOURCEINFO
+  uint32_t start_token_idx;
+  uint32_t end_token_idx;
+#endif
   // No %extra directives.
   pl0_astnode_t** children;
 };
+
+#if PL0_SOURCEINFO
+#define PGEN_MIN1(a) a
+#define PGEN_MIN2(a, b) PGEN_MIN(a, PGEN_MIN1(b))
+#define PGEN_MIN3(a, b, c) PGEN_MIN(a, PGEN_MIN2(b, c))
+#define PGEN_MIN4(a, b, c, d) PGEN_MIN(a, PGEN_MIN3(b, c, d))
+#define PGEN_MIN5(a, b, c, d, e) PGEN_MIN(a, PGEN_MIN4(b, c, d, e))
+#define PGEN_MAX1(a) a
+#define PGEN_MAX2(a, b) PGEN_MAX(a, PGEN_MAX1(b))
+#define PGEN_MAX3(a, b, c) PGEN_MAX(a, PGEN_MAX2(b, c))
+#define PGEN_MAX4(a, b, c, d) PGEN_MAX(a, PGEN_MAX3(b, c, d))
+#define PGEN_MAX5(a, b, c, d, e) PGEN_MAX(a, PGEN_MAX4(b, c, d, e))
+#define PGEN_MAX(a, b) ((a) > (b) ? (a) : (b))
+#define PGEN_MIN(a, b) ((a) ? ((a) > (b) ? (b) : (a)) : (b))
+#endif
 
 static inline pl0_astnode_t* pl0_astnode_list(
                              pgen_allocator* alloc,
@@ -1327,8 +1348,7 @@ static inline pl0_astnode_t* pl0_astnode_list(
   pl0_astnode_t **children;
   if (initial_size) {
     children = (pl0_astnode_t**)malloc(sizeof(pl0_astnode_t*) * initial_size);
-    if (!children)
-      PGEN_OOM();
+    if (!children) PGEN_OOM();
     pgen_defer(alloc, free, children, alloc->rew);
   } else {
     children = NULL;
@@ -1339,6 +1359,10 @@ static inline pl0_astnode_t* pl0_astnode_list(
   node->max_children = initial_size;
   node->num_children = 0;
   node->children = children;
+#if PL0_SOURCEINFO
+  node->start_token_idx = 0;
+  node->end_token_idx = 0;
+#endif
   return node;
 }
 
@@ -1356,6 +1380,7 @@ static inline pl0_astnode_t* pl0_astnode_leaf(
   node->max_children = 0;
   node->num_children = 0;
   node->children = NULL;
+  // token info is written at call site.
   return node;
 }
 
@@ -1366,7 +1391,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_1(
   char* ret = pgen_alloc(alloc,
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 1,
-                                        _Alignof(pl0_astnode_t));
+                         _Alignof(pl0_astnode_t));
   if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
@@ -1375,6 +1400,10 @@ static inline pl0_astnode_t* pl0_astnode_fixed_1(
   node->max_children = 0;
   node->num_children = 1;
   node->children = children;
+#if PL0_SOURCEINFO
+  node->start_token_idx = PGEN_MIN1(n0->start_token_idx);
+  node->end_token_idx = PGEN_MAX1(n0->end_token_idx);
+#endif
   children[0] = n0;
   n0->parent = node;
   return node;
@@ -1388,7 +1417,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_2(
   char* ret = pgen_alloc(alloc,
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 2,
-                                        _Alignof(pl0_astnode_t));
+                         _Alignof(pl0_astnode_t));
   if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
@@ -1397,6 +1426,10 @@ static inline pl0_astnode_t* pl0_astnode_fixed_2(
   node->max_children = 0;
   node->num_children = 2;
   node->children = children;
+#if PL0_SOURCEINFO
+  node->start_token_idx = PGEN_MIN2(n0->start_token_idx, n1->start_token_idx);
+  node->end_token_idx = PGEN_MAX2(n0->end_token_idx, n1->end_token_idx);
+#endif
   children[0] = n0;
   n0->parent = node;
   children[1] = n1;
@@ -1413,7 +1446,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_3(
   char* ret = pgen_alloc(alloc,
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 3,
-                                        _Alignof(pl0_astnode_t));
+                         _Alignof(pl0_astnode_t));
   if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
@@ -1422,6 +1455,10 @@ static inline pl0_astnode_t* pl0_astnode_fixed_3(
   node->max_children = 0;
   node->num_children = 3;
   node->children = children;
+#if PL0_SOURCEINFO
+  node->start_token_idx = PGEN_MIN3(n0->start_token_idx, n1->start_token_idx, n2->start_token_idx);
+  node->end_token_idx = PGEN_MAX3(n0->end_token_idx, n1->end_token_idx, n2->end_token_idx);
+#endif
   children[0] = n0;
   n0->parent = node;
   children[1] = n1;
@@ -1441,7 +1478,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_4(
   char* ret = pgen_alloc(alloc,
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 4,
-                                        _Alignof(pl0_astnode_t));
+                         _Alignof(pl0_astnode_t));
   if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
@@ -1450,6 +1487,10 @@ static inline pl0_astnode_t* pl0_astnode_fixed_4(
   node->max_children = 0;
   node->num_children = 4;
   node->children = children;
+#if PL0_SOURCEINFO
+  node->start_token_idx = PGEN_MIN4(n0->start_token_idx, n1->start_token_idx, n2->start_token_idx, n3->start_token_idx);
+  node->end_token_idx = PGEN_MAX4(n0->end_token_idx, n1->end_token_idx, n2->end_token_idx, n3->end_token_idx);
+#endif
   children[0] = n0;
   n0->parent = node;
   children[1] = n1;
@@ -1472,7 +1513,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_5(
   char* ret = pgen_alloc(alloc,
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 5,
-                                        _Alignof(pl0_astnode_t));
+                         _Alignof(pl0_astnode_t));
   if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
@@ -1481,6 +1522,10 @@ static inline pl0_astnode_t* pl0_astnode_fixed_5(
   node->max_children = 0;
   node->num_children = 5;
   node->children = children;
+#if PL0_SOURCEINFO
+  node->start_token_idx = PGEN_MIN5(n0->start_token_idx, n1->start_token_idx, n2->start_token_idx, n3->start_token_idx, n4->start_token_idx);
+  node->end_token_idx = PGEN_MAX5(n0->end_token_idx, n1->end_token_idx, n2->end_token_idx, n3->end_token_idx, n4->end_token_idx);
+#endif
   children[0] = n0;
   n0->parent = node;
   children[1] = n1;
@@ -1496,17 +1541,28 @@ static inline pl0_astnode_t* pl0_astnode_fixed_5(
 
 static inline void pl0_astnode_add(pgen_allocator* alloc, pl0_astnode_t *list, pl0_astnode_t *node) {
   if (list->max_children == list->num_children) {
-    size_t new_max = list->max_children * 2;
+    // Figure out the new size. Check for overflow where applicable.
+    uint64_t new_max = (uint64_t)list->max_children * 2;
+    if (new_max > UINT16_MAX || new_max > SIZE_MAX) PGEN_OOM();
+    if (SIZE_MAX < UINT16_MAX && (size_t)new_max > SIZE_MAX / sizeof(pl0_astnode_t)) PGEN_OOM();
+    size_t new_bytes = (size_t)new_max * sizeof(pl0_astnode_t);
+
+    // Reallocate the list, and inform the allocator.
     void* old_ptr = list->children;
-    void* new_ptr = realloc(list->children, new_max * sizeof(pl0_astnode_t));
-    if (!new_ptr)
-      PGEN_OOM();
+    void* new_ptr = realloc(list->children, new_bytes);
+    if (!new_ptr) PGEN_OOM();
     list->children = (pl0_astnode_t **)new_ptr;
     list->max_children = new_max;
     pgen_allocator_realloced(alloc, old_ptr, new_ptr, free);
   }
   node->parent = list;
   list->children[list->num_children++] = node;
+  #if PL0_SOURCEINFO
+  if (node->start_token_idx && (node->start_token_idx < list->start_token_idx))
+    list->start_token_idx = node->start_token_idx;
+  if (node->end_token_idx && (node->end_token_idx > list->end_token_idx))
+    list->end_token_idx = node->end_token_idx;
+  #endif
 }
 
 static inline void pl0_parser_rewind(pl0_parser_ctx *ctx, pgen_parser_rewind_t rew) {
@@ -1521,34 +1577,54 @@ static inline void pl0_parser_rewind(pl0_parser_ctx *ctx, pgen_parser_rewind_t r
 #define list(kind)               pl0_astnode_list(ctx->alloc, PL0_NODE_##kind, 16)
 #define leaf(kind)               pl0_astnode_leaf(ctx->alloc, PL0_NODE_##kind)
 #define add(list, node)          pl0_astnode_add(ctx->alloc, list, node)
+#define track(node)              (PL0_SOURCEINFO ? (node->start_token_idx = node->end_token_idx = ctx->pos - 1) : 0)
+#define first(node, f)           (f->start_token_idx ? (node->start_token_idx = f->start_token_idx) : 0)
+#define last(node, l)            (l->end_token_idx ? (node->end_token_idx = l->end_token_idx) : 0)
 #define defer(node, freefn, ptr) pgen_defer(ctx->alloc, freefn, ptr, ctx->alloc->rew)
 #define SUCC                     ((pl0_astnode_t*)(void*)(uintptr_t)_Alignof(pl0_astnode_t))
 
-static inline void pl0_astnode_print_h(pl0_astnode_t *node, size_t depth, int fl) {
+static inline void pl0_token_print_content(pl0_token tok) {
+  char* utf8content; size_t len;
+  int success = UTF8_encode(tok.content, tok.len, &utf8content, &len);
+  if (!success) fprintf(stderr, "Failed to decode a token.\n"), exit(1);
+  fwrite(utf8content, len, 1, stdout);
+}
+static inline int pl0_astnode_print_h(pl0_token* tokens, pl0_astnode_t *node, size_t depth, int fl) {
   #define indent() for (size_t i = 0; i < depth; i++) printf("  ")
   if (!node)
-    return;
+    return 0;
   else if (node == SUCC)
     puts("ERROR, CAPTURED SUCC."), exit(1);
 
   indent(); puts("{");
   depth++;
   indent(); printf("\"kind\": "); printf("\"%s\",\n", pl0_nodekind_name[node->kind] + 9);
+  #if PL0_SOURCEINFO
+  if (!node->num_children && node->start_token_idx == node->end_token_idx && node->start_token_idx) {
+    indent(); printf("\"token_num\": %" PRIu32 ",\n", node->start_token_idx);
+    indent(); printf("\"token_content\": \"");
+     pl0_token_print_content(tokens[node->start_token_idx]); printf("\",\n");
+  } else if (node->start_token_idx == node->end_token_idx) {
+    indent(); printf("\"token_num\": [%" PRIu32 ", %" PRIu32 "],\n", node->start_token_idx, node->end_token_idx);
+  }
+  #endif
   size_t cnum = node->num_children;
   indent(); printf("\"num_children\": %zu,\n", cnum);
-  indent(); printf("\"children\": [");  if (cnum) {
+  indent(); printf("\"children\": [");
+  if (cnum) {
     putchar('\n');
     for (size_t i = 0; i < cnum; i++)
-      pl0_astnode_print_h(node->children[i], depth + 1, i == cnum - 1);
+      pl0_astnode_print_h(tokens, node->children[i], depth + 1, i == cnum - 1);
     indent();
   }
   printf("]\n");
   depth--;
   indent(); putchar('}'); if (fl != 1) putchar(','); putchar('\n');
+  return 0;
 }
 
-static inline void pl0_astnode_print_json(pl0_astnode_t *node) {
-  pl0_astnode_print_h(node, 0, 1);
+static inline void pl0_astnode_print_json(pl0_token* tokens, pl0_astnode_t *node) {
+  pl0_astnode_print_h(tokens, node, 0, 1);
 }
 
 static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx);
@@ -1688,6 +1764,9 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
         // Capturing IDENT.
         expr_ret_10 = leaf(IDENT);
+        #if PL0_SOURCEINFO
+        expr_ret_10->start_token_idx = expr_ret_10->end_token_idx = (uint32_t)ctx->pos;
+        #endif
         ctx->pos++;
       } else {
         expr_ret_10 = NULL;
@@ -1737,6 +1816,9 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
             // Capturing IDENT.
             expr_ret_13 = leaf(IDENT);
+            #if PL0_SOURCEINFO
+            expr_ret_13->start_token_idx = expr_ret_13->end_token_idx = (uint32_t)ctx->pos;
+            #endif
             ctx->pos++;
           } else {
             expr_ret_13 = NULL;
@@ -1821,6 +1903,9 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
         // Capturing IDENT.
         expr_ret_15 = leaf(IDENT);
+        #if PL0_SOURCEINFO
+        expr_ret_15->start_token_idx = expr_ret_15->end_token_idx = (uint32_t)ctx->pos;
+        #endif
         ctx->pos++;
       } else {
         expr_ret_15 = NULL;
@@ -1850,6 +1935,9 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_NUM) {
         // Capturing NUM.
         expr_ret_16 = leaf(NUM);
+        #if PL0_SOURCEINFO
+        expr_ret_16->start_token_idx = expr_ret_16->end_token_idx = (uint32_t)ctx->pos;
+        #endif
         ctx->pos++;
       } else {
         expr_ret_16 = NULL;
@@ -1899,6 +1987,9 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
             // Capturing IDENT.
             expr_ret_19 = leaf(IDENT);
+            #if PL0_SOURCEINFO
+            expr_ret_19->start_token_idx = expr_ret_19->end_token_idx = (uint32_t)ctx->pos;
+            #endif
             ctx->pos++;
           } else {
             expr_ret_19 = NULL;
@@ -1915,6 +2006,9 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_EQ) {
             // Capturing EQ.
             expr_ret_20 = leaf(EQ);
+            #if PL0_SOURCEINFO
+            expr_ret_20->start_token_idx = expr_ret_20->end_token_idx = (uint32_t)ctx->pos;
+            #endif
             ctx->pos++;
           } else {
             expr_ret_20 = NULL;
@@ -1931,6 +2025,9 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_NUM) {
             // Capturing NUM.
             expr_ret_21 = leaf(NUM);
+            #if PL0_SOURCEINFO
+            expr_ret_21->start_token_idx = expr_ret_21->end_token_idx = (uint32_t)ctx->pos;
+            #endif
             ctx->pos++;
           } else {
             expr_ret_21 = NULL;
@@ -2075,6 +2172,9 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
             // Capturing IDENT.
             expr_ret_30 = leaf(IDENT);
+            #if PL0_SOURCEINFO
+            expr_ret_30->start_token_idx = expr_ret_30->end_token_idx = (uint32_t)ctx->pos;
+            #endif
             ctx->pos++;
           } else {
             expr_ret_30 = NULL;
@@ -2204,6 +2304,9 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
         // Capturing IDENT.
         expr_ret_37 = leaf(IDENT);
+        #if PL0_SOURCEINFO
+        expr_ret_37->start_token_idx = expr_ret_37->end_token_idx = (uint32_t)ctx->pos;
+        #endif
         ctx->pos++;
       } else {
         expr_ret_37 = NULL;
@@ -2220,6 +2323,9 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_CEQ) {
         // Capturing CEQ.
         expr_ret_38 = leaf(CEQ);
+        #if PL0_SOURCEINFO
+        expr_ret_38->start_token_idx = expr_ret_38->end_token_idx = (uint32_t)ctx->pos;
+        #endif
         ctx->pos++;
       } else {
         expr_ret_38 = NULL;
@@ -2279,6 +2385,9 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
         // Capturing IDENT.
         expr_ret_41 = leaf(IDENT);
+        #if PL0_SOURCEINFO
+        expr_ret_41->start_token_idx = expr_ret_41->end_token_idx = (uint32_t)ctx->pos;
+        #endif
         ctx->pos++;
       } else {
         expr_ret_41 = NULL;
@@ -2329,6 +2438,9 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
         // Capturing IDENT.
         expr_ret_43 = leaf(IDENT);
+        #if PL0_SOURCEINFO
+        expr_ret_43->start_token_idx = expr_ret_43->end_token_idx = (uint32_t)ctx->pos;
+        #endif
         ctx->pos++;
       } else {
         expr_ret_43 = NULL;
@@ -2699,6 +2811,9 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_EQ) {
           // Capturing EQ.
           expr_ret_64 = leaf(EQ);
+          #if PL0_SOURCEINFO
+          expr_ret_64->start_token_idx = expr_ret_64->end_token_idx = (uint32_t)ctx->pos;
+          #endif
           ctx->pos++;
         } else {
           expr_ret_64 = NULL;
@@ -2718,6 +2833,9 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_HASH) {
           // Capturing HASH.
           expr_ret_65 = leaf(HASH);
+          #if PL0_SOURCEINFO
+          expr_ret_65->start_token_idx = expr_ret_65->end_token_idx = (uint32_t)ctx->pos;
+          #endif
           ctx->pos++;
         } else {
           expr_ret_65 = NULL;
@@ -2737,6 +2855,9 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_LT) {
           // Capturing LT.
           expr_ret_66 = leaf(LT);
+          #if PL0_SOURCEINFO
+          expr_ret_66->start_token_idx = expr_ret_66->end_token_idx = (uint32_t)ctx->pos;
+          #endif
           ctx->pos++;
         } else {
           expr_ret_66 = NULL;
@@ -2756,6 +2877,9 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_LEQ) {
           // Capturing LEQ.
           expr_ret_67 = leaf(LEQ);
+          #if PL0_SOURCEINFO
+          expr_ret_67->start_token_idx = expr_ret_67->end_token_idx = (uint32_t)ctx->pos;
+          #endif
           ctx->pos++;
         } else {
           expr_ret_67 = NULL;
@@ -2775,6 +2899,9 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_GT) {
           // Capturing GT.
           expr_ret_68 = leaf(GT);
+          #if PL0_SOURCEINFO
+          expr_ret_68->start_token_idx = expr_ret_68->end_token_idx = (uint32_t)ctx->pos;
+          #endif
           ctx->pos++;
         } else {
           expr_ret_68 = NULL;
@@ -2794,6 +2921,9 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
         if (ctx->tokens[ctx->pos].kind == PL0_TOK_GEQ) {
           // Capturing GEQ.
           expr_ret_69 = leaf(GEQ);
+          #if PL0_SOURCEINFO
+          expr_ret_69->start_token_idx = expr_ret_69->end_token_idx = (uint32_t)ctx->pos;
+          #endif
           ctx->pos++;
         } else {
           expr_ret_69 = NULL;
@@ -2885,6 +3015,9 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_PLUS) {
         // Capturing PLUS.
         expr_ret_76 = leaf(PLUS);
+        #if PL0_SOURCEINFO
+        expr_ret_76->start_token_idx = expr_ret_76->end_token_idx = (uint32_t)ctx->pos;
+        #endif
         ctx->pos++;
       } else {
         expr_ret_76 = NULL;
@@ -2904,6 +3037,9 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_MINUS) {
         // Capturing MINUS.
         expr_ret_77 = leaf(MINUS);
+        #if PL0_SOURCEINFO
+        expr_ret_77->start_token_idx = expr_ret_77->end_token_idx = (uint32_t)ctx->pos;
+        #endif
         ctx->pos++;
       } else {
         expr_ret_77 = NULL;
@@ -2971,6 +3107,9 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_PLUS) {
             // Capturing PLUS.
             expr_ret_83 = leaf(PLUS);
+            #if PL0_SOURCEINFO
+            expr_ret_83->start_token_idx = expr_ret_83->end_token_idx = (uint32_t)ctx->pos;
+            #endif
             ctx->pos++;
           } else {
             expr_ret_83 = NULL;
@@ -2990,6 +3129,9 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_MINUS) {
             // Capturing MINUS.
             expr_ret_84 = leaf(MINUS);
+            #if PL0_SOURCEINFO
+            expr_ret_84->start_token_idx = expr_ret_84->end_token_idx = (uint32_t)ctx->pos;
+            #endif
             ctx->pos++;
           } else {
             expr_ret_84 = NULL;
@@ -3113,6 +3255,9 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_STAR) {
             // Capturing STAR.
             expr_ret_94 = leaf(STAR);
+            #if PL0_SOURCEINFO
+            expr_ret_94->start_token_idx = expr_ret_94->end_token_idx = (uint32_t)ctx->pos;
+            #endif
             ctx->pos++;
           } else {
             expr_ret_94 = NULL;
@@ -3132,6 +3277,9 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
           if (ctx->tokens[ctx->pos].kind == PL0_TOK_DIV) {
             // Capturing DIV.
             expr_ret_95 = leaf(DIV);
+            #if PL0_SOURCEINFO
+            expr_ret_95->start_token_idx = expr_ret_95->end_token_idx = (uint32_t)ctx->pos;
+            #endif
             ctx->pos++;
           } else {
             expr_ret_95 = NULL;
@@ -3212,6 +3360,9 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_IDENT) {
         // Capturing IDENT.
         expr_ret_101 = leaf(IDENT);
+        #if PL0_SOURCEINFO
+        expr_ret_101->start_token_idx = expr_ret_101->end_token_idx = (uint32_t)ctx->pos;
+        #endif
         ctx->pos++;
       } else {
         expr_ret_101 = NULL;
@@ -3249,6 +3400,9 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       if (ctx->tokens[ctx->pos].kind == PL0_TOK_NUM) {
         // Capturing NUM.
         expr_ret_103 = leaf(NUM);
+        #if PL0_SOURCEINFO
+        expr_ret_103->start_token_idx = expr_ret_103->end_token_idx = (uint32_t)ctx->pos;
+        #endif
         ctx->pos++;
       } else {
         expr_ret_103 = NULL;
@@ -3350,8 +3504,24 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
 #undef list
 #undef leaf
 #undef add
+#undef track
+#undef first
+#undef last
 #undef defer
 #undef SUCC
+
+#undef PGEN_MIN
+#undef PGEN_MAX
+#undef PGEN_MIN1
+#undef PGEN_MAX1
+#undef PGEN_MIN2
+#undef PGEN_MAX2
+#undef PGEN_MIN3
+#undef PGEN_MAX3
+#undef PGEN_MIN4
+#undef PGEN_MAX4
+#undef PGEN_MIN5
+#undef PGEN_MAX5
 
 #endif /* PGEN_PL0_ASTNODE_INCLUDE */
 

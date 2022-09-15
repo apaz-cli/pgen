@@ -1,4 +1,4 @@
-#define PL0_TOKENIZER_SOURCEINFO 0
+#define PL0_SOURCEINFO 1
 #include "pl0.h"
 
 #include <stdio.h>
@@ -41,9 +41,9 @@ static inline void printtok(pl0_tokenizer tokenizer, pl0_token tok) {
       putchar(c);
   }
 
-#if PL0_TOKENIZER_SOURCEINFO
+#if PL0_SOURCEINFO
   printf(") {.kind=%s, .len=%zu, .line=%zu, .col=%zu}\n",
-         pl0_kind_name[tok.kind], tok.len, tok.line, tok.col);
+         pl0_tokenkind_name[tok.kind], tok.len, tok.line, tok.col);
 #else
   printf(") {.kind=%s, .len=%zu}\n", pl0_tokenkind_name[tok.kind], tok.len);
 #endif
@@ -108,7 +108,7 @@ int main(void) {
   pl0_astnode_t *ast = pl0_parse_program(&parser);
 
   // Print AST
-  pl0_astnode_print_json(ast);
+  pl0_astnode_print_json(toklist.buf, ast);
 
   // Clean up
   pgen_allocator_destroy(&allocator);

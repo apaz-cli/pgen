@@ -227,7 +227,10 @@ static char *ptr;
 
 #ifndef PGEN_DEBUG
 #define PGEN_DEBUG 0
-#define PGEN_AlLOCATOR_DEBUG 0
+#endif
+
+#ifndef PGEN_ALLOCATOR_DEBUG
+#define PGEN_ALLOCATOR_DEBUG 0
 #endif
 
 #if SIZE_MAX < UINT32_MAX
@@ -242,7 +245,9 @@ _Static_assert(PGEN_BUFFER_SIZE <= UINT32_MAX,
 #endif
 
 static inline size_t pgen_align(size_t n, size_t align) {
-  return (n + align - (n % align));
+  if (align == 1)
+    return n;
+  return (n + align - 1) & -align;
 }
 
 typedef struct {
@@ -337,13 +342,32 @@ static inline void pgen_allocator_destroy(pgen_allocator *allocator) {
   free(allocator->freelist.entries);
 }
 
+#if PGEN_ALLOCATOR_DEBUG
+static inline void pgen_allocator_print_freelist(pgen_allocator *allocator) {
+
+  if (allocator->freelist.len) {
+    puts("Freelist:");
+    for (size_t i = 0; i < allocator->freelist.len; i++) {
+      printf("  {.freefn=%p, .ptr=%p, {.arena_idx=%u, .filled=%u}}\n",
+             allocator->freelist.entries->freefn,
+             allocator->freelist.entries->ptr,
+             allocator->freelist.entries->rew.arena_idx,
+             allocator->freelist.entries->rew.filled);
+    }
+  }
+  puts("");
+}
+#endif
+
 #define PGEN_ALLOC_OF(allocator, type)                                         \
   (type *)pgen_alloc(allocator, sizeof(type), _Alignof(type))
 static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
                                size_t alignment) {
-#if PGEN_AlLOCATOR_DEBUG
-  printf("Allocating, from: (%u, %u)\n", allocator->rew.arena_idx,
-         allocator->rew.filled);
+#if PGEN_ALLOCATOR_DEBUG
+  printf("alloc({.arena_idx=%u, .filled=%u, .freelist_len=%u}, "
+         "{.n=%zu, .alignment=%zu})\n",
+         allocator->rew.arena_idx, allocator->rew.filled,
+         allocator->freelist.len, n, alignment);
 #endif
 
   char *ret = NULL;
@@ -392,29 +416,28 @@ static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
   ret = allocator->arenas[allocator->rew.arena_idx].buf + bufcurrent;
   allocator->rew.filled = bufnext;
 
-#if PGEN_AlLOCATOR_DEBUG
-  printf("Allocated, to: (%u, %u)", allocator->rew.arena_idx,
-         allocator->rew.filled);
+#if PGEN_ALLOCATOR_DEBUG
+  printf("New allocator state: {.arena_idx=%u, .filled=%u, .freelist_len=%u}"
+         "\n\n",
+         allocator->freelist.entries->rew.arena_idx,
+         allocator->freelist.entries->rew.filled, allocator->freelist.len);
 #endif
 
   return ret;
 }
 
-// Does not take a pgen_allocator_rewind_t, so does not rebind the
+// Does not take a pgen_allocator_rewind_t, does not rebind the
 // lifetime of the reallocated object.
 static inline void pgen_allocator_realloced(pgen_allocator *allocator,
                                             void *old_ptr, void *new_ptr,
                                             void (*new_free_fn)(void *)) {
 
-#if PGEN_AlLOCATOR_DEBUG
-  printf("realloc(%p -> %p): ", old_ptr, new_ptr);
-  for (size_t i = 0; i < allocator->freelist.len; i++) {
-    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
-           allocator->freelist.entries->ptr,
-           allocator->freelist.entries->rew.arena_idx,
-           allocator->freelist.entries->rew.filled);
-  }
-  puts("");
+#if PGEN_ALLOCATOR_DEBUG
+  printf("realloc({.arena_idx=%u, .filled=%u, .freelist_len=%u}, "
+         "{.old_ptr=%p, .new_ptr=%p, new_free_fn=%p})\n",
+         allocator->rew.arena_idx, allocator->rew.filled,
+         allocator->freelist.len, old_ptr, new_ptr, new_free_fn);
+  pgen_allocator_print_freelist(allocator);
 #endif
 
   for (size_t i = 0; i < allocator->freelist.len; i++) {
@@ -426,29 +449,20 @@ static inline void pgen_allocator_realloced(pgen_allocator *allocator,
     }
   }
 
-#if PGEN_AlLOCATOR_DEBUG
-  printf("Realloced: ");
-  for (size_t i = 0; i < allocator->freelist.len; i++) {
-    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
-           allocator->freelist.entries->ptr,
-           allocator->freelist.entries->rew.arena_idx,
-           allocator->freelist.entries->rew.filled);
-  }
+#if PGEN_ALLOCATOR_DEBUG
+  puts("Realloced.");
+  pgen_allocator_print_freelist(allocator);
 #endif
 }
 
 static inline void pgen_defer(pgen_allocator *allocator, void (*freefn)(void *),
                               void *ptr, pgen_allocator_rewind_t rew) {
-#if PGEN_AlLOCATOR_DEBUG
-  printf("defer(%p, (%u, %u)) (%u): ", ptr, rew.arena_idx, rew.filled,
-         allocator->freelist.len);
-  for (size_t i = 0; i < allocator->freelist.len; i++) {
-    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
-           allocator->freelist.entries->ptr,
-           allocator->freelist.entries->rew.arena_idx,
-           allocator->freelist.entries->rew.filled);
-  }
-  puts("");
+#if PGEN_ALLOCATOR_DEBUG
+  printf("defer({.arena_idx=%u, .filled=%u, .freelist_len=%u}, "
+         "{.freefn=%p, ptr=%p, {.arena_idx=%u, .filled=%u}})\n",
+         allocator->rew.arena_idx, allocator->rew.filled,
+         allocator->freelist.len, ptr, rew.arena_idx, rew.filled);
+  pgen_allocator_print_freelist(allocator);
 #endif
 
   // Grow list by factor of 2 if too small
@@ -478,31 +492,22 @@ static inline void pgen_defer(pgen_allocator *allocator, void (*freefn)(void *),
   allocator->freelist.entries[allocator->freelist.len] = entry;
   allocator->freelist.len = next_len;
 
-#if PGEN_AlLOCATOR_DEBUG
-  printf("Deferred: (%u) ", allocator->freelist.len);
-  for (size_t i = 0; i < allocator->freelist.len; i++) {
-    printf("(%p, (%u, %u)) ", allocator->freelist.entries->ptr,
-           allocator->freelist.entries->rew.arena_idx,
-           allocator->freelist.entries->rew.filled);
-  }
+#if PGEN_ALLOCATOR_DEBUG
+  puts("Deferred.");
+  pgen_allocator_print_freelist(allocator);
 #endif
 }
 
 static inline void pgen_allocator_rewind(pgen_allocator *allocator,
                                          pgen_allocator_rewind_t rew) {
 
-#if PGEN_AlLOCATOR_DEBUG
-  printf("rewind((%u, %u) -> (%u, %u)): (%u) ",
+#if PGEN_ALLOCATOR_DEBUG
+  printf("rewind({.arena_idx=%u, .filled=%u, .freelist_len=%u}, "
+         "{.arena_idx=%u, .filled=%u})\n",
          allocator->freelist.entries->rew.arena_idx,
-         allocator->freelist.entries->rew.filled, rew.arena_idx, rew.filled,
-         allocator->freelist.len);
-  for (size_t i = 0; i < allocator->freelist.len; i++) {
-    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
-           allocator->freelist.entries->ptr,
-           allocator->freelist.entries->rew.arena_idx,
-           allocator->freelist.entries->rew.filled);
-  }
-  puts("");
+         allocator->freelist.entries->rew.filled, allocator->freelist.len,
+         rew.arena_idx, rew.filled);
+  pgen_allocator_print_freelist(allocator);
 #endif
 
   // Free all the objects associated with nodes implicitly destroyed.
@@ -525,19 +530,16 @@ static inline void pgen_allocator_rewind(pgen_allocator *allocator,
     allocator->freelist.len = i;
   allocator->rew = rew;
 
-#if PGEN_AlLOCATOR_DEBUG
-  printf("rewound(%u, %u): (%u) ", rew.arena_idx, rew.filled,
-         allocator->freelist.len);
-  for (size_t i = 0; i < allocator->freelist.len; i++) {
-    printf("(%p, %p, (%u, %u)) ", allocator->freelist.entries->freefn,
-           allocator->freelist.entries->ptr,
-           allocator->freelist.entries->rew.arena_idx,
-           allocator->freelist.entries->rew.filled);
-  }
+#if PGEN_ALLOCATOR_DEBUG
+  printf("rewound to: {.arena_idx=%u, .filled=%u, .freelist_len=%u}\n",
+         allocator->freelist.entries->rew.arena_idx,
+         allocator->freelist.entries->rew.filled, allocator->freelist.len);
+  pgen_allocator_print_freelist(allocator);
 #endif
 }
 
 #endif /* PGEN_ARENA_INCLUDED */
+
 
 #ifndef PGEN_PARSER_MACROS_INCLUDED
 #define PGEN_PARSER_MACROS_INCLUDED
@@ -581,8 +583,8 @@ static inline void pgen_allocator_rewind(pgen_allocator *allocator,
 #ifndef BF_TOKENIZER_INCLUDE
 #define BF_TOKENIZER_INCLUDE
 
-#ifndef BF_TOKENIZER_SOURCEINFO
-#define BF_TOKENIZER_SOURCEINFO 1
+#ifndef BF_SOURCEINFO
+#define BF_SOURCEINFO 1
 #endif
 
 typedef enum {
@@ -620,12 +622,11 @@ static const char* bf_tokenkind_name[BF_NUM_TOKENKINDS] = {
 
 typedef struct {
   bf_token_kind kind;
-  size_t start; // The token begins at tokenizer->start[token->start].
-  size_t len;   // It goes until tokenizer->start[token->start + token->len] (non-inclusive).
-#if BF_TOKENIZER_SOURCEINFO
+  codepoint_t* content; // The token begins at tokenizer->start[token->start].
+  size_t len;
+#if BF_SOURCEINFO
   size_t line;
   size_t col;
-  char* sourceFile;
 #endif
 #ifdef BF_TOKEN_EXTRA
   BF_TOKEN_EXTRA
@@ -636,23 +637,19 @@ typedef struct {
   codepoint_t* start;
   size_t len;
   size_t pos;
-#if BF_TOKENIZER_SOURCEINFO
+#if BF_SOURCEINFO
   size_t pos_line;
   size_t pos_col;
-  char* pos_sourceFile;
 #endif
 } bf_tokenizer;
 
-static inline void bf_tokenizer_init(bf_tokenizer* tokenizer, codepoint_t* start, size_t len, char* sourceFile) {
+static inline void bf_tokenizer_init(bf_tokenizer* tokenizer, codepoint_t* start, size_t len) {
   tokenizer->start = start;
   tokenizer->len = len;
   tokenizer->pos = 0;
-#if BF_TOKENIZER_SOURCEINFO
+#if BF_SOURCEINFO
   tokenizer->pos_line = 0;
   tokenizer->pos_col = 0;
-  tokenizer->pos_sourceFile = sourceFile;
-#else
-  (void)sourceFile;
 #endif
 }
 
@@ -759,13 +756,12 @@ static inline bf_token bf_nextToken(bf_tokenizer* tokenizer) {
 
   bf_token ret;
   ret.kind = kind;
-  ret.start = tokenizer->pos;
+  ret.content = tokenizer->start + tokenizer->pos;
   ret.len = max_munch;
 
-#if BF_TOKENIZER_SOURCEINFO
+#if BF_SOURCEINFO
   ret.line = tokenizer->pos_line;
   ret.col = tokenizer->pos_col;
-  ret.sourceFile = tokenizer->pos_sourceFile;
 
   for (size_t i = 0; i < ret.len; i++) {
     if (current[i] == '\n') {
@@ -1005,7 +1001,7 @@ static inline void bf_astnode_add(pgen_allocator* alloc, bf_astnode_t *list, bf_
   if (list->max_children == list->num_children) {
     size_t new_max = list->max_children * 2;
     void* old_ptr = list->children;
-    void* new_ptr = realloc(list->children, new_max);
+    void* new_ptr = realloc(list->children, new_max * sizeof(bf_astnode_t));
     if (!new_ptr)
       PGEN_OOM();
     list->children = (bf_astnode_t **)new_ptr;
@@ -1031,10 +1027,10 @@ static inline void bf_parser_rewind(bf_parser_ctx *ctx, pgen_parser_rewind_t rew
 #define defer(node, freefn, ptr) pgen_defer(ctx->alloc, freefn, ptr, ctx->alloc->rew)
 #define SUCC                     ((bf_astnode_t*)(void*)(uintptr_t)_Alignof(bf_astnode_t))
 
-static inline void bf_astnode_print_h(bf_astnode_t *node, size_t depth, int fl) {
+static inline int bf_astnode_print_h(bf_astnode_t *node, size_t depth, int fl) {
   #define indent() for (size_t i = 0; i < depth; i++) printf("  ")
   if (!node)
-    return;
+    return 0;
   else if (node == SUCC)
     puts("ERROR, CAPTURED SUCC."), exit(1);
 
@@ -1043,7 +1039,8 @@ static inline void bf_astnode_print_h(bf_astnode_t *node, size_t depth, int fl) 
   indent(); printf("\"kind\": "); printf("\"%s\",\n", bf_nodekind_name[node->kind] + 8);
   size_t cnum = node->num_children;
   indent(); printf("\"num_children\": %zu,\n", cnum);
-  indent(); printf("\"children\": [");  if (cnum) {
+  indent(); printf("\"children\": [");
+  if (cnum) {
     putchar('\n');
     for (size_t i = 0; i < cnum; i++)
       bf_astnode_print_h(node->children[i], depth + 1, i == cnum - 1);
@@ -1052,6 +1049,7 @@ static inline void bf_astnode_print_h(bf_astnode_t *node, size_t depth, int fl) 
   printf("]\n");
   depth--;
   indent(); putchar('}'); if (fl != 1) putchar(','); putchar('\n');
+  return 0;
 }
 
 static inline void bf_astnode_print_json(bf_astnode_t *node) {
@@ -1097,7 +1095,8 @@ static inline bf_astnode_t* bf_parse_prog(bf_parser_ctx* ctx) {
   // ModExprList end
   if (!expr_ret_2) rew(mod_2);
   expr_ret_1 = expr_ret_2 ? SUCC : NULL;
-  rule = rule ? rule : expr_ret_1;
+  if (!rule) rule = expr_ret_1;
+  if (!expr_ret_1) rule = NULL;
   return rule;
   #undef rule
 }
@@ -1441,7 +1440,8 @@ static inline bf_astnode_t* bf_parse_char(bf_parser_ctx* ctx) {
   if (!expr_ret_6) rew(slash_6);
   expr_ret_5 = expr_ret_6;
 
-  rule = rule ? rule : expr_ret_5;
+  if (!rule) rule = expr_ret_5;
+  if (!expr_ret_5) rule = NULL;
   return rule;
   #undef rule
 }
