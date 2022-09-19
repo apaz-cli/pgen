@@ -54,7 +54,7 @@ else
   cd examples/
   clang pl0.c -fsanitize=address -g
   cc pl0.c
-  valgrind ./a.out
+  ./a.out
   cd ..
 fi
 

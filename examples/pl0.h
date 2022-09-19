@@ -1312,9 +1312,14 @@ struct pl0_astnode_t {
   uint16_t num_children;
   uint16_t max_children;
   pl0_astnode_kind kind;
+
+  // Store node number or tok repr.
+  // if (tok_repr) then it's a codepoint string of size len_or_toknum.
+  // if (!tok_repr && len_or_toknum) then len_or_toknum is a token offset.
+  // if (!tok_repr && !len_or_toknum) then nothing is stored.
 #if PL0_SOURCEINFO
-  uint32_t start_token_idx;
-  uint32_t end_token_idx;
+  codepoint_t* tok_repr;
+  size_t len_or_toknum;
 #endif
   // No %extra directives.
   pl0_astnode_t** children;
@@ -1360,8 +1365,8 @@ static inline pl0_astnode_t* pl0_astnode_list(
   node->num_children = 0;
   node->children = children;
 #if PL0_SOURCEINFO
-  node->start_token_idx = 0;
-  node->end_token_idx = 0;
+  node->tok_repr = NULL;
+  node->len_or_toknum = 0;
 #endif
   return node;
 }
@@ -1401,8 +1406,8 @@ static inline pl0_astnode_t* pl0_astnode_fixed_1(
   node->num_children = 1;
   node->children = children;
 #if PL0_SOURCEINFO
-  node->start_token_idx = PGEN_MIN1(n0->start_token_idx);
-  node->end_token_idx = PGEN_MAX1(n0->end_token_idx);
+  node->tok_repr = NULL;
+  node->len_or_toknum = 0;
 #endif
   children[0] = n0;
   n0->parent = node;
@@ -1427,8 +1432,8 @@ static inline pl0_astnode_t* pl0_astnode_fixed_2(
   node->num_children = 2;
   node->children = children;
 #if PL0_SOURCEINFO
-  node->start_token_idx = PGEN_MIN2(n0->start_token_idx, n1->start_token_idx);
-  node->end_token_idx = PGEN_MAX2(n0->end_token_idx, n1->end_token_idx);
+  node->tok_repr = NULL;
+  node->len_or_toknum = 0;
 #endif
   children[0] = n0;
   n0->parent = node;
@@ -1456,8 +1461,8 @@ static inline pl0_astnode_t* pl0_astnode_fixed_3(
   node->num_children = 3;
   node->children = children;
 #if PL0_SOURCEINFO
-  node->start_token_idx = PGEN_MIN3(n0->start_token_idx, n1->start_token_idx, n2->start_token_idx);
-  node->end_token_idx = PGEN_MAX3(n0->end_token_idx, n1->end_token_idx, n2->end_token_idx);
+  node->tok_repr = NULL;
+  node->len_or_toknum = 0;
 #endif
   children[0] = n0;
   n0->parent = node;
@@ -1488,8 +1493,8 @@ static inline pl0_astnode_t* pl0_astnode_fixed_4(
   node->num_children = 4;
   node->children = children;
 #if PL0_SOURCEINFO
-  node->start_token_idx = PGEN_MIN4(n0->start_token_idx, n1->start_token_idx, n2->start_token_idx, n3->start_token_idx);
-  node->end_token_idx = PGEN_MAX4(n0->end_token_idx, n1->end_token_idx, n2->end_token_idx, n3->end_token_idx);
+  node->tok_repr = NULL;
+  node->len_or_toknum = 0;
 #endif
   children[0] = n0;
   n0->parent = node;
@@ -1523,8 +1528,8 @@ static inline pl0_astnode_t* pl0_astnode_fixed_5(
   node->num_children = 5;
   node->children = children;
 #if PL0_SOURCEINFO
-  node->start_token_idx = PGEN_MIN5(n0->start_token_idx, n1->start_token_idx, n2->start_token_idx, n3->start_token_idx, n4->start_token_idx);
-  node->end_token_idx = PGEN_MAX5(n0->end_token_idx, n1->end_token_idx, n2->end_token_idx, n3->end_token_idx, n4->end_token_idx);
+  node->tok_repr = NULL;
+  node->len_or_toknum = 0;
 #endif
   children[0] = n0;
   n0->parent = node;
@@ -1557,17 +1562,19 @@ static inline void pl0_astnode_add(pgen_allocator* alloc, pl0_astnode_t *list, p
   }
   node->parent = list;
   list->children[list->num_children++] = node;
-  #if PL0_SOURCEINFO
-  if (node->start_token_idx && (node->start_token_idx < list->start_token_idx))
-    list->start_token_idx = node->start_token_idx;
-  if (node->end_token_idx && (node->end_token_idx > list->end_token_idx))
-    list->end_token_idx = node->end_token_idx;
-  #endif
 }
 
 static inline void pl0_parser_rewind(pl0_parser_ctx *ctx, pgen_parser_rewind_t rew) {
   pgen_allocator_rewind(ctx->alloc, rew.arew);
   ctx->pos = rew.prew;
+}
+
+static inline pl0_astnode_t* pl0_astnode_repr(pl0_astnode_t* node, pl0_astnode_t* t) {
+#if PL0_SOURCEINFO
+  node->tok_repr = t->tok_repr;
+  node->len_or_toknum = t->len_or_toknum;
+#endif
+  return node;
 }
 
 #define rec(label)               pgen_parser_rewind_t _rew_##label = (pgen_parser_rewind_t){ctx->alloc->rew, ctx->pos};
@@ -1577,18 +1584,31 @@ static inline void pl0_parser_rewind(pl0_parser_ctx *ctx, pgen_parser_rewind_t r
 #define list(kind)               pl0_astnode_list(ctx->alloc, PL0_NODE_##kind, 16)
 #define leaf(kind)               pl0_astnode_leaf(ctx->alloc, PL0_NODE_##kind)
 #define add(list, node)          pl0_astnode_add(ctx->alloc, list, node)
-#define track(node)              (PL0_SOURCEINFO ? (node->start_token_idx = node->end_token_idx = ctx->pos - 1) : 0)
-#define first(node, f)           (f->start_token_idx ? (node->start_token_idx = f->start_token_idx) : 0)
-#define last(node, l)            (l->end_token_idx ? (node->end_token_idx = l->end_token_idx) : 0)
-#define defer(node, freefn, ptr) pgen_defer(ctx->alloc, freefn, ptr, ctx->alloc->rew)
+#define repr(node, t)            pl0_astnode_repr(node, t)
 #define SUCC                     ((pl0_astnode_t*)(void*)(uintptr_t)_Alignof(pl0_astnode_t))
 
-static inline void pl0_token_print_content(pl0_token tok) {
-  char* utf8content; size_t len;
-  int success = UTF8_encode(tok.content, tok.len, &utf8content, &len);
-  if (!success) fprintf(stderr, "Failed to decode a token.\n"), exit(1);
-  fwrite(utf8content, len, 1, stdout);
+static inline int pl0_node_print_content(pl0_astnode_t* node, pl0_token* tokens) {
+#if PL0_SOURCEINFO
+  int found = 0;
+  codepoint_t* utf32 = NULL; size_t utf32len = 0;
+  char* utf8 = NULL; size_t utf8len = 0;
+  if (node->tok_repr) {
+    utf32 = node->tok_repr;
+    utf32len = node->len_or_toknum;
+  } else {
+    if (node->len_or_toknum) {
+      utf32 = tokens[node->len_or_toknum].content;
+      utf32len = tokens[node->len_or_toknum].len;
+    }
+  }
+  if (utf32len) {
+    int success = UTF8_encode(node->tok_repr, node->len_or_toknum, &utf8, &utf8len);
+    if (success) return fwrite(utf8, utf8len, 1, stdout), 1;
+  }
+#endif
+  return 0;
 }
+
 static inline int pl0_astnode_print_h(pl0_token* tokens, pl0_astnode_t *node, size_t depth, int fl) {
   #define indent() for (size_t i = 0; i < depth; i++) printf("  ")
   if (!node)
@@ -1600,13 +1620,8 @@ static inline int pl0_astnode_print_h(pl0_token* tokens, pl0_astnode_t *node, si
   depth++;
   indent(); printf("\"kind\": "); printf("\"%s\",\n", pl0_nodekind_name[node->kind] + 9);
   #if PL0_SOURCEINFO
-  if (!node->num_children && node->start_token_idx == node->end_token_idx && node->start_token_idx) {
-    indent(); printf("\"token_num\": %" PRIu32 ",\n", node->start_token_idx);
-    indent(); printf("\"token_content\": \"");
-     pl0_token_print_content(tokens[node->start_token_idx]); printf("\",\n");
-  } else if (node->start_token_idx == node->end_token_idx) {
-    indent(); printf("\"token_num\": [%" PRIu32 ", %" PRIu32 "],\n", node->start_token_idx, node->end_token_idx);
-  }
+  indent(); printf("\"content\": \"");
+  pl0_node_print_content(node, tokens); printf("\",\n");
   #endif
   size_t cnum = node->num_children;
   indent(); printf("\"num_children\": %zu,\n", cnum);
@@ -1765,7 +1780,8 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
         // Capturing IDENT.
         expr_ret_10 = leaf(IDENT);
         #if PL0_SOURCEINFO
-        expr_ret_10->start_token_idx = expr_ret_10->end_token_idx = (uint32_t)ctx->pos;
+        expr_ret_10->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_10->len_or_toknum = ctx->tokens[ctx->pos].len;
         #endif
         ctx->pos++;
       } else {
@@ -1817,7 +1833,8 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
             // Capturing IDENT.
             expr_ret_13 = leaf(IDENT);
             #if PL0_SOURCEINFO
-            expr_ret_13->start_token_idx = expr_ret_13->end_token_idx = (uint32_t)ctx->pos;
+            expr_ret_13->tok_repr = ctx->tokens[ctx->pos].content;
+            expr_ret_13->len_or_toknum = ctx->tokens[ctx->pos].len;
             #endif
             ctx->pos++;
           } else {
@@ -1904,7 +1921,8 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
         // Capturing IDENT.
         expr_ret_15 = leaf(IDENT);
         #if PL0_SOURCEINFO
-        expr_ret_15->start_token_idx = expr_ret_15->end_token_idx = (uint32_t)ctx->pos;
+        expr_ret_15->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_15->len_or_toknum = ctx->tokens[ctx->pos].len;
         #endif
         ctx->pos++;
       } else {
@@ -1936,7 +1954,8 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
         // Capturing NUM.
         expr_ret_16 = leaf(NUM);
         #if PL0_SOURCEINFO
-        expr_ret_16->start_token_idx = expr_ret_16->end_token_idx = (uint32_t)ctx->pos;
+        expr_ret_16->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_16->len_or_toknum = ctx->tokens[ctx->pos].len;
         #endif
         ctx->pos++;
       } else {
@@ -1988,7 +2007,8 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
             // Capturing IDENT.
             expr_ret_19 = leaf(IDENT);
             #if PL0_SOURCEINFO
-            expr_ret_19->start_token_idx = expr_ret_19->end_token_idx = (uint32_t)ctx->pos;
+            expr_ret_19->tok_repr = ctx->tokens[ctx->pos].content;
+            expr_ret_19->len_or_toknum = ctx->tokens[ctx->pos].len;
             #endif
             ctx->pos++;
           } else {
@@ -2007,7 +2027,8 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
             // Capturing EQ.
             expr_ret_20 = leaf(EQ);
             #if PL0_SOURCEINFO
-            expr_ret_20->start_token_idx = expr_ret_20->end_token_idx = (uint32_t)ctx->pos;
+            expr_ret_20->tok_repr = ctx->tokens[ctx->pos].content;
+            expr_ret_20->len_or_toknum = ctx->tokens[ctx->pos].len;
             #endif
             ctx->pos++;
           } else {
@@ -2026,7 +2047,8 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
             // Capturing NUM.
             expr_ret_21 = leaf(NUM);
             #if PL0_SOURCEINFO
-            expr_ret_21->start_token_idx = expr_ret_21->end_token_idx = (uint32_t)ctx->pos;
+            expr_ret_21->tok_repr = ctx->tokens[ctx->pos].content;
+            expr_ret_21->len_or_toknum = ctx->tokens[ctx->pos].len;
             #endif
             ctx->pos++;
           } else {
@@ -2173,7 +2195,8 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
             // Capturing IDENT.
             expr_ret_30 = leaf(IDENT);
             #if PL0_SOURCEINFO
-            expr_ret_30->start_token_idx = expr_ret_30->end_token_idx = (uint32_t)ctx->pos;
+            expr_ret_30->tok_repr = ctx->tokens[ctx->pos].content;
+            expr_ret_30->len_or_toknum = ctx->tokens[ctx->pos].len;
             #endif
             ctx->pos++;
           } else {
@@ -2305,7 +2328,8 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
         // Capturing IDENT.
         expr_ret_37 = leaf(IDENT);
         #if PL0_SOURCEINFO
-        expr_ret_37->start_token_idx = expr_ret_37->end_token_idx = (uint32_t)ctx->pos;
+        expr_ret_37->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_37->len_or_toknum = ctx->tokens[ctx->pos].len;
         #endif
         ctx->pos++;
       } else {
@@ -2324,7 +2348,8 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
         // Capturing CEQ.
         expr_ret_38 = leaf(CEQ);
         #if PL0_SOURCEINFO
-        expr_ret_38->start_token_idx = expr_ret_38->end_token_idx = (uint32_t)ctx->pos;
+        expr_ret_38->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_38->len_or_toknum = ctx->tokens[ctx->pos].len;
         #endif
         ctx->pos++;
       } else {
@@ -2386,7 +2411,8 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
         // Capturing IDENT.
         expr_ret_41 = leaf(IDENT);
         #if PL0_SOURCEINFO
-        expr_ret_41->start_token_idx = expr_ret_41->end_token_idx = (uint32_t)ctx->pos;
+        expr_ret_41->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_41->len_or_toknum = ctx->tokens[ctx->pos].len;
         #endif
         ctx->pos++;
       } else {
@@ -2439,7 +2465,8 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
         // Capturing IDENT.
         expr_ret_43 = leaf(IDENT);
         #if PL0_SOURCEINFO
-        expr_ret_43->start_token_idx = expr_ret_43->end_token_idx = (uint32_t)ctx->pos;
+        expr_ret_43->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_43->len_or_toknum = ctx->tokens[ctx->pos].len;
         #endif
         ctx->pos++;
       } else {
@@ -2812,7 +2839,8 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
           // Capturing EQ.
           expr_ret_64 = leaf(EQ);
           #if PL0_SOURCEINFO
-          expr_ret_64->start_token_idx = expr_ret_64->end_token_idx = (uint32_t)ctx->pos;
+          expr_ret_64->tok_repr = ctx->tokens[ctx->pos].content;
+          expr_ret_64->len_or_toknum = ctx->tokens[ctx->pos].len;
           #endif
           ctx->pos++;
         } else {
@@ -2834,7 +2862,8 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
           // Capturing HASH.
           expr_ret_65 = leaf(HASH);
           #if PL0_SOURCEINFO
-          expr_ret_65->start_token_idx = expr_ret_65->end_token_idx = (uint32_t)ctx->pos;
+          expr_ret_65->tok_repr = ctx->tokens[ctx->pos].content;
+          expr_ret_65->len_or_toknum = ctx->tokens[ctx->pos].len;
           #endif
           ctx->pos++;
         } else {
@@ -2856,7 +2885,8 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
           // Capturing LT.
           expr_ret_66 = leaf(LT);
           #if PL0_SOURCEINFO
-          expr_ret_66->start_token_idx = expr_ret_66->end_token_idx = (uint32_t)ctx->pos;
+          expr_ret_66->tok_repr = ctx->tokens[ctx->pos].content;
+          expr_ret_66->len_or_toknum = ctx->tokens[ctx->pos].len;
           #endif
           ctx->pos++;
         } else {
@@ -2878,7 +2908,8 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
           // Capturing LEQ.
           expr_ret_67 = leaf(LEQ);
           #if PL0_SOURCEINFO
-          expr_ret_67->start_token_idx = expr_ret_67->end_token_idx = (uint32_t)ctx->pos;
+          expr_ret_67->tok_repr = ctx->tokens[ctx->pos].content;
+          expr_ret_67->len_or_toknum = ctx->tokens[ctx->pos].len;
           #endif
           ctx->pos++;
         } else {
@@ -2900,7 +2931,8 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
           // Capturing GT.
           expr_ret_68 = leaf(GT);
           #if PL0_SOURCEINFO
-          expr_ret_68->start_token_idx = expr_ret_68->end_token_idx = (uint32_t)ctx->pos;
+          expr_ret_68->tok_repr = ctx->tokens[ctx->pos].content;
+          expr_ret_68->len_or_toknum = ctx->tokens[ctx->pos].len;
           #endif
           ctx->pos++;
         } else {
@@ -2922,7 +2954,8 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
           // Capturing GEQ.
           expr_ret_69 = leaf(GEQ);
           #if PL0_SOURCEINFO
-          expr_ret_69->start_token_idx = expr_ret_69->end_token_idx = (uint32_t)ctx->pos;
+          expr_ret_69->tok_repr = ctx->tokens[ctx->pos].content;
+          expr_ret_69->len_or_toknum = ctx->tokens[ctx->pos].len;
           #endif
           ctx->pos++;
         } else {
@@ -3016,7 +3049,8 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
         // Capturing PLUS.
         expr_ret_76 = leaf(PLUS);
         #if PL0_SOURCEINFO
-        expr_ret_76->start_token_idx = expr_ret_76->end_token_idx = (uint32_t)ctx->pos;
+        expr_ret_76->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_76->len_or_toknum = ctx->tokens[ctx->pos].len;
         #endif
         ctx->pos++;
       } else {
@@ -3038,7 +3072,8 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
         // Capturing MINUS.
         expr_ret_77 = leaf(MINUS);
         #if PL0_SOURCEINFO
-        expr_ret_77->start_token_idx = expr_ret_77->end_token_idx = (uint32_t)ctx->pos;
+        expr_ret_77->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_77->len_or_toknum = ctx->tokens[ctx->pos].len;
         #endif
         ctx->pos++;
       } else {
@@ -3108,7 +3143,8 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
             // Capturing PLUS.
             expr_ret_83 = leaf(PLUS);
             #if PL0_SOURCEINFO
-            expr_ret_83->start_token_idx = expr_ret_83->end_token_idx = (uint32_t)ctx->pos;
+            expr_ret_83->tok_repr = ctx->tokens[ctx->pos].content;
+            expr_ret_83->len_or_toknum = ctx->tokens[ctx->pos].len;
             #endif
             ctx->pos++;
           } else {
@@ -3130,7 +3166,8 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
             // Capturing MINUS.
             expr_ret_84 = leaf(MINUS);
             #if PL0_SOURCEINFO
-            expr_ret_84->start_token_idx = expr_ret_84->end_token_idx = (uint32_t)ctx->pos;
+            expr_ret_84->tok_repr = ctx->tokens[ctx->pos].content;
+            expr_ret_84->len_or_toknum = ctx->tokens[ctx->pos].len;
             #endif
             ctx->pos++;
           } else {
@@ -3256,7 +3293,8 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
             // Capturing STAR.
             expr_ret_94 = leaf(STAR);
             #if PL0_SOURCEINFO
-            expr_ret_94->start_token_idx = expr_ret_94->end_token_idx = (uint32_t)ctx->pos;
+            expr_ret_94->tok_repr = ctx->tokens[ctx->pos].content;
+            expr_ret_94->len_or_toknum = ctx->tokens[ctx->pos].len;
             #endif
             ctx->pos++;
           } else {
@@ -3278,7 +3316,8 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
             // Capturing DIV.
             expr_ret_95 = leaf(DIV);
             #if PL0_SOURCEINFO
-            expr_ret_95->start_token_idx = expr_ret_95->end_token_idx = (uint32_t)ctx->pos;
+            expr_ret_95->tok_repr = ctx->tokens[ctx->pos].content;
+            expr_ret_95->len_or_toknum = ctx->tokens[ctx->pos].len;
             #endif
             ctx->pos++;
           } else {
@@ -3361,7 +3400,8 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
         // Capturing IDENT.
         expr_ret_101 = leaf(IDENT);
         #if PL0_SOURCEINFO
-        expr_ret_101->start_token_idx = expr_ret_101->end_token_idx = (uint32_t)ctx->pos;
+        expr_ret_101->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_101->len_or_toknum = ctx->tokens[ctx->pos].len;
         #endif
         ctx->pos++;
       } else {
@@ -3401,7 +3441,8 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
         // Capturing NUM.
         expr_ret_103 = leaf(NUM);
         #if PL0_SOURCEINFO
-        expr_ret_103->start_token_idx = expr_ret_103->end_token_idx = (uint32_t)ctx->pos;
+        expr_ret_103->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_103->len_or_toknum = ctx->tokens[ctx->pos].len;
         #endif
         ctx->pos++;
       } else {
