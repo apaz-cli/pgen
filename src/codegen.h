@@ -803,8 +803,6 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
          "                         sizeof(%s_astnode_t),\n"
          "                         _Alignof(%s_astnode_t));\n",
          ctx->lower, ctx->lower);
-  if (!ctx->args.u)
-    cwrite("  if (!ret) PGEN_OOM();\n");
   cwrite("  %s_astnode_t *node = (%s_astnode_t*)ret;\n\n", ctx->lower,
          ctx->lower);
   cwrite("  %s_astnode_t **children;\n", ctx->lower);
@@ -855,8 +853,6 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
          "                         sizeof(%s_astnode_t),\n"
          "                         _Alignof(%s_astnode_t));\n",
          ctx->lower, ctx->lower);
-  if (!ctx->args.u)
-    cwrite("  if (!ret) PGEN_OOM();\n");
   cwrite("  %s_astnode_t *node = (%s_astnode_t *)ret;\n", ctx->lower,
          ctx->lower);
   cwrite("  %s_astnode_t *children = NULL;\n", ctx->lower);
@@ -917,8 +913,6 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
            "                         sizeof(%s_astnode_t *) * %zu,\n",
            ctx->lower, ctx->lower, i);
     cwrite("                         _Alignof(%s_astnode_t));\n", ctx->lower);
-    if (!ctx->args.u)
-      cwrite("  if (!ret) PGEN_OOM();\n");
     cwrite("  %s_astnode_t *node = (%s_astnode_t *)ret;\n", ctx->lower,
            ctx->lower);
     cwrite("  %s_astnode_t **children = (%s_astnode_t **)(node + 1);\n",
@@ -985,6 +979,8 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
   cwrite("#define repr(node, t)            "
          "%s_astnode_repr(node, t)\n",
          ctx->lower);
+  cwrite("#define srepr(node, s)           "
+         "%s_astnode_srepr(ctx->alloc, node, s)\n", ctx->lower);
   cwrite("#define SUCC                     "
          "((%s_astnode_t*)(void*)(uintptr_t)_Alignof(%s_astnode_t))\n",
          ctx->lower, ctx->lower);
@@ -998,6 +994,25 @@ static inline void peg_write_repr(codegen_ctx *ctx) {
   cwrite("#if %s_SOURCEINFO\n", ctx->upper);
   cwrite("  node->tok_repr = t->tok_repr;\n");
   cwrite("  node->len_or_toknum = t->len_or_toknum;\n");
+  cwrite("#endif\n");
+  cwrite("  return node;\n");
+  cwrite("}\n\n");
+
+  cwrite("static inline %s_astnode_t* %s_astnode_srepr("
+         "pgen_allocator* allocator, "
+         "%s_astnode_t* node, "
+         "char* s) {\n",
+         ctx->lower, ctx->lower, ctx->lower);
+  cwrite("#if %s_SOURCEINFO\n", ctx->upper);
+  cwrite("  size_t cpslen = strlen(s);\n");
+  cwrite("  codepoint_t* cps = (codepoint_t*)pgen_alloc("
+         "allocator, "
+         "(cpslen + 1) * sizeof(codepoint_t), "
+         "_Alignof(codepoint_t));\n");
+  cwrite("  for (size_t i = 0; i < cpslen; i++) cps[i] = (codepoint_t)s[i]; "
+         "cps[cpslen] = 0;\n");
+  cwrite("  node->tok_repr = cps;\n");
+  cwrite("  node->len_or_toknum = cpslen;\n");
   cwrite("#endif\n");
   cwrite("  return node;\n");
   cwrite("}\n\n");

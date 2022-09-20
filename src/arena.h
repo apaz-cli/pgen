@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define PGEN_ALIGNMENT _Alignof(max_align_t)
 #define PGEN_BUFFER_SIZE (PGEN_PAGESIZE * 1024)
@@ -195,7 +196,7 @@ static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
 
       // Make sure there's a spot for it
       if (allocator->rew.arena_idx + 1 >= NUM_ARENAS)
-        return ret;
+        PGEN_OOM();
 
       // Allocate a new arena if necessary
       if (allocator->arenas[allocator->rew.arena_idx].buf)

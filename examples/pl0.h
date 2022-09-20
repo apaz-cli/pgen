@@ -203,6 +203,7 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define PGEN_ALIGNMENT _Alignof(max_align_t)
 #define PGEN_BUFFER_SIZE (PGEN_PAGESIZE * 1024)
@@ -390,7 +391,7 @@ static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
 
       // Make sure there's a spot for it
       if (allocator->rew.arena_idx + 1 >= NUM_ARENAS)
-        return ret;
+        PGEN_OOM();
 
       // Allocate a new arena if necessary
       if (allocator->arenas[allocator->rew.arena_idx].buf)
@@ -1347,7 +1348,6 @@ static inline pl0_astnode_t* pl0_astnode_list(
   char* ret = pgen_alloc(alloc,
                          sizeof(pl0_astnode_t),
                          _Alignof(pl0_astnode_t));
-  if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t*)ret;
 
   pl0_astnode_t **children;
@@ -1377,7 +1377,6 @@ static inline pl0_astnode_t* pl0_astnode_leaf(
   char* ret = pgen_alloc(alloc,
                          sizeof(pl0_astnode_t),
                          _Alignof(pl0_astnode_t));
-  if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t *children = NULL;
   node->kind = kind;
@@ -1397,7 +1396,6 @@ static inline pl0_astnode_t* pl0_astnode_fixed_1(
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 1,
                          _Alignof(pl0_astnode_t));
-  if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
@@ -1423,7 +1421,6 @@ static inline pl0_astnode_t* pl0_astnode_fixed_2(
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 2,
                          _Alignof(pl0_astnode_t));
-  if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
@@ -1452,7 +1449,6 @@ static inline pl0_astnode_t* pl0_astnode_fixed_3(
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 3,
                          _Alignof(pl0_astnode_t));
-  if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
@@ -1484,7 +1480,6 @@ static inline pl0_astnode_t* pl0_astnode_fixed_4(
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 4,
                          _Alignof(pl0_astnode_t));
-  if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
@@ -1519,7 +1514,6 @@ static inline pl0_astnode_t* pl0_astnode_fixed_5(
                          sizeof(pl0_astnode_t) +
                          sizeof(pl0_astnode_t *) * 5,
                          _Alignof(pl0_astnode_t));
-  if (!ret) PGEN_OOM();
   pl0_astnode_t *node = (pl0_astnode_t *)ret;
   pl0_astnode_t **children = (pl0_astnode_t **)(node + 1);
   node->kind = kind;
@@ -1577,6 +1571,17 @@ static inline pl0_astnode_t* pl0_astnode_repr(pl0_astnode_t* node, pl0_astnode_t
   return node;
 }
 
+static inline pl0_astnode_t* pl0_astnode_srepr(pgen_allocator* allocator, pl0_astnode_t* node, char* s) {
+#if PL0_SOURCEINFO
+  size_t cpslen = strlen(s);
+  codepoint_t* cps = (codepoint_t*)pgen_alloc(allocator, (cpslen + 1) * sizeof(codepoint_t), _Alignof(codepoint_t));
+  for (size_t i = 0; i < cpslen; i++) cps[i] = (codepoint_t)s[i]; cps[cpslen] = 0;
+  node->tok_repr = cps;
+  node->len_or_toknum = cpslen;
+#endif
+  return node;
+}
+
 #define rec(label)               pgen_parser_rewind_t _rew_##label = (pgen_parser_rewind_t){ctx->alloc->rew, ctx->pos};
 #define rew(label)               pl0_parser_rewind(ctx, _rew_##label)
 #define node(kind, ...)          PGEN_CAT(pl0_astnode_fixed_, PGEN_NARG(__VA_ARGS__))(ctx->alloc, PL0_NODE_##kind, __VA_ARGS__)
@@ -1585,6 +1590,7 @@ static inline pl0_astnode_t* pl0_astnode_repr(pl0_astnode_t* node, pl0_astnode_t
 #define leaf(kind)               pl0_astnode_leaf(ctx->alloc, PL0_NODE_##kind)
 #define add(list, node)          pl0_astnode_add(ctx->alloc, list, node)
 #define repr(node, t)            pl0_astnode_repr(node, t)
+#define srepr(node, s)           pl0_astnode_srepr(node, s)
 #define SUCC                     ((pl0_astnode_t*)(void*)(uintptr_t)_Alignof(pl0_astnode_t))
 
 static inline int pl0_node_print_content(pl0_astnode_t* node, pl0_token* tokens) {
