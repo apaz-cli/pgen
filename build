@@ -43,6 +43,27 @@ elif [ "$1" = "profile" ]; then
   # Clean up
   rm dump calls cache cachegrind.out.* callgrind.out.* 2>/dev/null
   cd ..
+
+elif [ "$1" = "macrocheck" ]; then
+
+  # Build pgen and examples
+  clang src/pgen.c -o pgen
+  ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h
+
+  # Check
+  echo '#include <limits.h>'   >  .empty.c
+  echo '#include <stddef.h>'   >> .empty.c
+  echo '#include <stdint.h>'   >> .empty.c
+  echo '#include <stdio.h>'    >> .empty.c
+  echo '#include <stdlib.h>'   >> .empty.c
+  echo '#include <string.h>'   >> .empty.c
+  echo '#include <inttypes.h>' >> .empty.c
+
+  cc -dM -E .empty.c       | sort > .predef.c
+  cc -dM -E examples/pl0.h | sort > .nowdef.c
+  diff .predef.c .nowdef.c | grep "<" | sed 's/^<\ //g' | cut -d' ' -f2-
+  rm .empty.c .predef.c .nowdef.c
+
 else
   # Build debug
   clang src/pgen.c -o pgen -fsanitize=address -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable

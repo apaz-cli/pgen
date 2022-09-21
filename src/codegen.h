@@ -466,15 +466,12 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
       int eels = 0;
       for (size_t i = 0; i < aut.trans.len; i++) {
         SMTransition trans = list_SMTransition_get(&aut.trans, i);
-
         cwrite("      %sif ((", eels++ ? "else " : "");
         tok_write_statecheck(ctx, a, trans.from);
         cwrite(") &\n         (");
         tok_write_charsetcheck(ctx, trans.act);
         cwrite(")) {\n");
-
         cwrite("          smaut_state_%zu = %i;\n", a, trans.to);
-
         cwrite("      }\n");
       }
       cwrite("      else {\n");
@@ -905,7 +902,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
         cwrite(", %%p");
       cwrite(")\\n\", %s_nodekind_name[kind]", ctx->lower);
       for (size_t j = 0; j < i; j++)
-        cwrite(", n%zu", j);
+        cwrite(", (void*)n%zu", j);
       cwrite(");\n");
     }
     cwrite("  char* ret = pgen_alloc(alloc,\n"
@@ -976,14 +973,19 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
   cwrite("#define add(list, node)          "
          "%s_astnode_add(ctx->alloc, list, node)\n",
          ctx->lower);
+  cwrite("#define has(node)                "
+         "(((uintptr_t)node <= (uintptr_t)SUCC) ? 0 : 1)\n");
   cwrite("#define repr(node, t)            "
          "%s_astnode_repr(node, t)\n",
          ctx->lower);
   cwrite("#define srepr(node, s)           "
-         "%s_astnode_srepr(ctx->alloc, node, s)\n", ctx->lower);
+         "%s_astnode_srepr(ctx->alloc, node, (char*)s)\n",
+         ctx->lower);
+  cwrite("#define rret(node) do {rule=node;goto rule_end;} while(0)\n");
   cwrite("#define SUCC                     "
          "((%s_astnode_t*)(void*)(uintptr_t)_Alignof(%s_astnode_t))\n",
          ctx->lower, ctx->lower);
+
   cwrite("\n");
 }
 
@@ -1009,8 +1011,8 @@ static inline void peg_write_repr(codegen_ctx *ctx) {
          "allocator, "
          "(cpslen + 1) * sizeof(codepoint_t), "
          "_Alignof(codepoint_t));\n");
-  cwrite("  for (size_t i = 0; i < cpslen; i++) cps[i] = (codepoint_t)s[i]; "
-         "cps[cpslen] = 0;\n");
+  cwrite("  for (size_t i = 0; i < cpslen; i++) cps[i] = (codepoint_t)s[i];\n");
+  cwrite("  cps[cpslen] = 0;\n");
   cwrite("  node->tok_repr = cps;\n");
   cwrite("  node->len_or_toknum = cpslen;\n");
   cwrite("#endif\n");
@@ -1080,7 +1082,8 @@ static inline void peg_write_node_print(codegen_ctx *ctx) {
   cwrite("  if (utf32len) {\n");
   cwrite("    int success = UTF8_encode("
          "node->tok_repr, node->len_or_toknum, &utf8, &utf8len);\n");
-  cwrite("    if (success) return fwrite(utf8, utf8len, 1, stdout), 1;\n");
+  cwrite("    if (success) return fwrite(utf8, utf8len, 1, stdout), "
+         "free(utf8), 1;\n");
   cwrite("  }\n");
   cwrite("#endif\n");
   cwrite("  return 0;\n");
@@ -1122,8 +1125,7 @@ static inline void peg_write_astnode_print(codegen_ctx *ctx) {
   cwrite("    putchar('\\n');\n");
   cwrite("    for (size_t i = 0; i < cnum; i++)\n"
          "      %s_astnode_print_h(tokens, node->children[i], depth + 1, i == "
-         "cnum - "
-         "1);\n",
+         "cnum - 1);\n",
          ctx->lower);
   cwrite("    indent();\n");
   cwrite("  }\n");
@@ -1133,7 +1135,7 @@ static inline void peg_write_astnode_print(codegen_ctx *ctx) {
   cwrite(
       "  indent(); putchar('}'); if (fl != 1) putchar(','); putchar('\\n');\n");
   cwrite("  return 0;\n");
-
+  cwrite("#undef indent\n");
   cwrite("}\n\n"); // End of print helper fn
 
   cwrite("static inline void %s_astnode_print_json(%s_token* tokens, "
@@ -1602,6 +1604,7 @@ static inline void peg_write_definition(codegen_ctx *ctx, ASTNode *def) {
 
   iwrite("if (!rule) rule = expr_ret_%zu;\n", ret);
   iwrite("if (!expr_ret_%zu) rule = NULL;\n", ret);
+  iwrite("rule_end:;\n");
 
   if (ctx->args.d) {
     iwrite("if (rule==SUCC) dbg_succ(ctx, \"%s\");\n", def_name);

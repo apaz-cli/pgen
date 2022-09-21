@@ -1575,7 +1575,8 @@ static inline pl0_astnode_t* pl0_astnode_srepr(pgen_allocator* allocator, pl0_as
 #if PL0_SOURCEINFO
   size_t cpslen = strlen(s);
   codepoint_t* cps = (codepoint_t*)pgen_alloc(allocator, (cpslen + 1) * sizeof(codepoint_t), _Alignof(codepoint_t));
-  for (size_t i = 0; i < cpslen; i++) cps[i] = (codepoint_t)s[i]; cps[cpslen] = 0;
+  for (size_t i = 0; i < cpslen; i++) cps[i] = (codepoint_t)s[i];
+  cps[cpslen] = 0;
   node->tok_repr = cps;
   node->len_or_toknum = cpslen;
 #endif
@@ -1589,8 +1590,10 @@ static inline pl0_astnode_t* pl0_astnode_srepr(pgen_allocator* allocator, pl0_as
 #define list(kind)               pl0_astnode_list(ctx->alloc, PL0_NODE_##kind, 16)
 #define leaf(kind)               pl0_astnode_leaf(ctx->alloc, PL0_NODE_##kind)
 #define add(list, node)          pl0_astnode_add(ctx->alloc, list, node)
+#define has(node)                (((uintptr_t)node <= (uintptr_t)SUCC) ? 0 : 1)
 #define repr(node, t)            pl0_astnode_repr(node, t)
-#define srepr(node, s)           pl0_astnode_srepr(node, s)
+#define srepr(node, s)           pl0_astnode_srepr(ctx->alloc, node, (char*)s)
+#define rret(node) do {rule=node;goto rule_end;} while(0)
 #define SUCC                     ((pl0_astnode_t*)(void*)(uintptr_t)_Alignof(pl0_astnode_t))
 
 static inline int pl0_node_print_content(pl0_astnode_t* node, pl0_token* tokens) {
@@ -1609,7 +1612,7 @@ static inline int pl0_node_print_content(pl0_astnode_t* node, pl0_token* tokens)
   }
   if (utf32len) {
     int success = UTF8_encode(node->tok_repr, node->len_or_toknum, &utf8, &utf8len);
-    if (success) return fwrite(utf8, utf8len, 1, stdout), 1;
+    if (success) return fwrite(utf8, utf8len, 1, stdout), free(utf8), 1;
   }
 #endif
   return 0;
@@ -1642,6 +1645,7 @@ static inline int pl0_astnode_print_h(pl0_token* tokens, pl0_astnode_t *node, si
   depth--;
   indent(); putchar('}'); if (fl != 1) putchar(','); putchar('\n');
   return 0;
+#undef indent
 }
 
 static inline void pl0_astnode_print_json(pl0_token* tokens, pl0_astnode_t *node) {
@@ -1733,6 +1737,7 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
   expr_ret_1 = expr_ret_2 ? SUCC : NULL;
   if (!rule) rule = expr_ret_1;
   if (!expr_ret_1) rule = NULL;
+  rule_end:;
   return rule;
   #undef rule
 }
@@ -2110,6 +2115,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
 
   if (!rule) rule = expr_ret_7;
   if (!expr_ret_7) rule = NULL;
+  rule_end:;
   return rule;
   #undef rule
 }
@@ -2304,6 +2310,7 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
 
   if (!rule) rule = expr_ret_23;
   if (!expr_ret_23) rule = NULL;
+  rule_end:;
   return rule;
   #undef rule
 }
@@ -2755,6 +2762,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
 
   if (!rule) rule = expr_ret_34;
   if (!expr_ret_34) rule = NULL;
+  rule_end:;
   return rule;
   #undef rule
 }
@@ -3013,6 +3021,7 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
 
   if (!rule) rule = expr_ret_56;
   if (!expr_ret_56) rule = NULL;
+  rule_end:;
   return rule;
   #undef rule
 }
@@ -3228,6 +3237,7 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
   expr_ret_72 = expr_ret_73 ? SUCC : NULL;
   if (!rule) rule = expr_ret_72;
   if (!expr_ret_72) rule = NULL;
+  rule_end:;
   return rule;
   #undef rule
 }
@@ -3378,6 +3388,7 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
   expr_ret_87 = expr_ret_88 ? SUCC : NULL;
   if (!rule) rule = expr_ret_87;
   if (!expr_ret_87) rule = NULL;
+  rule_end:;
   return rule;
   #undef rule
 }
@@ -3538,6 +3549,7 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
 
   if (!rule) rule = expr_ret_98;
   if (!expr_ret_98) rule = NULL;
+  rule_end:;
   return rule;
   #undef rule
 }
