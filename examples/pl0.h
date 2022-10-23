@@ -1384,7 +1384,10 @@ static inline pl0_astnode_t* pl0_astnode_leaf(
   node->max_children = 0;
   node->num_children = 0;
   node->children = NULL;
-  // token info is written at call site.
+#if PL0_SOURCEINFO
+  node->tok_repr = NULL;
+  node->len_or_toknum = 0;
+#endif
   return node;
 }
 
@@ -1593,7 +1596,7 @@ static inline pl0_astnode_t* pl0_astnode_srepr(pgen_allocator* allocator, pl0_as
 #define has(node)                (((uintptr_t)node <= (uintptr_t)SUCC) ? 0 : 1)
 #define repr(node, t)            pl0_astnode_repr(node, t)
 #define srepr(node, s)           pl0_astnode_srepr(ctx->alloc, node, (char*)s)
-#define rret(node) do {rule=node;goto rule_end;} while(0)
+#define rret(node)               do {rule=node;goto rule_end;} while(0)
 #define SUCC                     ((pl0_astnode_t*)(void*)(uintptr_t)_Alignof(pl0_astnode_t))
 
 static inline int pl0_node_print_content(pl0_astnode_t* node, pl0_token* tokens) {
@@ -1633,15 +1636,15 @@ static inline int pl0_astnode_print_h(pl0_token* tokens, pl0_astnode_t *node, si
   pl0_node_print_content(node, tokens); printf("\",\n");
   #endif
   size_t cnum = node->num_children;
-  indent(); printf("\"num_children\": %zu,\n", cnum);
-  indent(); printf("\"children\": [");
   if (cnum) {
+    indent(); printf("\"num_children\": %zu,\n", cnum);
+    indent(); printf("\"children\": [");
     putchar('\n');
     for (size_t i = 0; i < cnum; i++)
       pl0_astnode_print_h(tokens, node->children[i], depth + 1, i == cnum - 1);
     indent();
+    printf("]\n");
   }
-  printf("]\n");
   depth--;
   indent(); putchar('}'); if (fl != 1) putchar(','); putchar('\n');
   return 0;
@@ -3563,10 +3566,10 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
 #undef list
 #undef leaf
 #undef add
-#undef track
-#undef first
-#undef last
-#undef defer
+#undef has
+#undef repr
+#undef srepr
+#undef rret
 #undef SUCC
 
 #undef PGEN_MIN

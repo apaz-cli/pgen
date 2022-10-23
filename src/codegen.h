@@ -858,8 +858,10 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   cwrite("  node->max_children = 0;\n");
   cwrite("  node->num_children = 0;\n");
   cwrite("  node->children = NULL;\n");
-  if (!ctx->args.u)
-    cwrite("  // token info is written at call site.\n");
+  cwrite("#if %s_SOURCEINFO\n", ctx->upper);
+  cwrite("  node->tok_repr = NULL;\n");
+  cwrite("  node->len_or_toknum = 0;\n");
+  cwrite("#endif\n");
   inserted_extrainit = 0;
   for (size_t n = 0; n < pegast->num_children; n++) {
     ASTNode *dir = pegast->children[n];
@@ -870,7 +872,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
     if (!strcmp((char *)dir->children[0]->extra, "extrainit")) {
       if (!inserted_extrainit) {
         inserted_extrainit = 1;
-        cwrite("  // Extra initialization from %%extrainit directives:\n\n");
+        cwrite("  // Extra initialization from %%extrainit directives:\n");
       }
       cwrite("  %s\n", (char *)dir->extra);
     }
@@ -981,7 +983,8 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
   cwrite("#define srepr(node, s)           "
          "%s_astnode_srepr(ctx->alloc, node, (char*)s)\n",
          ctx->lower);
-  cwrite("#define rret(node) do {rule=node;goto rule_end;} while(0)\n");
+  cwrite("#define rret(node)               "
+         "do {rule=node;goto rule_end;} while(0)\n");
   cwrite("#define SUCC                     "
          "((%s_astnode_t*)(void*)(uintptr_t)_Alignof(%s_astnode_t))\n",
          ctx->lower, ctx->lower);
@@ -1119,18 +1122,18 @@ static inline void peg_write_astnode_print(codegen_ctx *ctx) {
          ctx->lower);
   cwrite("  #endif\n");
   cwrite("  size_t cnum = node->num_children;\n");
-  cwrite("  indent(); printf(\"\\\"num_children\\\": %%zu,\\n\", cnum);\n");
-  cwrite("  indent(); printf(\"\\\"children\\\": [\");\n");
   cwrite("  if (cnum) {\n");
+  cwrite("    // indent(); printf(\"\\\"num_children\\\": %%zu,\\n\", cnum);\n");
+  cwrite("    indent(); printf(\"\\\"children\\\": [\");\n");
   cwrite("    putchar('\\n');\n");
   cwrite("    for (size_t i = 0; i < cnum; i++)\n"
          "      %s_astnode_print_h(tokens, node->children[i], depth + 1, i == "
          "cnum - 1);\n",
          ctx->lower);
   cwrite("    indent();\n");
+  cwrite("    printf(\"]\\n\");\n");
   cwrite("  }\n");
 
-  cwrite("  printf(\"]\\n\");\n");
   cwrite("  depth--;\n");
   cwrite(
       "  indent(); putchar('}'); if (fl != 1) putchar(','); putchar('\\n');\n");
@@ -1665,10 +1668,10 @@ static inline void peg_write_undef_parsermacros(codegen_ctx *ctx) {
   cwrite("#undef list\n");
   cwrite("#undef leaf\n");
   cwrite("#undef add\n");
-  cwrite("#undef track\n");
-  cwrite("#undef first\n");
-  cwrite("#undef last\n");
-  cwrite("#undef defer\n");
+  cwrite("#undef has\n");
+  cwrite("#undef repr\n");
+  cwrite("#undef srepr\n");
+  cwrite("#undef rret\n");
   cwrite("#undef SUCC\n\n");
 
   cwrite("#undef PGEN_MIN\n");
