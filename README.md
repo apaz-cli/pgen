@@ -90,6 +90,34 @@ For an example tokenizer, see `examples/pl0.tok`.
 // {} - Code to insert into the parser. Must return an ASTNode* or NULL to check for match.
 // :  - Capture the info from a match inside the node for the current rule.
 
+// Directives:
+// %oom         - Define the action that should be taken when out of memory
+// %node        - Define an ASTNode kind
+// %preinclude  - Include a file before astnode, but after support libs
+// %include     - Include a file after astnode, but before the parser
+// %postinclude - Include a file after the parser
+// %predefine   - #define something before astnode, but after support libs
+// %define      - #define something after astnode, but before the parser
+// %postdefine  - #define something after the parser
+// %precode     - Insert code before astnode, but after support libs
+// %code        - Insert code after astnode, but before the parser
+// %postcode    - Insert code after the parser
+// %extra       - Add fields to the astnode
+// %extrainit   - Add initialization to the astnode
+
+// C Builtins:
+// rec(label)              - Record the parser's state to a label
+// rew(label)              - Rewind the parser's state to a label
+// node(kind, children...) - Create an astnode with a kind name and fixed number of children
+// kind(name)              - Get the enum value of an astnode kind name
+// list(kind)              - Create an astnode with a kind name and a dynamic number of children
+// leaf(kind)              - Create an astnode with no children
+// add(list, node)         - Add an astnode as a child to an astnode created by list()
+// has(node)               - 0 if the node is NULL or SUCC, 1 otherwise.
+// repr(node, ofnode)      - 
+// srepr(node, string)     - 
+// rret(node)              - return node from the rule
+
 // Notes:
 // Instead of using an unbalancing { or } inside a codeexpr, use the macros LB or RB.
 // Instead of using "{" or "}" use the macros LBSTR or RBSTR.
@@ -113,6 +141,9 @@ baseexpr <- UPPERIDENT
           / OPENPAREN slashexpr CLOSEPAREN
 
 ```
+
+Realistically, you're not going to figure out the syntax on your own.
+Talk to me, submit an issues, send me an email, or find me on Discord, and I can walk you through how to use it.
 
 
 ## Roadmap

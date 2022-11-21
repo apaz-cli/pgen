@@ -571,43 +571,142 @@ static inline void peg_write_footer(codegen_ctx *ctx) {
   cwrite("#endif /* PGEN_%s_ASTNODE_INCLUDE */\n\n", ctx->upper);
 }
 
-static inline void peg_write_directives(codegen_ctx *ctx) {
-  int oom_written = 0;
+static const char *const known_directives[] = {
+    "oom",        "node",    "include",  "preinclude", "postinclude",
+    "code",       "precode", "postcode", "define",     "predefine",
+    "postdefine", "extra",   "extrainit"};
+static const size_t num_known_directives =
+    sizeof(known_directives) / sizeof(const char *);
 
+static inline int directive_is_known(char *directive) {
+  for (size_t i = 0; i < num_known_directives; i++)
+    if (!strcmp(directive, known_directives[i]))
+      return 1;
+  return 0;
+}
+
+static inline void peg_write_directive_label(codegen_ctx *ctx, int p) {
+  // p is 0 for pre, 1 for mid, 2 for post.
+  const char *str = p == 0 ? "Pre" : p == 1 ? "Mid" : "Post";
+  const char *line = p == 2 ? "****" : "***";
+  cwrite("/**%s*************/\n"
+         "/* %s Directives */\n"
+         "/**%s*************/\n",
+         line, str, line);
+}
+
+static inline void peg_write_predirectives(codegen_ctx *ctx) {
+  cwrite("struct %s_astnode_t;\n", ctx->lower);
+  cwrite("typedef struct %s_astnode_t %s_astnode_t;\n\n", ctx->lower,
+         ctx->lower);
+
+  int label_written = 0;
+  int oom_written = 0;
   ASTNode *pegast = ctx->pegast;
-  if (pegast->num_children)
-    cwrite("/**************/\n/* Directives */\n/**************/\n");
   for (size_t n = 0; n < pegast->num_children; n++) {
     ASTNode *dir = pegast->children[n];
     if (strcmp(dir->name, "Directive"))
       continue;
+    char *dir_name = (char *)dir->children[0]->extra;
 
-    // %define directive
-    if (!strcmp((char *)dir->children[0]->extra, "define")) {
-      cwrite("#define %s\n", (char *)dir->extra);
-    }
     // %oom directive
-    else if (!strcmp((char *)dir->children[0]->extra, "oom")) {
+    if (!strcmp(dir_name, "oom")) {
       if (oom_written)
         ERROR("Duplicate %%oom directives.");
-
-      if (ctx->args.u) {
+      if (ctx->args.u)
         // Falls back to default handler.
         fprintf(stderr, "PGEN warning: "
                         "Comment out your %%oom directive if you're using "
                         "unsafe codegen.\n");
-      }
-
+      if (!label_written)
+        label_written = 1, peg_write_directive_label(ctx, 0);
       cwrite("#define PGEN_OOM() %s\n", (char *)dir->extra);
       oom_written = 1;
     }
-    // %include directive
-    else if (!strcmp((char *)dir->children[0]->extra, "include")) {
+    // %preinclude directive
+    else if (!strcmp(dir_name, "preinclude")) {
+      if (!label_written)
+        label_written = 1, peg_write_directive_label(ctx, 0);
       cwrite("#include %s\n", (char *)dir->extra);
     }
+    // %predefine directive
+    else if (!strcmp(dir_name, "predefine")) {
+      if (!label_written)
+        label_written = 1, peg_write_directive_label(ctx, 0);
+      cwrite("#define %s\n", (char *)dir->extra);
+    }
     // %precode directive
-    else if (!strcmp((char *)dir->children[0]->extra, "precode")) {
+    else if (!strcmp(dir_name, "precode")) {
+      if (!label_written)
+        label_written = 1, peg_write_directive_label(ctx, 0);
       cwrite("%s\n", (char *)dir->extra);
+    }
+  }
+  cwrite("\n");
+}
+
+static inline void peg_write_middirectives(codegen_ctx *ctx) {
+  int label_written = 0;
+  ASTNode *pegast = ctx->pegast;
+  for (size_t n = 0; n < pegast->num_children; n++) {
+    ASTNode *dir = pegast->children[n];
+    if (strcmp(dir->name, "Directive"))
+      continue;
+    char *dir_name = (char *)dir->children[0]->extra;
+
+    // %define directive
+    if (!strcmp(dir_name, "define")) {
+      if (!label_written)
+        label_written = 1, peg_write_directive_label(ctx, 1);
+      cwrite("#define %s\n", (char *)dir->extra);
+    }
+    // %include directive
+    else if (!strcmp(dir_name, "include")) {
+      if (!label_written)
+        label_written = 1, peg_write_directive_label(ctx, 1);
+      cwrite("#include %s\n", (char *)dir->extra);
+    }
+    // %code directive
+    else if (!strcmp(dir_name, "code")) {
+      if (!label_written)
+        label_written = 1, peg_write_directive_label(ctx, 1);
+      cwrite("%s\n", (char *)dir->extra);
+    }
+  }
+  cwrite("\n");
+}
+
+static inline void peg_write_postdirectives(codegen_ctx *ctx) {
+  int label_written = 0;
+  ASTNode *pegast = ctx->pegast;
+  for (size_t n = 0; n < pegast->num_children; n++) {
+    ASTNode *dir = pegast->children[n];
+    if (strcmp(dir->name, "Directive"))
+      continue;
+    char *dir_name = (char *)dir->children[0]->extra;
+
+    // %postdefine directive
+    if (!strcmp(dir_name, "postdefine")) {
+      if (!label_written)
+        label_written = 1, peg_write_directive_label(ctx, 2);
+      cwrite("#define %s\n", (char *)dir->extra);
+    }
+    // %postinclude directive
+    else if (!strcmp(dir_name, "postinclude")) {
+      if (!label_written)
+        label_written = 1, peg_write_directive_label(ctx, 2);
+      cwrite("#include %s\n", (char *)dir->extra);
+    }
+    // %postcode directive
+    else if (!strcmp(dir_name, "postcode")) {
+      if (!label_written)
+        label_written = 1, peg_write_directive_label(ctx, 2);
+      cwrite("%s\n", (char *)dir->extra);
+    } else {
+      if (!directive_is_known(dir_name)) {
+        fprintf(stderr, "Unknown directive: %s\n", dir_name);
+        continue;
+      }
     }
   }
   cwrite("\n");
@@ -644,8 +743,9 @@ static inline void peg_write_astnode_kind(codegen_ctx *ctx) {
     ASTNode *dir = pegast->children[n];
     if (strcmp(dir->name, "Directive"))
       continue;
+    char *dir_name = (char *)dir->children[0]->extra;
 
-    if (!strcmp((char *)dir->children[0]->extra, "node")) {
+    if (!strcmp(dir_name, "node")) {
       char *paste = (char *)dir->extra;
       for (size_t i = 0; i < strlen(paste); i++) {
         char c = paste[i];
@@ -670,8 +770,9 @@ static inline void peg_write_astnode_kind(codegen_ctx *ctx) {
     ASTNode *dir = pegast->children[n];
     if (strcmp(dir->name, "Directive"))
       continue;
+    char *dir_name = (char *)dir->children[0]->extra;
 
-    if (!strcmp((char *)dir->children[0]->extra, "node")) {
+    if (!strcmp(dir_name, "node")) {
       char *paste = (char *)dir->extra;
       for (size_t i = 0; i < strlen(paste); i++) {
         char c = paste[i];
@@ -696,8 +797,9 @@ static inline void peg_ensure_kind(codegen_ctx *ctx, char *kind) {
     ASTNode *dir = pegast->children[n];
     if (strcmp(dir->name, "Directive"))
       continue;
+    char *dir_name = (char *)dir->children[0]->extra;
 
-    if (!strcmp((char *)dir->children[0]->extra, "node")) {
+    if (!strcmp(dir_name, "node")) {
       char *_kind = (char *)dir->extra;
       if (!strcmp(kind, _kind)) {
         found = 1;
@@ -711,8 +813,6 @@ static inline void peg_ensure_kind(codegen_ctx *ctx, char *kind) {
 }
 
 static inline void peg_write_astnode_def(codegen_ctx *ctx) {
-  cwrite("struct %s_astnode_t;\n", ctx->lower);
-  cwrite("typedef struct %s_astnode_t %s_astnode_t;\n", ctx->lower, ctx->lower);
   cwrite("struct %s_astnode_t {\n", ctx->lower);
 
   cwrite("  %s_astnode_t* parent;\n", ctx->lower);
@@ -739,9 +839,10 @@ static inline void peg_write_astnode_def(codegen_ctx *ctx) {
     ASTNode *dir = pegast->children[n];
     if (strcmp(dir->name, "Directive"))
       continue;
+    char *dir_name = (char *)dir->children[0]->extra;
 
     // %extra directive
-    if (!strcmp((char *)dir->children[0]->extra, "extra")) {
+    if (!strcmp(dir_name, "extra")) {
       if (!inserted_extra) {
         inserted_extra = 1;
         cwrite("  // Extra data in %%extra directives:\n");
@@ -830,7 +931,9 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
     ASTNode *dir = pegast->children[n];
     if (strcmp(dir->name, "Directive"))
       continue;
-    if (!strcmp((char *)dir->children[0]->extra, "extrainit")) {
+    char *dir_name = (char *)dir->children[0]->extra;
+
+    if (!strcmp(dir_name, "extrainit")) {
       if (!inserted_extrainit) {
         inserted_extrainit = 1;
         cwrite("  // Extra initialization from %%extrainit directives:\n");
@@ -867,9 +970,10 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
     ASTNode *dir = pegast->children[n];
     if (strcmp(dir->name, "Directive"))
       continue;
+    char *dir_name = (char *)dir->children[0]->extra;
 
     // %extra directive
-    if (!strcmp((char *)dir->children[0]->extra, "extrainit")) {
+    if (!strcmp(dir_name, "extrainit")) {
       if (!inserted_extrainit) {
         inserted_extrainit = 1;
         cwrite("  // Extra initialization from %%extrainit directives:\n");
@@ -934,22 +1038,6 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   }
 }
 
-static inline void peg_write_postinclude(codegen_ctx *ctx) {
-  int inserted_postinclude = 0;
-  ASTNode *pegast = ctx->pegast;
-  for (size_t n = 0; n < pegast->num_children; n++) {
-    ASTNode *dir = pegast->children[n];
-    if (strcmp(dir->name, "Directive"))
-      continue;
-    if (!strcmp((char *)dir->children[0]->extra, "postinclude")) {
-      inserted_postinclude = 1;
-      cwrite("#include %s\n", (char *)dir->extra);
-    }
-  }
-  if (inserted_postinclude)
-    cwrite("\n\n");
-}
-
 static inline void peg_write_parsermacros(codegen_ctx *ctx) {
 
   cwrite("#define rec(label)               "
@@ -958,11 +1046,11 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
   cwrite("#define rew(label)               "
          "%s_parser_rewind(ctx, _rew_##label)\n",
          ctx->lower);
-  cwrite("#define node(kind, ...)          "
+  cwrite("#define node(kindname, ...)          "
          "PGEN_CAT(%s_astnode_fixed_, "
          "PGEN_NARG(__VA_ARGS__))"
-         "(ctx->alloc, %s_NODE_##kind, __VA_ARGS__)\n",
-         ctx->lower, ctx->upper);
+         "(ctx->alloc, kind(kindname), __VA_ARGS__)\n",
+         ctx->lower);
   cwrite("#define kind(name)               "
          "%s_NODE_##name\n",
          ctx->upper);
@@ -1123,7 +1211,8 @@ static inline void peg_write_astnode_print(codegen_ctx *ctx) {
   cwrite("  #endif\n");
   cwrite("  size_t cnum = node->num_children;\n");
   cwrite("  if (cnum) {\n");
-  cwrite("    // indent(); printf(\"\\\"num_children\\\": %%zu,\\n\", cnum);\n");
+  cwrite(
+      "    // indent(); printf(\"\\\"num_children\\\": %%zu,\\n\", cnum);\n");
   cwrite("    indent(); printf(\"\\\"children\\\": [\");\n");
   cwrite("    putchar('\\n');\n");
   cwrite("    for (size_t i = 0; i < cnum; i++)\n"
@@ -1530,7 +1619,8 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       iwrite("expr_ret_%zu->len_or_toknum = ctx->tokens[ctx->pos].len;\n",
              ret_to);
       iwrite("#endif\n");
-      peg_ensure_kind(ctx, tokname);
+      if (!ctx->args.u)
+        peg_ensure_kind(ctx, tokname);
     } else {
       if (!ctx->args.u)
         comment("Not capturing %s.", tokname);
@@ -1640,7 +1730,8 @@ static inline void peg_write_parser_body(codegen_ctx *ctx) {
     ASTNode *dir = pegast->children[i];
     if (strcmp(dir->name, "Directive"))
       continue;
-    if (strcmp((char *)dir->children[0]->extra, "code"))
+    char *dir_name = (char *)dir->children[0]->extra;
+    if (strcmp(dir_name, "code"))
       continue;
     cwrite("%s\n", (char *)dir->extra), written = 1;
   }
@@ -1697,9 +1788,10 @@ static inline void peg_write_parser(codegen_ctx *ctx) {
   peg_write_parsermacros(ctx);
   peg_write_node_print(ctx);
   peg_write_astnode_print(ctx);
-  peg_write_postinclude(ctx);
+  peg_write_middirectives(ctx);
   peg_write_debug_stack(ctx);
   peg_write_parser_body(ctx);
+  peg_write_postdirectives(ctx);
   peg_write_undef_parsermacros(ctx);
   peg_write_footer(ctx);
 }
@@ -1716,8 +1808,8 @@ static inline void codegen_write(codegen_ctx *ctx) {
 
   peg_write_debug_macro(ctx);
   if (ctx->pegast) {
-    peg_write_directives(ctx);
     write_arena_lib(ctx);
+    peg_write_predirectives(ctx);
     write_helpermacros(ctx);
   }
 

@@ -188,11 +188,6 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
 
 #endif /* PGEN_DEBUG */
 
-/**************/
-/* Directives */
-/**************/
-#define PGEN_OOM() exit(1)
-
 
 /* START OF AST ALLOCATOR */
 
@@ -538,6 +533,14 @@ static inline void pgen_allocator_rewind(pgen_allocator *allocator,
 
 #endif /* PGEN_ARENA_INCLUDED */
 
+
+struct pl0_astnode_t;
+typedef struct pl0_astnode_t pl0_astnode_t;
+
+/******************/
+/* Pre Directives */
+/******************/
+#define PGEN_OOM() exit(1)
 
 #ifndef PGEN_PARSER_MACROS_INCLUDED
 #define PGEN_PARSER_MACROS_INCLUDED
@@ -1306,8 +1309,6 @@ static const char* pl0_nodekind_name[PL0_NUM_NODEKINDS] = {
   "PL0_NODE_SIGN",
 };
 
-struct pl0_astnode_t;
-typedef struct pl0_astnode_t pl0_astnode_t;
 struct pl0_astnode_t {
   pl0_astnode_t* parent;
   uint16_t num_children;
@@ -1588,7 +1589,7 @@ static inline pl0_astnode_t* pl0_astnode_srepr(pgen_allocator* allocator, pl0_as
 
 #define rec(label)               pgen_parser_rewind_t _rew_##label = (pgen_parser_rewind_t){ctx->alloc->rew, ctx->pos};
 #define rew(label)               pl0_parser_rewind(ctx, _rew_##label)
-#define node(kind, ...)          PGEN_CAT(pl0_astnode_fixed_, PGEN_NARG(__VA_ARGS__))(ctx->alloc, PL0_NODE_##kind, __VA_ARGS__)
+#define node(kindname, ...)          PGEN_CAT(pl0_astnode_fixed_, PGEN_NARG(__VA_ARGS__))(ctx->alloc, kind(kindname), __VA_ARGS__)
 #define kind(name)               PL0_NODE_##name
 #define list(kind)               pl0_astnode_list(ctx->alloc, PL0_NODE_##kind, 16)
 #define leaf(kind)               pl0_astnode_leaf(ctx->alloc, PL0_NODE_##kind)
@@ -1637,7 +1638,7 @@ static inline int pl0_astnode_print_h(pl0_token* tokens, pl0_astnode_t *node, si
   #endif
   size_t cnum = node->num_children;
   if (cnum) {
-    indent(); printf("\"num_children\": %zu,\n", cnum);
+    // indent(); printf("\"num_children\": %zu,\n", cnum);
     indent(); printf("\"children\": [");
     putchar('\n');
     for (size_t i = 0; i < cnum; i++)
@@ -1654,6 +1655,7 @@ static inline int pl0_astnode_print_h(pl0_token* tokens, pl0_astnode_t *node, si
 static inline void pl0_astnode_print_json(pl0_token* tokens, pl0_astnode_t *node) {
   pl0_astnode_print_h(tokens, node, 0, 1);
 }
+
 
 static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx);
 static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx);
@@ -3556,6 +3558,7 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
   return rule;
   #undef rule
 }
+
 
 
 
