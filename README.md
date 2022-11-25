@@ -80,15 +80,15 @@ For an example tokenizer, see `examples/pl0.tok`.
 /* pgen's syntax, written in itself. */
 
 // Operators:
-// /  - Try to match the left side, then try to match the right side. If not ambiguous, Returns the one that matched.
-// &  - Try to parse, perform the match, but rewind back to the starting position.
-// !  - Try to parse, return SUCC if doesn't match and NULL if it does.
-// ?  - Optionally match. Failure to match does not cause the rule to fail.
-// *  - Match zero or more. Returns a list of matches.
-// +  - Match one or more. Returns a list of matches.
-// () - Matches if all expressions within match.
-// {} - Code to insert into the parser. Must return an ASTNode* or NULL to check for match.
-// :  - Capture the info from a match inside the node for the current rule.
+// /  - Try to match the left side, then try to match the right side. Returns the first that matches. Otherwise fail.
+// &  - Try to parse, perform the match, but rewind back to the starting position and return SUCC. Otherwise fail as usual.
+// !  - Try to parse, return SUCC on no match and fail on match.
+// ?  - Optionally match, returning either the result, or SUCC if no match. Does not cause the rule to fail.
+// *  - Match zero or more. Returns SUCC.
+// +  - Match one or more. Returns SUCC, or fails if no matches.
+// () - Matches if all expressions inside match. Returns SUCC or the single match within if there's only one.
+// {} - Code to insert into the parser. Assign to `ret` for the return value of this expression, or `rule` for the rule.
+// :  - Capture the info from a match inside a variable in the current rule.
 
 // Directives:
 // %oom         - Define the action that should be taken when out of memory
@@ -114,9 +114,9 @@ For an example tokenizer, see `examples/pl0.tok`.
 // leaf(kind)              - Create an astnode with no children
 // add(list, node)         - Add an astnode as a child to an astnode created by list()
 // has(node)               - 0 if the node is NULL or SUCC, 1 otherwise.
-// repr(node, ofnode)      - 
-// srepr(node, string)     - 
-// rret(node)              - return node from the rule
+// repr(node, ofnode)      - Set the string representation of the current node to another node's
+// srepr(node, string)     - Set the string representation of the current node to a string
+// rret(node)              - return node from the rule immediately, without cleanup
 
 // Notes:
 // Instead of using an unbalancing { or } inside a codeexpr, use the macros LB or RB.
