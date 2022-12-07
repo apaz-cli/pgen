@@ -25,15 +25,17 @@ Shouldn't you be able to build an abstract syntax tree directly from the
 grammar? Unfortunately, it's not that simple. For example, it turns out
 that you want to be able to throw away information. I don't care about
 the commas that I match in a list of function arguments. I don't care
-about the parentheses. I only want the info within. The shape of the AST
-that you want turns out to usually be very different from the shape of
-the grammar you wrote.
+about the parentheses. I only want the info within, and I want it
+structured in the way that I want it structured. The shape of the AST
+that you're expecting at the end usually turns out to be very different
+from the shape of the efficient grammar you wrote. There are also issues
+of how to implement grammars efficiently with fixed sized allocations.
 
-The one difference is that peg grammars like the ones you would
-write for `packcc` operate on individual characters of the input. For
-`pgen`, you define both a tokenizer and a parser. The tokenizer
-recognizes and groups together sequences of characters into tokens.
-It uses the [maximal munch](https://en.wikipedia.org/wiki/Maximal_munch)
+A major difference between `pgen` and peg grammars like the ones you would
+write for `packcc` is that normal peg grammars operate on individual
+characters of the input. For `pgen`, you define both a tokenizer and a
+parser. The tokenizer recognizes and groups together sequences of characters
+into tokens. It uses the [maximal munch](https://en.wikipedia.org/wiki/Maximal_munch)
 heuristic and throws an error if there are ambiguities. Then the parser
 strings together the token stream coming from the tokenizer into an
 [abstract syntax tree](https://en.wikipedia.org/wiki/Abstract_syntax_tree).
@@ -77,7 +79,7 @@ For an example tokenizer, see `examples/pl0.tok`.
 
 ## Parser Syntax
 ```peg
-/* pgen's syntax, written in itself. */
+/* pgen's syntax, written (approximately) in itself. */
 
 // Operators:
 // /  - Try to match the left side, then try to match the right side. Returns the first that matches. Otherwise fail.
@@ -116,7 +118,6 @@ For an example tokenizer, see `examples/pl0.tok`.
 // has(node)               - 0 if the node is NULL or SUCC, 1 otherwise.
 // repr(node, ofnode)      - Set the string representation of the current node to another node's
 // srepr(node, string)     - Set the string representation of the current node to a string
-// rret(node)              - return node from the rule immediately, without cleanup
 
 // Notes:
 // Instead of using an unbalancing { or } inside a codeexpr, use the macros LB or RB.
@@ -143,7 +144,7 @@ baseexpr <- UPPERIDENT
 ```
 
 Realistically, you're not going to figure out the syntax on your own.
-Talk to me, submit an issues, send me an email, or find me on Discord, and I can walk you through how to use it.
+Talk to me, submit an issue, send me an email, or find me on Discord, and I can walk you through how to use it.
 
 
 ## Roadmap

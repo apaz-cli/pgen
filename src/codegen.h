@@ -141,6 +141,7 @@ static inline void write_utf8_lib(codegen_ctx *ctx) {
 /************************/
 /* AST Memory Allocator */
 /************************/
+static inline void write_oom_directive(codegen_ctx *ctx);
 static inline void write_arena_lib(codegen_ctx *ctx) {
 #include "strarena.xxd"
   cwrite("%s", (char *)src_arena_h);
@@ -595,14 +596,10 @@ static inline void peg_write_directive_label(codegen_ctx *ctx, int p) {
          line, str, line);
 }
 
-static inline void peg_write_predirectives(codegen_ctx *ctx) {
-  cwrite("struct %s_astnode_t;\n", ctx->lower);
-  cwrite("typedef struct %s_astnode_t %s_astnode_t;\n\n", ctx->lower,
-         ctx->lower);
-
-  int label_written = 0;
+static inline void write_oom_directive(codegen_ctx *ctx) {
   int oom_written = 0;
   ASTNode *pegast = ctx->pegast;
+  if (!pegast) return;
   for (size_t n = 0; n < pegast->num_children; n++) {
     ASTNode *dir = pegast->children[n];
     if (strcmp(dir->name, "Directive"))
@@ -611,20 +608,33 @@ static inline void peg_write_predirectives(codegen_ctx *ctx) {
 
     // %oom directive
     if (!strcmp(dir_name, "oom")) {
-      if (oom_written)
+      if (ctx->args.u && oom_written)
         ERROR("Duplicate %%oom directives.");
       if (ctx->args.u)
         // Falls back to default handler.
         fprintf(stderr, "PGEN warning: "
-                        "Comment out your %%oom directive if you're using "
-                        "unsafe codegen.\n");
-      if (!label_written)
-        label_written = 1, peg_write_directive_label(ctx, 0);
+                        "%%oom directive unused with unsafe codegen.\n");
       cwrite("#define PGEN_OOM() %s\n", (char *)dir->extra);
       oom_written = 1;
     }
+  }
+}
+
+static inline void peg_write_predirectives(codegen_ctx *ctx) {
+  cwrite("struct %s_astnode_t;\n", ctx->lower);
+  cwrite("typedef struct %s_astnode_t %s_astnode_t;\n\n", ctx->lower,
+         ctx->lower);
+
+  int label_written = 0;
+  ASTNode *pegast = ctx->pegast;
+  for (size_t n = 0; n < pegast->num_children; n++) {
+    ASTNode *dir = pegast->children[n];
+    if (strcmp(dir->name, "Directive"))
+      continue;
+    char *dir_name = (char *)dir->children[0]->extra;
+
     // %preinclude directive
-    else if (!strcmp(dir_name, "preinclude")) {
+    if (!strcmp(dir_name, "preinclude")) {
       if (!label_written)
         label_written = 1, peg_write_directive_label(ctx, 0);
       cwrite("#include %s\n", (char *)dir->extra);
@@ -1009,7 +1019,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
       cwrite(")\\n\", %s_nodekind_name[kind]", ctx->lower);
       for (size_t j = 0; j < i; j++)
         cwrite(", (void*)n%zu", j);
-      cwrite(");\n");
+      cwrite("), exit(1);\n");
     }
     cwrite("  char* ret = pgen_alloc(alloc,\n"
            "                         sizeof(%s_astnode_t) +\n"
@@ -1071,8 +1081,6 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
   cwrite("#define srepr(node, s)           "
          "%s_astnode_srepr(ctx->alloc, node, (char*)s)\n",
          ctx->lower);
-  cwrite("#define rret(node)               "
-         "do {rule=node;goto rule_end;} while(0)\n");
   cwrite("#define SUCC                     "
          "((%s_astnode_t*)(void*)(uintptr_t)_Alignof(%s_astnode_t))\n",
          ctx->lower, ctx->lower);
@@ -1288,6 +1296,12 @@ static inline void end_block_0(codegen_ctx *ctx) {
   indent(ctx);
   cwrite("}");
 }
+static inline void start_embed(codegen_ctx *ctx, size_t line) {
+  //cwrite("#line %zu, \"%s\"\n", line, ctx->args.grammarTarget);
+}
+static inline void end_embed(codegen_ctx *ctx) {
+  //cwrite("#line %zu, \"%s\"\n", ctx->line + 1, ctx->args.outputTarget);
+}
 #define comment(...)                                                           \
   do {                                                                         \
     if (!ctx->args.u) {                                                        \
@@ -1304,18 +1318,16 @@ static inline void end_block_0(codegen_ctx *ctx) {
     cwrite(__VA_ARGS__);                                                       \
   } while (0)
 
-static inline void peg_write_debug_macro(codegen_ctx *ctx) {
-  cwrite("#ifndef PGEN_DEBUG\n");
-  cwrite("#define PGEN_DEBUG %i\n\n", (int)ctx->args.d);
+static inline void peg_write_interactive_macro(codegen_ctx *ctx) {
+  cwrite("#ifndef PGEN_INTERACTIVE\n");
+  cwrite("#define PGEN_INTERACTIVE %i\n\n", (int)ctx->args.i);
   cwrite("#define PGEN_ALLOCATOR_DEBUG %i\n\n", (int)ctx->args.m);
-  cwrite("#endif /* PGEN_DEBUG */\n\n");
+  cwrite("#endif /* PGEN_INTERACTIVE */\n\n");
 }
 
-static inline void peg_write_debug_stack(codegen_ctx *ctx) {
+static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
 
-  if (ctx->args.d) {
-    cwrite("#if PGEN_DEBUG\n");
-
+  if (ctx->args.i) {
     // Find max name length
     size_t max_len = 0;
     ASTNode *pegast = ctx->pegast;
@@ -1338,28 +1350,28 @@ static inline void peg_write_debug_stack(codegen_ctx *ctx) {
       max_len = MAX(max_len, idlen);
     }
 
-    cwrite("#define PGEN_DEBUG_WIDTH %zu\n", max_len);
+    cwrite("#define PGEN_INTERACTIVE_WIDTH %zu\n", max_len);
 
     cwrite("typedef struct {\n");
     cwrite("  const char* rule_name;\n");
     cwrite("  size_t pos;\n");
-    cwrite("} dbg_entry;\n\n");
+    cwrite("} intr_entry;\n\n");
 
     cwrite("static struct {\n");
-    cwrite("  dbg_entry rules[500];\n");
+    cwrite("  intr_entry rules[500];\n");
     cwrite("  size_t size;\n");
     cwrite("  int status;\n");
     cwrite("  int first;\n");
-    cwrite("} dbg_stack;\n\n");
+    cwrite("} intr_stack;\n\n");
 
     cwrite("#include <unistd.h>\n");
     cwrite("#include <sys/ioctl.h>\n");
     cwrite("#include <string.h>\n");
-    cwrite("static inline void dbg_display(%s_parser_ctx* ctx, "
+    cwrite("static inline void intr_display(%s_parser_ctx* ctx, "
            "const char* last) {\n",
            ctx->lower);
     // Zero initialized
-    cwrite("  if (!dbg_stack.first) dbg_stack.first = 1;\n");
+    cwrite("  if (!intr_stack.first) intr_stack.first = 1;\n");
     cwrite("  else getchar();\n\n");
 
     cwrite("  struct winsize w;\n");
@@ -1373,13 +1385,13 @@ static inline void peg_write_debug_stack(codegen_ctx *ctx) {
     cwrite("  printf(\"\\x1b[2J\\x1b[H\");\n\n");
 
     cwrite("  // Write first line in color.\n");
-    cwrite("  if (dbg_stack.status == -1) {\n");
+    cwrite("  if (intr_stack.status == -1) {\n");
     cwrite("    printf(\"\\x1b[31m\"); // Red\n");
     cwrite("    printf(\"Failed: %%s\\n\", last);\n");
-    cwrite("  } else if (dbg_stack.status == 0) {\n");
+    cwrite("  } else if (intr_stack.status == 0) {\n");
     cwrite("    printf(\"\\x1b[34m\"); // Blue\n");
     cwrite("    printf(\"Entering: %%s\\n\", last);\n");
-    cwrite("  } else if (dbg_stack.status == 1) {\n");
+    cwrite("  } else if (intr_stack.status == 1) {\n");
     cwrite("    printf(\"\\x1b[32m\"); // Green\n");
     cwrite("    printf(\"Accepted: %%s\\n\", last);\n");
     cwrite("  } else {\n");
@@ -1397,9 +1409,9 @@ static inline void peg_write_debug_stack(codegen_ctx *ctx) {
     cwrite("    putchar(' ');\n\n");
 
     cwrite("    // Print rule stack\n");
-    cwrite("    if (i < dbg_stack.size) {\n");
+    cwrite("    if (i < intr_stack.size) {\n");
     cwrite("      printf(\"%%-%zus\", "
-           "dbg_stack.rules[i].rule_name);\n",
+           "intr_stack.rules[i].rule_name);\n",
            max_len);
     cwrite("    } else {\n");
     cwrite("      for (size_t sp = 0; sp < %zu; sp++) putchar(' ');\n",
@@ -1426,38 +1438,37 @@ static inline void peg_write_debug_stack(codegen_ctx *ctx) {
     cwrite("  }\n");
     cwrite("}\n\n");
 
-    cwrite("static inline void dbg_enter(%s_parser_ctx* ctx,"
+    cwrite("static inline void intr_enter(%s_parser_ctx* ctx,"
            " const char* name, size_t pos) {\n",
            ctx->lower);
-    cwrite("  dbg_stack.rules[dbg_stack.size++] = (dbg_entry){name, pos};\n");
-    cwrite("  dbg_stack.status = 0;\n");
-    cwrite("  dbg_display(ctx, name);\n");
+    cwrite("  intr_stack.rules[intr_stack.size++] = (intr_entry){name, pos};\n");
+    cwrite("  intr_stack.status = 0;\n");
+    cwrite("  intr_display(ctx, name);\n");
     cwrite("}\n\n");
 
-    cwrite("static inline void dbg_accept(%s_parser_ctx* ctx, const char* "
+    cwrite("static inline void intr_accept(%s_parser_ctx* ctx, const char* "
            "accpeting) {\n",
            ctx->lower);
-    cwrite("  dbg_stack.size--;\n");
-    cwrite("  dbg_stack.status = 1;\n");
-    cwrite("  dbg_display(ctx, accpeting);\n");
+    cwrite("  intr_stack.size--;\n");
+    cwrite("  intr_stack.status = 1;\n");
+    cwrite("  intr_display(ctx, accpeting);\n");
     cwrite("}\n\n");
 
-    cwrite("static inline void dbg_reject(%s_parser_ctx* ctx, const char* "
+    cwrite("static inline void intr_reject(%s_parser_ctx* ctx, const char* "
            "rejecting) {\n",
            ctx->lower);
-    cwrite("  dbg_stack.size--;\n");
-    cwrite("  dbg_stack.status = -1;\n");
-    cwrite("  dbg_display(ctx, rejecting);\n");
+    cwrite("  intr_stack.size--;\n");
+    cwrite("  intr_stack.status = -1;\n");
+    cwrite("  intr_display(ctx, rejecting);\n");
     cwrite("}\n");
 
-    cwrite("static inline void dbg_succ(%s_parser_ctx* ctx, const char* "
+    cwrite("static inline void intr_succ(%s_parser_ctx* ctx, const char* "
            "succing) {\n",
            ctx->lower);
-    cwrite("  dbg_stack.size--;\n");
-    cwrite("  dbg_stack.status = 2;\n");
-    cwrite("  dbg_display(ctx, succing);\n");
+    cwrite("  intr_stack.size--;\n");
+    cwrite("  intr_stack.status = 2;\n");
+    cwrite("  intr_display(ctx, succing);\n");
     cwrite("}\n");
-    cwrite("#endif /* PGEN_DEBUG */\n\n");
   }
 }
 
@@ -1470,25 +1481,16 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       peg_visit_write_exprs(ctx, expr->children[0], ret_to, capture);
       return;
     }
-
     size_t ret = ctx->expr_cnt++;
     iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n\n", ctx->lower, ret);
-    iwrite("rec(slash_%zu);\n\n", ret);
-
     for (size_t i = 0; i < expr->num_children; i++) {
-
       comment("SlashExpr %zu", i);
       iwrite("if (!expr_ret_%zu)\n", ret);
       start_block(ctx);
-
-      // Forward capture through to each candidate.
-      // The ModExpr that is accepted will be captured and returned.
       peg_visit_write_exprs(ctx, expr->children[i], ret, capture);
-
       end_block(ctx);
     }
     comment("SlashExpr end");
-    iwrite("if (!expr_ret_%zu) rew(slash_%zu);\n", ret, ret);
     iwrite("expr_ret_%zu = expr_ret_%zu;\n\n", ret_to, ret);
 
   } else if (!strcmp(expr->name, "ModExprList")) {
@@ -1508,34 +1510,22 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
         end_block(ctx);
       }
     }
-
     comment("ModExprList end");
     iwrite("if (!expr_ret_%zu) rew(mod_%zu);\n", ret, ret);
-    if (expr->num_children == 1) {
-      iwrite("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
-    } else {
-      iwrite("expr_ret_%zu = expr_ret_%zu ? SUCC : NULL;\n", ret_to, ret);
-    }
+    iwrite("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
 
   } else if (!strcmp(expr->name, "ModExpr")) {
     ModExprOpts opts = *(ModExprOpts *)expr->extra;
     if ((opts.inverted == 0) & (opts.kleene_plus == 0) & (opts.optional == 0) &
-            (opts.rewinds == 0) &&
+            (opts.rewind == 0) &&
         expr->num_children == 1) {
       // Forward capture in trivial case.
       peg_visit_write_exprs(ctx, expr->children[0], ret_to, capture);
       return;
     }
-
     size_t ret = ctx->expr_cnt++;
-
-    // Copy state for rewind
-    if (opts.rewinds) {
-      // TODO: Opting into rewinds will most likely optimize out
-      // the forced failure rewind. Need to test.
-      iwrite("rec(mexpr_state_%zu)\n", ret);
-    }
-
+    int stateless = opts.inverted || opts.rewind;
+    if (stateless) iwrite("rec(mexpr_state_%zu)\n", ret);
     iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
 
     // Get plus or kleene SUCC/NULL or normal node return into ret
@@ -1543,25 +1533,35 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       // Plus (match one or more)
       // This can be implemented with a do while loop.
       // Plus cannot forward capture. Which one would be returned?
-      size_t times_num = ctx->expr_cnt++;
-      iwrite("int plus_times_%zu = 0;\n", times_num);
-      iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, times_num);
-      iwrite("do\n");
-      start_block(ctx);
-      peg_visit_write_exprs(ctx, expr->children[0], times_num, 0);
-      iwrite("plus_times_%zu++;\n", times_num);
+      size_t ret = ctx->expr_cnt++;
+      iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
+      iwrite("int plus_times_%zu = 0;\n", ret);
+      iwrite("while (1) "); start_block(ctx);
+      if (!stateless)
+        iwrite("rec(plus_rew_%zu);\n", ret);
+      peg_visit_write_exprs(ctx, expr->children[0], ret, 0);
+      iwrite("if (!expr_ret_%zu) {\n", ret);
+      if (!stateless)
+        iwrite("   rew(plus_rew_%zu);\n", ret);
+      iwrite("   break;\n");
+      iwrite("}");
+      iwrite("else { plus_times_%zu++; }\n", ret);
       end_block(ctx);
-      iwrite("while (expr_ret_%zu);\n", times_num);
-      iwrite("expr_ret_%zu = plus_times_%zu ? SUCC : NULL;\n", ret, times_num);
+      iwrite("expr_ret_%zu = plus_times_%zu ? SUCC : NULL;\n", ret_to, ret);
+
     } else if (opts.kleene_plus == 2) {
       // Kleene closure (match zero or more)
       // Kleene cannot forward capture either. Which one would be returned?
-      iwrite("expr_ret_%zu = SUCC;\n", ret);
-      iwrite("while (expr_ret_%zu)\n", ret);
+      size_t sentinel = ctx->expr_cnt++;
+      iwrite("%s_astnode_t* expr_ret_%zu = SUCC;\n", ctx->lower, sentinel);
+      iwrite("while (expr_ret_%zu)\n", sentinel);
       start_block(ctx);
-      peg_visit_write_exprs(ctx, expr->children[0], ret, 0);
+      if (!stateless)
+        iwrite("rec(kleene_rew_%zu);\n", ret);
+      peg_visit_write_exprs(ctx, expr->children[0], sentinel, 0);
       end_block(ctx);
       iwrite("expr_ret_%zu = SUCC;\n", ret); // Always accepts
+
     } else {
       // No plus or Kleene
       // A BaseExpr can either be forwarded in the simple case (is a Token,
@@ -1569,12 +1569,8 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       // In that case, we should tell the expressions below to capture the token
       // or rule.
       // Here's where we determine if there's a capture to forward.
-      // start_block(ctx);
-      peg_visit_write_exprs(ctx, expr->children[0], ret,
-                            expr->num_children == 2);
-      // end_block(ctx);
+      peg_visit_write_exprs(ctx, expr->children[0], ret, expr->num_children == 2);
     }
-
     // Apply optional/inverted to ret
     if (opts.optional) {
       comment("optional");
@@ -1584,13 +1580,11 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       comment("invert");
       iwrite("expr_ret_%zu = expr_ret_%zu ? NULL : SUCC;\n", ret, ret);
     }
-
     // Rewind if applicable
-    if (opts.rewinds) {
+    if (stateless) {
       comment("rewind");
       iwrite("rew(mexpr_state_%zu);\n", ret);
     }
-
     // Copy ret into ret_to and label if applicable
     iwrite("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
     if (expr->num_children == 2) {
@@ -1598,14 +1592,13 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       iwrite("%s = expr_ret_%zu;\n", label_name, ret);
     }
 
-    // return ret_to and write to label
-
   } else if (!strcmp(expr->name, "BaseExpr")) {
     peg_visit_write_exprs(ctx, expr->children[0], ret_to, capture);
+
   } else if (!strcmp(expr->name, "UpperIdent")) {
     char *tokname = (char *)expr->extra;
-    if (ctx->args.d)
-      iwrite("dbg_enter(ctx, \"%s\", ctx->pos);\n", tokname);
+    if (ctx->args.i)
+      iwrite("intr_enter(ctx, \"%s\", ctx->pos);\n", tokname);
     iwrite("if (ctx->tokens[ctx->pos].kind == %s_TOK_%s) ", ctx->upper,
            tokname);
     start_block_0(ctx);
@@ -1632,8 +1625,8 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     start_block_0(ctx);
     iwrite("expr_ret_%zu = NULL;\n", ret_to);
     end_block(ctx);
-    if (ctx->args.d)
-      iwrite("if (expr_ret_%zu) dbg_accept(ctx, \"%s\"); else dbg_reject(ctx, "
+    if (ctx->args.i)
+      iwrite("if (expr_ret_%zu) intr_accept(ctx, \"%s\"); else intr_reject(ctx, "
              "\"%s\");\n",
              ret_to, tokname, tokname);
   } else if (!strcmp(expr->name, "LowerIdent")) {
@@ -1646,15 +1639,15 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     // they can override that on their own with NULL or node() or list() or
     // whatever.
     comment("CodeExpr");
-    if (ctx->args.d)
-      iwrite("dbg_enter(ctx, \"CodeExpr\", ctx->pos);\n");
+    if (ctx->args.i)
+      iwrite("intr_enter(ctx, \"CodeExpr\", ctx->pos);\n");
     iwrite("#define ret expr_ret_%zu\n", ret_to);
     iwrite("ret = SUCC;\n\n");
     // start_block(ctx);
     iwrite("%s;\n\n", (char *)expr->extra);
     // end_block(ctx);
-    if (ctx->args.d)
-      iwrite("if (ret) dbg_accept(ctx, \"CodeExpr\"); else dbg_reject(ctx, "
+    if (ctx->args.i)
+      iwrite("if (ret) intr_accept(ctx, \"CodeExpr\"); else intr_reject(ctx, "
              "\"CodeExpr\");\n");
     iwrite("#undef ret\n");
   } else {
@@ -1686,25 +1679,24 @@ static inline void peg_write_definition(codegen_ctx *ctx, ASTNode *def) {
 
   size_t ult_ret = ctx->expr_cnt++;
   size_t ret = ctx->expr_cnt++;
-  cwrite("  #define rule expr_ret_%zu\n\n", ult_ret);
+  cwrite("  #define rule expr_ret_%zu\n", ult_ret);
   cwrite("  %s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
   cwrite("  %s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ult_ret);
-
-  if (ctx->args.d)
-    iwrite("dbg_enter(ctx, \"%s\", ctx->pos);\n", def_name);
+  if (ctx->args.i)
+    iwrite("intr_enter(ctx, \"%s\", ctx->pos);\n", def_name);
 
   peg_visit_write_exprs(ctx, def_expr, ret, 1);
 
   iwrite("if (!rule) rule = expr_ret_%zu;\n", ret);
   iwrite("if (!expr_ret_%zu) rule = NULL;\n", ret);
-  iwrite("rule_end:;\n");
 
-  if (ctx->args.d) {
-    iwrite("if (rule==SUCC) dbg_succ(ctx, \"%s\");\n", def_name);
-    iwrite("else if (rule) dbg_accept(ctx, \"%s\");\n", def_name);
-    iwrite("else dbg_reject(ctx, \"%s\");\n", def_name);
+  if (ctx->args.i) {
+    iwrite("if (rule==SUCC) intr_succ(ctx, \"%s\");\n", def_name);
+    iwrite("else if (rule) intr_accept(ctx, \"%s\");\n", def_name);
+    iwrite("else intr_reject(ctx, \"%s\");\n", def_name);
+  } else if (ctx->args.d) {
+    iwrite("if (rule==SUCC) fprintf(stderr, \"ERROR: Rule %s returned SUCC.\\n\"), exit(1);\n", def_name);
   }
-
   cwrite("  return rule;\n");
   cwrite("  #undef rule\n");
   cwrite("}\n\n");
@@ -1789,7 +1781,7 @@ static inline void peg_write_parser(codegen_ctx *ctx) {
   peg_write_node_print(ctx);
   peg_write_astnode_print(ctx);
   peg_write_middirectives(ctx);
-  peg_write_debug_stack(ctx);
+  peg_write_interactive_stack(ctx);
   peg_write_parser_body(ctx);
   peg_write_postdirectives(ctx);
   peg_write_undef_parsermacros(ctx);
@@ -1806,7 +1798,7 @@ static inline void codegen_write(codegen_ctx *ctx) {
     write_utf8_lib(ctx);
   }
 
-  peg_write_debug_macro(ctx);
+  peg_write_interactive_macro(ctx);
   if (ctx->pegast) {
     write_arena_lib(ctx);
     peg_write_predirectives(ctx);

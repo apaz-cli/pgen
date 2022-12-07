@@ -156,8 +156,10 @@ static inline void validatePegVisit(ASTNode *node, ASTNode *tokast,
     int tokfound = 0;
     for (size_t i = 0; i < tokast->num_children; i++) {
       char *tokname = (char *)tokast->children[i]->children[0]->extra;
-      if (!strcmp(name, tokname))
+      if (!strcmp(name, tokname)) {
         tokfound = 1;
+        break;
+      }
     }
     if (!tokfound)
       ERROR("%s appears in the parser, but does not have a token definition.",
@@ -171,6 +173,7 @@ static inline void validatePegVisit(ASTNode *node, ASTNode *tokast,
     for (size_t i = 0; i < names->len; i++) {
       if (!strcmp(name, names->buf[i])) {
         rulefound = 1;
+        break;
       }
     }
     if (!rulefound)
@@ -191,7 +194,9 @@ static inline void validatePegVisit(ASTNode *node, ASTNode *tokast,
   }
 }
 
-static inline void validateDirectives(list_ASTNodePtr *directives) {
+static inline void validateDirectives(Args args, list_ASTNodePtr *directives) {
+  if (!args.u)
+    return;
   for (size_t i = 0; i < directives->len; i++) {
     for (size_t j = i + 1; j < directives->len; j++) {
       char *dir_name1 = (char *)directives->buf[i]->children[0]->extra;
@@ -208,7 +213,7 @@ static inline void validateDirectives(list_ASTNodePtr *directives) {
   }
 }
 
-static inline void validatePegast(Args args, ASTNode *pegast, ASTNode *tokast) {
+static inline void validateRewritePegast(Args args, ASTNode *pegast, ASTNode *tokast) {
   if (!pegast)
     return;
 
@@ -226,7 +231,7 @@ static inline void validatePegast(Args args, ASTNode *pegast, ASTNode *tokast) {
 
   if (!args.u) {
     validatePegVisit(pegast, tokast, &names);
-    validateDirectives(&directives);
+    validateDirectives(args, &directives);
 
     list_ASTNodePtr_clear(&directives);
   }

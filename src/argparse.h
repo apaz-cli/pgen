@@ -8,11 +8,13 @@ typedef struct {
   char *grammarTarget;   // May be null
   char *outputTarget;    // May be null
   bool h;                // Help
-  bool d;                // Debug prompt
+  bool i;                // Interactive
+  bool d;                // Debug runtime errors
+  bool u;                // Generate Unsafe (but fast) code
   bool t;                // Tokenizer debug prompt
   bool g;                // Grammar debug prompt
   bool m;                // Memory allocator debugging
-  bool u;                // Generate Unsafe (but fast) code.
+  bool l;                // Line directives
 } Args;
 
 static inline Args argparse(int argc, char **argv) {
@@ -21,38 +23,52 @@ static inline Args argparse(int argc, char **argv) {
   args.grammarTarget = NULL;
   args.outputTarget = NULL;
   args.h = 0;
+  args.i = 0;
   args.d = 0;
+  args.u = 0;
   args.t = 0;
   args.g = 0;
   args.m = 0;
-  args.u = 0;
+  args.l = 0;
 
   char exitmsg[] =
       "pgen - A tokenizer and parser generator.\n"
       "    pgen [OPTION]... INPUT_TOK [INPUT_PEG] [-o OUTPUT_PATH]\n\n"
       "  Options:\n"
       "    -h, --help               Display this help message and exit.  \n"
-      "    -d, --debug              Generate an interactive parser.      \n"
+      "    -i, --interactive        Generate an interactive parser.      \n"
+      "    -d, --debug              Generate checks for runtime errors.  \n"
+      "    -u, --unsafe             Don't check for errors in gen'd code.\n"
       "    -t, --tokenizer-debug    Troubleshoot .tok syntax errors.     \n"
       "    -g, --grammar-debug      Troubleshoot .peg syntax errors.     \n"
       "    -m, --memdebug           Debug the generated memory allocator.\n"
-      "    -u, --unsafe             Don't check for errors. Much faster. \n";
+      "    -l, --lines              Generate #line directives.           \n"
+      ;
+
+  // NOTE: --safe and --unsafe check for different things.
+  // Unsafe strips comments, disables checking the result of malloc, and removes
+  // validation of the ast for faster compile times, as the grammar is assumed
+  // to be correct.
 
   for (int i = 1; i < argc; i++) {
     char *a = argv[i];
     // Flags
     if (!strcmp(a, "-h") || !strcmp(a, "--help")) {
       args.h = 1;
+    } else if (!strcmp(a, "-i") || !strcmp(a, "--interactive")) {
+      args.i = 1;
     } else if (!strcmp(a, "-d") || !strcmp(a, "--debug")) {
       args.d = 1;
+    } else if (!strcmp(a, "-u") || !strcmp(a, "--unsafe")) {
+      args.u = 1;
     } else if (!strcmp(a, "-t") || !strcmp(a, "--tokenizer-debug")) {
       args.t = 1;
     } else if (!strcmp(a, "-g") || !strcmp(a, "--grammar-debug")) {
       args.g = 1;
     } else if (!strcmp(a, "-m") || !strcmp(a, "--memdebug")) {
       args.m = 1;
-    } else if (!strcmp(a, "-u") || !strcmp(a, "--unsafe")) {
-      args.u = 1;
+    } else if (!strcmp(a, "-l") || !strcmp(a, "--lines")) {
+      args.l = 1;
     } else if (!strcmp(a, "-o") || !strcmp(a, "--output")) {
       if (i != argc - 1) {
         args.outputTarget = argv[++i];

@@ -8,7 +8,7 @@
 
 typedef struct {
   char inverted;
-  char rewinds;
+  char rewind;
   char optional;
   char kleene_plus; // 0 for nothing, 1 for plus, 2 for kleene.
 } ModExprOpts;
@@ -284,7 +284,7 @@ static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
   ModExprOpts *opts;
   node->extra = opts = (ModExprOpts *)malloc(sizeof(ModExprOpts));
   opts->inverted = 0;
-  opts->rewinds = 0;
+  opts->rewind = 0;
   opts->optional = 0;
   opts->kleene_plus = 0;
 
@@ -308,7 +308,7 @@ static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
 
   while (HAS_CURRENT()) {
     if (CURRENT() == '&') {
-      opts->rewinds = 1;
+      opts->rewind = 1;
     } else if (CURRENT() == '!') {
       opts->inverted = !opts->inverted;
     } else

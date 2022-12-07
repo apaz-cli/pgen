@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
 
   // Validate the ASTs.
   validateTokast(args, tokast);
-  validatePegast(args, pegast, tokast);
+  validateRewritePegast(args, pegast, tokast);
 
   // Create the automata (Tokenizer IR).
   TrieAutomaton trie = createTrieAutomaton(tokast);
