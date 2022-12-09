@@ -1,0 +1,354 @@
+{
+  "kind": "BLOCKLIST",
+  "content": "",
+  "children": [
+    {
+      "kind": "CONSTLIST",
+      "content": "",
+      "children": [
+        {
+          "kind": "CONST",
+          "content": "",
+          "children": [
+            {
+              "kind": "IDENT",
+              "content": "max",
+            },
+            {
+              "kind": "NUM",
+              "content": "100",
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "VARLIST",
+      "content": "",
+      "children": [
+        {
+          "kind": "IDENT",
+          "content": "",
+          "children": [
+            {
+              "kind": "IDENT",
+              "content": "arg",
+            }
+          ]
+        },
+        {
+          "kind": "IDENT",
+          "content": "ret",
+        },
+        {
+          "kind": "IDENT",
+          "content": "i",
+        }
+      ]
+    },
+    {
+      "kind": "PROCLIST",
+      "content": "",
+      "children": [
+        {
+          "kind": "PROC",
+          "content": "",
+          "children": [
+            {
+              "kind": "IDENT",
+              "content": "primes",
+            }
+          ]
+        },
+        {
+          "kind": "BEGIN",
+          "content": "",
+          "children": [
+            {
+              "kind": "STATEMENT",
+              "content": "",
+              "children": [
+                {
+                  "kind": "IDENT",
+                  "content": "",
+                  "children": [
+                    {
+                      "kind": "IDENT",
+                      "content": "arg",
+                    },
+                    {
+                      "kind": "EXPRS",
+                      "content": "",
+                      "children": [
+                        {
+                          "kind": "EXPRS",
+                          "content": "",
+                          "children": [
+                            {
+                              "kind": "NUM",
+                              "content": "",
+                              "children": [
+                                {
+                                  "kind": "NUM",
+                                  "content": "2",
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "STATEMENT",
+              "content": "",
+              "children": [
+                {
+                  "kind": "WHILE",
+                  "content": "",
+                  "children": [
+                    {
+                      "kind": "BINEXPR",
+                      "content": "",
+                      "children": [
+                        {
+                          "kind": "LT",
+                          "content": "<",
+                        },
+                        {
+                          "kind": "EXPRS",
+                          "content": "",
+                          "children": [
+                            {
+                              "kind": "EXPRS",
+                              "content": "",
+                              "children": [
+                                {
+                                  "kind": "IDENT",
+                                  "content": "",
+                                  "children": [
+                                    {
+                                      "kind": "IDENT",
+                                      "content": "arg",
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "EXPRS",
+                          "content": "",
+                          "children": [
+                            {
+                              "kind": "EXPRS",
+                              "content": "",
+                              "children": [
+                                {
+                                  "kind": "IDENT",
+                                  "content": "",
+                                  "children": [
+                                    {
+                                      "kind": "IDENT",
+                                      "content": "max",
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "BEGIN",
+                      "content": "",
+                      "children": [
+                        {
+                          "kind": "STATEMENT",
+                          "content": "",
+                          "children": [
+                            {
+                              "kind": "CALL",
+                              "content": "",
+                              "children": [
+                                {
+                                  "kind": "IDENT",
+                                  "content": "isprime",
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "STATEMENT",
+                          "content": "",
+                          "children": [
+                            {
+                              "kind": "IF",
+                              "content": "",
+                              "children": [
+                                {
+                                  "kind": "BINEXPR",
+                                  "content": "",
+                                  "children": [
+                                    {
+                                      "kind": "EQ",
+                                      "content": "=",
+                                    },
+                                    {
+                                      "kind": "EXPRS",
+                                      "content": "",
+                                      "children": [
+                                        {
+                                          "kind": "EXPRS",
+                                          "content": "",
+                                          "children": [
+                                            {
+                                              "kind": "IDENT",
+                                              "content": "",
+                                              "children": [
+                                                {
+                                                  "kind": "IDENT",
+                                                  "content": "ret",
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "kind": "EXPRS",
+                                      "content": "",
+                                      "children": [
+                                        {
+                                          "kind": "EXPRS",
+                                          "content": "",
+                                          "children": [
+                                            {
+                                              "kind": "NUM",
+                                              "content": "",
+                                              "children": [
+                                                {
+                                                  "kind": "NUM",
+                                                  "content": "1",
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "kind": "WRITE",
+                                  "content": "",
+                                  "children": [
+                                    {
+                                      "kind": "IDENT",
+                                      "content": "arg",
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "STATEMENT",
+                          "content": "",
+                          "children": [
+                            {
+                              "kind": "IDENT",
+                              "content": "",
+                              "children": [
+                                {
+                                  "kind": "IDENT",
+                                  "content": "arg",
+                                },
+                                {
+                                  "kind": "EXPRS",
+                                  "content": "",
+                                  "children": [
+                                    {
+                                      "kind": "EXPRS",
+                                      "content": "",
+                                      "children": [
+                                        {
+                                          "kind": "IDENT",
+                                          "content": "",
+                                          "children": [
+                                            {
+                                              "kind": "IDENT",
+                                              "content": "arg",
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "kind": "BINEXPR",
+                                      "content": "",
+                                      "children": [
+                                        {
+                                          "kind": "PLUS",
+                                          "content": "+",
+                                        },
+                                        {
+                                          "kind": "EXPRS",
+                                          "content": "",
+                                          "children": [
+                                            {
+                                              "kind": "NUM",
+                                              "content": "",
+                                              "children": [
+                                                {
+                                                  "kind": "NUM",
+                                                  "content": "1",
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "PROCLIST",
+      "content": "",
+      "children": [
+        {
+          "kind": "CALL",
+          "content": "",
+          "children": [
+            {
+              "kind": "IDENT",
+              "content": "primes",
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

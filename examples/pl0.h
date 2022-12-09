@@ -1593,7 +1593,6 @@ static inline pl0_astnode_t* pl0_astnode_srepr(pgen_allocator* allocator, pl0_as
 #define has(node)                (((uintptr_t)node <= (uintptr_t)SUCC) ? 0 : 1)
 #define repr(node, t)            pl0_astnode_repr(node, t)
 #define srepr(node, s)           pl0_astnode_srepr(ctx->alloc, node, (char*)s)
-#define rret(node)               do {rule=node;goto rule_end;} while(0)
 #define SUCC                     ((pl0_astnode_t*)(void*)(uintptr_t)_Alignof(pl0_astnode_t))
 
 static inline int pl0_node_print_content(pl0_astnode_t* node, pl0_token* tokens) {
@@ -1666,7 +1665,6 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx);
 static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
   pl0_astnode_t* b = NULL;
   #define rule expr_ret_0
-
   pl0_astnode_t* expr_ret_1 = NULL;
   pl0_astnode_t* expr_ret_0 = NULL;
   pl0_astnode_t* expr_ret_2 = NULL;
@@ -1689,6 +1687,7 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
     pl0_astnode_t* expr_ret_4 = SUCC;
     while (expr_ret_4)
     {
+      rec(kleene_rew_3);
       pl0_astnode_t* expr_ret_5 = NULL;
       rec(mod_5);
       // ModExprList 0
@@ -1738,7 +1737,6 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
   expr_ret_1 = expr_ret_2;
   if (!rule) rule = expr_ret_1;
   if (!expr_ret_1) rule = NULL;
-  rule_end:;
   return rule;
   #undef rule
 }
@@ -1748,7 +1746,6 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
   pl0_astnode_t* n = NULL;
   pl0_astnode_t* e = NULL;
   #define rule expr_ret_7
-
   pl0_astnode_t* expr_ret_8 = NULL;
   pl0_astnode_t* expr_ret_7 = NULL;
   pl0_astnode_t* expr_ret_9 = NULL;
@@ -1821,6 +1818,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       pl0_astnode_t* expr_ret_13 = SUCC;
       while (expr_ret_13)
       {
+        rec(kleene_rew_12);
         pl0_astnode_t* expr_ret_14 = NULL;
         rec(mod_14);
         // ModExprList 0
@@ -1995,6 +1993,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       pl0_astnode_t* expr_ret_20 = SUCC;
       while (expr_ret_20)
       {
+        rec(kleene_rew_19);
         pl0_astnode_t* expr_ret_21 = NULL;
         rec(mod_21);
         // ModExprList 0
@@ -2113,7 +2112,6 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
 
   if (!rule) rule = expr_ret_8;
   if (!expr_ret_8) rule = NULL;
-  rule_end:;
   return rule;
   #undef rule
 }
@@ -2123,7 +2121,6 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
   pl0_astnode_t* i = NULL;
   pl0_astnode_t* s = NULL;
   #define rule expr_ret_25
-
   pl0_astnode_t* expr_ret_26 = NULL;
   pl0_astnode_t* expr_ret_25 = NULL;
   pl0_astnode_t* expr_ret_27 = NULL;
@@ -2181,6 +2178,7 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       pl0_astnode_t* expr_ret_32 = SUCC;
       while (expr_ret_32)
       {
+        rec(kleene_rew_31);
         pl0_astnode_t* expr_ret_33 = NULL;
         rec(mod_33);
         // ModExprList 0
@@ -2305,7 +2303,6 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
 
   if (!rule) rule = expr_ret_26;
   if (!expr_ret_26) rule = NULL;
-  rule_end:;
   return rule;
   #undef rule
 }
@@ -2317,7 +2314,6 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
   pl0_astnode_t* smt = NULL;
   pl0_astnode_t* c = NULL;
   #define rule expr_ret_37
-
   pl0_astnode_t* expr_ret_38 = NULL;
   pl0_astnode_t* expr_ret_37 = NULL;
   pl0_astnode_t* expr_ret_39 = NULL;
@@ -2557,6 +2553,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       pl0_astnode_t* expr_ret_51 = SUCC;
       while (expr_ret_51)
       {
+        rec(kleene_rew_50);
         pl0_astnode_t* expr_ret_52 = NULL;
         rec(mod_52);
         // ModExprList 0
@@ -2754,7 +2751,6 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
 
   if (!rule) rule = expr_ret_38;
   if (!expr_ret_38) rule = NULL;
-  rule_end:;
   return rule;
   #undef rule
 }
@@ -2764,7 +2760,6 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
   pl0_astnode_t* op = NULL;
   pl0_astnode_t* ex_ = NULL;
   #define rule expr_ret_60
-
   pl0_astnode_t* expr_ret_61 = NULL;
   pl0_astnode_t* expr_ret_60 = NULL;
   pl0_astnode_t* expr_ret_62 = NULL;
@@ -3007,7 +3002,6 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
 
   if (!rule) rule = expr_ret_61;
   if (!expr_ret_61) rule = NULL;
-  rule_end:;
   return rule;
   #undef rule
 }
@@ -3016,7 +3010,6 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
   pl0_astnode_t* pm = NULL;
   pl0_astnode_t* t = NULL;
   #define rule expr_ret_76
-
   pl0_astnode_t* expr_ret_77 = NULL;
   pl0_astnode_t* expr_ret_76 = NULL;
   pl0_astnode_t* expr_ret_78 = NULL;
@@ -3122,6 +3115,7 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
     pl0_astnode_t* expr_ret_85 = SUCC;
     while (expr_ret_85)
     {
+      rec(kleene_rew_84);
       pl0_astnode_t* expr_ret_86 = NULL;
       rec(mod_86);
       // ModExprList 0
@@ -3217,7 +3211,6 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
   expr_ret_77 = expr_ret_78;
   if (!rule) rule = expr_ret_77;
   if (!expr_ret_77) rule = NULL;
-  rule_end:;
   return rule;
   #undef rule
 }
@@ -3226,7 +3219,6 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
   pl0_astnode_t* f = NULL;
   pl0_astnode_t* sd = NULL;
   #define rule expr_ret_92
-
   pl0_astnode_t* expr_ret_93 = NULL;
   pl0_astnode_t* expr_ret_92 = NULL;
   pl0_astnode_t* expr_ret_94 = NULL;
@@ -3270,6 +3262,7 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
     pl0_astnode_t* expr_ret_97 = SUCC;
     while (expr_ret_97)
     {
+      rec(kleene_rew_96);
       pl0_astnode_t* expr_ret_98 = NULL;
       rec(mod_98);
       // ModExprList 0
@@ -3365,7 +3358,6 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
   expr_ret_93 = expr_ret_94;
   if (!rule) rule = expr_ret_93;
   if (!expr_ret_93) rule = NULL;
-  rule_end:;
   return rule;
   #undef rule
 }
@@ -3375,7 +3367,6 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
   pl0_astnode_t* n = NULL;
   pl0_astnode_t* e = NULL;
   #define rule expr_ret_104
-
   pl0_astnode_t* expr_ret_105 = NULL;
   pl0_astnode_t* expr_ret_104 = NULL;
   pl0_astnode_t* expr_ret_106 = NULL;
@@ -3523,7 +3514,6 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
 
   if (!rule) rule = expr_ret_105;
   if (!expr_ret_105) rule = NULL;
-  rule_end:;
   return rule;
   #undef rule
 }
