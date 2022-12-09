@@ -47,7 +47,7 @@ elif [ "$1" = "profile" ]; then
 elif [ "$1" = "macrocheck" ]; then
 
   # Build pgen and examples
-  clang src/pgen.c -o pgen
+  cc src/pgen.c -o pgen
   ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h
 
   # Check
@@ -66,7 +66,7 @@ elif [ "$1" = "macrocheck" ]; then
 
 else
   # Build debug
-  clang src/pgen.c -o pgen -fsanitize=address -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable
+  cc src/pgen.c -o pgen -fsanitize=address -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable
 
   # Generate pl0 example
   ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h

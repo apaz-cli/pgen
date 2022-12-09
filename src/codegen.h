@@ -761,7 +761,7 @@ static inline void peg_write_astnode_kind(codegen_ctx *ctx) {
         char c = paste[i];
         if (!strcmp("EMPTY", paste)) {
           ERROR("Node kind cannot be EMPTY.");
-        } else if (((c < 'A') | (c > 'Z')) & (c != '_') & (c<'0' | c> '9')) {
+        } else if (((c < 'A') | (c > 'Z')) & (c != '_') & ((c < '0') | (c > '9'))) {
           ERROR("Node kind %s would not create a valid (uppercase) identifier.",
                 paste);
         }
@@ -788,7 +788,7 @@ static inline void peg_write_astnode_kind(codegen_ctx *ctx) {
         char c = paste[i];
         if (!strcmp("EMPTY", paste)) {
           ERROR("Node kind cannot be EMPTY.");
-        } else if (((c < 'A') | (c > 'Z')) & (c != '_') & (c<'0' | c> '9')) {
+        } else if (((c < 'A') | (c > 'Z')) & (c != '_') & ((c < '0') | (c > '9'))) {
           ERROR("Node kind %s would not create a valid (uppercase) identifier.",
                 paste);
         }
