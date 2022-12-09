@@ -72,9 +72,9 @@ else
   ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h
 
   # Build and run pl0 example
-  # cd examples/
-  # cc pl0.c -g
-  # ./a.out
+  cd examples/
+  cc pl0.c -g
+  ./a.out
 fi
 
 

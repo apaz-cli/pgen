@@ -38,7 +38,7 @@ typedef struct {
   char upper[PGEN_PREFIX_LEN];
 } codegen_ctx;
 
-static inline int cwrite_inner(codegen_ctx* ctx, char* fmt, ...) {
+static inline int cwrite_inner(codegen_ctx* ctx, const char* fmt, ...) {
   size_t newlines = 0;
   va_list ap;
   va_start(ap, fmt);
@@ -68,7 +68,7 @@ static inline int cwrite_inner(codegen_ctx* ctx, char* fmt, ...) {
   if (csize != CWRITE_INNER_BUFSZ)
     free(cbuf);
 
-  for (size_t i = 0; i < written; i++)
+  for (size_t i = 0; i < (size_t) written; i++)
     if (cbuf[i] == '\n')
       newlines++;
   ctx->line_nbr += newlines;
@@ -78,7 +78,7 @@ static inline int cwrite_inner(codegen_ctx* ctx, char* fmt, ...) {
   return written;
 }
 
-#define cwrite(...) cwrite_inner(ctx->f, __VA_ARGS__)
+#define cwrite(...) cwrite_inner(ctx, __VA_ARGS__)
 
 static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
                                     ASTNode *tokast, ASTNode *pegast,

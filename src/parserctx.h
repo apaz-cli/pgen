@@ -11,6 +11,7 @@ typedef struct {
   codepoint_t *str;
   size_t len;
   size_t pos;
+  size_t line_nbr;
 } parser_ctx;
 
 static inline void parser_ctx_init(parser_ctx *ctx,
@@ -18,6 +19,7 @@ static inline void parser_ctx_init(parser_ctx *ctx,
   ctx->str = cpsv.str;
   ctx->len = cpsv.len;
   ctx->pos = 0;
+  ctx->line_nbr = 1;
 }
 
 /*****************/
@@ -32,8 +34,8 @@ static inline void parser_ctx_init(parser_ctx *ctx,
 #define HAS_REMAINING(num) (REMAINING() >= (num))
 #define ADVANCE(num) (ctx->pos += (num))
 #define IS_CURRENT(str) ctx_is_current(ctx, str)
-#define RECORD(id) size_t _rew_to_##id = ctx->pos
-#define REWIND(id) (ctx->pos = _rew_to_##id)
+#define RECORD(id) size_t _rew_to_##id = ctx->pos, _rew_to_line_nbr_##id = ctx->line_nbr
+#define REWIND(id) (ctx->line_nbr = _rew_to_line_nbr_##id, ctx->pos = _rew_to_##id)
 #define WS() parse_ws(ctx)
 #define INIT(name) ASTNode *node = ASTNode_new(name)
 
@@ -157,15 +159,20 @@ static inline void parse_ws(parser_ctx *ctx) {
     codepoint_t c = CURRENT();
 
     // Whitespace
-    if ((c == ' ') | (c == '\t') | (c == '\r') | (c == '\n')) {
+    if ((c == ' ') | (c == '\t') | (c == '\r')) {
+      NEXT();
+    } else if (c == '\n') {
+      ctx->line_nbr++;
       NEXT();
     } else if (IS_CURRENT(dslsh)) { // Single line comment
       while (HAS_CURRENT() && CURRENT() != '\n')
         NEXT();
     } else if (IS_CURRENT(fcom)) { // Multi line comment
       ADVANCE(strlen(fcom));
-      while (!IS_CURRENT(ecom))
+      while (!IS_CURRENT(ecom)) {
+        if (HAS_CURRENT() && CURRENT() != '\n') ctx->line_nbr++;
         NEXT();
+      }
       // Found "*/" or EOF
       if (HAS_REMAINING(strlen(ecom))) { // */
         ADVANCE(strlen(ecom));
