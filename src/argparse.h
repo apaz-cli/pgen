@@ -4,9 +4,9 @@
 #include "util.h"
 
 typedef struct {
-  char *tokenizerTarget; // May not be null
-  char *grammarTarget;   // May be null
-  char *outputTarget;    // May be null
+  char *tokenizerTarget; // (path to .tok) May not be null
+  char *grammarTarget;   // (path to .peg) May be null
+  char *outputTarget;    // (path to output) May be null
   bool h;                // Help
   bool i;                // Interactive
   bool d;                // Debug runtime errors
