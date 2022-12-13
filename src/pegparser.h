@@ -476,8 +476,7 @@ static inline ASTNode *peg_parse_CodeExpr(parser_ctx *ctx) {
   CodeExprOpts* opts = (CodeExprOpts*)malloc(sizeof(size_t) + diff + 1);
   node->extra = opts;
   opts->line_nbr = _rew_to_line_nbr_sv_start;
-  char *str;
-  node->extra = str = (char *)malloc(diff + 1);
+  char *str = opts->content;
   for (size_t i = 0; i < diff; i++) {
     codepoint_t c = content.buf[i];
     if (c > CHAR_MAX)

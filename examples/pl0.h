@@ -1675,7 +1675,7 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
     #define ret expr_ret_2
     ret = SUCC;
 
-    t(BLOCKLIST);
+    rule=list(BLOCKLIST);
 
     #undef ret
   }
@@ -1705,7 +1705,7 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
         #define ret expr_ret_5
         ret = SUCC;
 
-        , b);
+        add(rule, b);
 
         #undef ret
       }
@@ -1774,7 +1774,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       #define ret expr_ret_10
       ret = SUCC;
 
-      t(VARLIST);
+      rule=list(VARLIST);
 
       #undef ret
     }
@@ -1806,7 +1806,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       #define ret expr_ret_10
       ret = SUCC;
 
-      , node(IDENT, i));
+      add(rule, node(IDENT, i));
 
       #undef ret
     }
@@ -1860,7 +1860,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
           #define ret expr_ret_14
           ret = SUCC;
 
-          , i);
+          add(rule, i);
 
           #undef ret
         }
@@ -1916,7 +1916,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       #define ret expr_ret_16
       ret = SUCC;
 
-      t(CONSTLIST);
+      rule=list(CONSTLIST);
 
       #undef ret
     }
@@ -1981,7 +1981,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       #define ret expr_ret_16
       ret = SUCC;
 
-      , node(CONST, i, n));
+      add(rule, node(CONST, i, n));
 
       #undef ret
     }
@@ -2075,7 +2075,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
           #define ret expr_ret_21
           ret = SUCC;
 
-          , node(CONST, i, n));
+          add(rule, node(CONST, i, n));
 
           #undef ret
         }
@@ -2145,7 +2145,7 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       #define ret expr_ret_28
       ret = SUCC;
 
-      ;
+      rule=v;
 
       #undef ret
     }
@@ -2166,7 +2166,7 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       #define ret expr_ret_30
       ret = SUCC;
 
-      t(PROCLIST);
+      rule=list(PROCLIST);
 
       #undef ret
     }
@@ -2245,7 +2245,7 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
           #define ret expr_ret_33
           ret = SUCC;
 
-          , v != SUCC ? node(PROC, i, v) : node(PROC, i));
+          add(rule, v != SUCC ? node(PROC, i, v) : node(PROC, i));
 
           #undef ret
         }
@@ -2275,7 +2275,7 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       #define ret expr_ret_30
       ret = SUCC;
 
-      , s);
+      add(rule, s);
 
       #undef ret
     }
@@ -2378,7 +2378,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #define ret expr_ret_40
       ret = SUCC;
 
-      e(IDENT, id, e);
+      rule=node(IDENT, id, e);
 
       #undef ret
     }
@@ -2432,7 +2432,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #define ret expr_ret_44
       ret = SUCC;
 
-      e(CALL, id);
+      rule=node(CALL, id);
 
       #undef ret
     }
@@ -2486,7 +2486,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #define ret expr_ret_46
       ret = SUCC;
 
-      e(WRITE, id);
+      rule=node(WRITE, id);
 
       #undef ret
     }
@@ -2520,7 +2520,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #define ret expr_ret_48
       ret = SUCC;
 
-      t(BEGIN);
+      rule=list(BEGIN);
 
       #undef ret
     }
@@ -2541,7 +2541,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #define ret expr_ret_48
       ret = SUCC;
 
-      , node(STATEMENT, smt));
+      add(rule, node(STATEMENT, smt));
 
       #undef ret
     }
@@ -2584,7 +2584,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
           #define ret expr_ret_52
           ret = SUCC;
 
-          , node(STATEMENT, smt));
+          add(rule, node(STATEMENT, smt));
 
           #undef ret
         }
@@ -2671,7 +2671,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #define ret expr_ret_54
       ret = SUCC;
 
-      e(IF, c, smt);
+      rule=node(IF, c, smt);
 
       #undef ret
     }
@@ -2736,7 +2736,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #define ret expr_ret_57
       ret = SUCC;
 
-      e(WHILE, c, smt);
+      rule=node(WHILE, c, smt);
 
       #undef ret
     }
@@ -2797,7 +2797,7 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
       #define ret expr_ret_63
       ret = SUCC;
 
-      ode(UNEXPR, ex);;
+      rule = node(UNEXPR, ex);;
 
       #undef ret
     }
@@ -2987,7 +2987,7 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
       #define ret expr_ret_65
       ret = SUCC;
 
-      e(BINEXPR, op, ex, ex_);
+      rule=node(BINEXPR, op, ex, ex_);
 
       #undef ret
     }
@@ -3020,7 +3020,7 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
     #define ret expr_ret_78
     ret = SUCC;
 
-    t(EXPRS);
+    rule=list(EXPRS);
 
     #undef ret
   }
@@ -3103,7 +3103,7 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
     #define ret expr_ret_78
     ret = SUCC;
 
-    , pm==SUCC ? t : node(UNEXPR, pm, t));
+    add(rule, pm==SUCC ? t : node(UNEXPR, pm, t));
 
     #undef ret
   }
@@ -3192,7 +3192,7 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
         #define ret expr_ret_86
         ret = SUCC;
 
-        , pm==SUCC ? t : node(BINEXPR, pm, t));
+        add(rule, pm==SUCC ? t : node(BINEXPR, pm, t));
 
         #undef ret
       }
@@ -3229,7 +3229,7 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
     #define ret expr_ret_94
     ret = SUCC;
 
-    t(EXPRS);
+    rule=list(EXPRS);
 
     #undef ret
   }
@@ -3250,7 +3250,7 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
     #define ret expr_ret_94
     ret = SUCC;
 
-    , f);
+    add(rule, f);
 
     #undef ret
   }
@@ -3339,7 +3339,7 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
         #define ret expr_ret_98
         ret = SUCC;
 
-        , node(STAR, sd, f));
+        add(rule, node(STAR, sd, f));
 
         #undef ret
       }
@@ -3402,7 +3402,7 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       #define ret expr_ret_107
       ret = SUCC;
 
-      e(IDENT, i);
+      rule=node(IDENT, i);
 
       #undef ret
     }
@@ -3443,7 +3443,7 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       #define ret expr_ret_109
       ret = SUCC;
 
-      e(NUM, n);
+      rule=node(NUM, n);
 
       #undef ret
     }
@@ -3499,7 +3499,7 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       #define ret expr_ret_111
       ret = SUCC;
 
-      ;
+      rule=e;
 
       #undef ret
     }
