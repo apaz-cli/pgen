@@ -1688,9 +1688,9 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     iwrite("ret = SUCC;\n\n");
     // start_block(ctx);
     CodeExprOpts *opts = (CodeExprOpts*)expr->extra;
-    start_embed(ctx, opts->line_nbr);
+    if (ctx->args.l) start_embed(ctx, opts->line_nbr);
     iwrite("%s;\n", opts->content);
-    end_embed(ctx);
+    if (ctx->args.l) end_embed(ctx);
     // end_block(ctx);
     if (ctx->args.i)
       iwrite("if (ret) intr_accept(ctx, \"CodeExpr\"); else intr_reject(ctx, "
