@@ -1340,10 +1340,10 @@ static inline void end_block_0(codegen_ctx *ctx) {
   cwrite("}");
 }
 static inline void start_embed(codegen_ctx *ctx, size_t line) {
-  //cwrite("#line %zu, \"%s\"\n", line, ctx->args.grammarTarget);
+  cwrite("#line %zu, \"%s\"\n", line, ctx->args.grammarTarget);
 }
 static inline void end_embed(codegen_ctx *ctx) {
-  //cwrite("#line %zu, \"%s\"\n", ctx->line + 1, ctx->args.outputTarget);
+  cwrite("#line %zu, \"%s\"\n", ctx->line_nbr + 1, ctx->args.outputTarget);
 }
 #define comment(...)                                                           \
   do {                                                                         \
@@ -1687,7 +1687,8 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     iwrite("#define ret expr_ret_%zu\n", ret_to);
     iwrite("ret = SUCC;\n\n");
     // start_block(ctx);
-    iwrite("%s;\n\n", (char *)expr->extra);
+    CodeExprOpts *opts = (CodeExprOpts*)expr->extra;
+    iwrite("%s;\n\n", opts->content);
     // end_block(ctx);
     if (ctx->args.i)
       iwrite("if (ret) intr_accept(ctx, \"CodeExpr\"); else intr_reject(ctx, "
