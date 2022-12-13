@@ -1339,12 +1339,6 @@ static inline void end_block_0(codegen_ctx *ctx) {
   indent(ctx);
   cwrite("}");
 }
-static inline void start_embed(codegen_ctx *ctx, size_t line) {
-  cwrite("#line %zu, \"%s\"\n", line, ctx->args.grammarTarget);
-}
-static inline void end_embed(codegen_ctx *ctx) {
-  cwrite("#line %zu, \"%s\"\n", ctx->line_nbr + 1, ctx->args.outputTarget);
-}
 #define comment(...)                                                           \
   do {                                                                         \
     if (!ctx->args.u) {                                                        \
@@ -1361,6 +1355,12 @@ static inline void end_embed(codegen_ctx *ctx) {
     cwrite(__VA_ARGS__);                                                       \
   } while (0)
 
+static inline void start_embed(codegen_ctx *ctx, size_t line) {
+  iwrite("#line %zu \"%s\"\n", line, ctx->args.grammarTarget);
+}
+static inline void end_embed(codegen_ctx *ctx) {
+  iwrite("#line %zu \"%s\"\n\n", ctx->line_nbr + 1, ctx->args.outputTarget);
+}
 static inline void peg_write_interactive_macro(codegen_ctx *ctx) {
   cwrite("#ifndef PGEN_INTERACTIVE\n");
   cwrite("#define PGEN_INTERACTIVE %i\n\n", (int)ctx->args.i);
@@ -1688,7 +1688,9 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     iwrite("ret = SUCC;\n\n");
     // start_block(ctx);
     CodeExprOpts *opts = (CodeExprOpts*)expr->extra;
-    iwrite("%s;\n\n", opts->content);
+    start_embed(ctx, opts->line_nbr);
+    iwrite("%s;\n", opts->content);
+    end_embed(ctx);
     // end_block(ctx);
     if (ctx->args.i)
       iwrite("if (ret) intr_accept(ctx, \"CodeExpr\"); else intr_reject(ctx, "
