@@ -13,6 +13,11 @@ typedef struct {
   char kleene_plus; // 0 for nothing, 1 for plus, 2 for kleene.
 } ModExprOpts;
 
+typedef struct {
+  size_t line_nbr;
+  char content[];
+} CodeExprOpts;
+
 static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx);
 static inline ASTNode *peg_parse_Directive(parser_ctx *ctx);
 static inline ASTNode *peg_parse_Definition(parser_ctx *ctx);
@@ -88,8 +93,10 @@ static inline ASTNode *peg_parse_Directive(parser_ctx *ctx) {
       capture_size++;
       NEXT();
     }
-    if (HAS_CURRENT() && CURRENT() == '\n')
+    if (HAS_CURRENT() && CURRENT() == '\n') {
       NEXT();
+      ctx->line_nbr++;
+    }
     if (!capture_size) {
       REWIND(begin);
       RETURN(NULL);
@@ -443,23 +450,22 @@ static inline ASTNode *peg_parse_CodeExpr(parser_ctx *ctx) {
         REWIND(begin);
         RETURN(NULL);
       }
-
-      c = CURRENT();
-      NEXT();
-    } else {
-      if (CURRENT() == '{') {
-        num_opens++;
-      } else if (CURRENT() == '}') {
-        num_opens--;
-        if (!num_opens) {
-          NEXT();
-          break;
-        }
+    } else if (CURRENT() == '{') {
+      num_opens++;
+    } else if (CURRENT() == '}') {
+      num_opens--;
+      if (!num_opens) {
+        NEXT();
+        break;
       }
-
-      c = CURRENT();
-      NEXT();
     }
+
+    if (CURRENT() == '\n') {
+      ctx->line_nbr++;
+    }
+
+    c = CURRENT();
+    NEXT();
 
     list_codepoint_t_add(&content, c);
   }
@@ -467,8 +473,10 @@ static inline ASTNode *peg_parse_CodeExpr(parser_ctx *ctx) {
   size_t diff = ctx->pos - _rew_to_sv_start - 1;
 
   INIT("CodeExpr");
-  char *str;
-  node->extra = str = (char *)malloc(diff + 1);
+  CodeExprOpts* opts = (CodeExprOpts*)malloc(sizeof(size_t) + diff + 1);
+  node->extra = opts;
+  opts->line_nbr = _rew_to_line_nbr_sv_start;
+  char *str = opts->content;
   for (size_t i = 0; i < diff; i++) {
     codepoint_t c = content.buf[i];
     if (c > CHAR_MAX)

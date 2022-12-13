@@ -1675,7 +1675,9 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
     #define ret expr_ret_2
     ret = SUCC;
 
+    #line 4 "examples/pl0.peg"
     rule=list(BLOCKLIST);
+    #line 1681 "examples/pl0.h"
 
     #undef ret
   }
@@ -1705,7 +1707,9 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
         #define ret expr_ret_5
         ret = SUCC;
 
+        #line 5 "examples/pl0.peg"
         add(rule, b);
+        #line 1713 "examples/pl0.h"
 
         #undef ret
       }
@@ -1774,7 +1778,9 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       #define ret expr_ret_10
       ret = SUCC;
 
+      #line 9 "examples/pl0.peg"
       rule=list(VARLIST);
+      #line 1784 "examples/pl0.h"
 
       #undef ret
     }
@@ -1806,7 +1812,9 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       #define ret expr_ret_10
       ret = SUCC;
 
+      #line 10 "examples/pl0.peg"
       add(rule, node(IDENT, i));
+      #line 1818 "examples/pl0.h"
 
       #undef ret
     }
@@ -1860,7 +1868,9 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
           #define ret expr_ret_14
           ret = SUCC;
 
+          #line 11 "examples/pl0.peg"
           add(rule, i);
+          #line 1874 "examples/pl0.h"
 
           #undef ret
         }
@@ -1916,7 +1926,9 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       #define ret expr_ret_16
       ret = SUCC;
 
+      #line 13 "examples/pl0.peg"
       rule=list(CONSTLIST);
+      #line 1932 "examples/pl0.h"
 
       #undef ret
     }
@@ -1981,7 +1993,9 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
       #define ret expr_ret_16
       ret = SUCC;
 
+      #line 14 "examples/pl0.peg"
       add(rule, node(CONST, i, n));
+      #line 1999 "examples/pl0.h"
 
       #undef ret
     }
@@ -2075,7 +2089,9 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
           #define ret expr_ret_21
           ret = SUCC;
 
+          #line 15 "examples/pl0.peg"
           add(rule, node(CONST, i, n));
+          #line 2095 "examples/pl0.h"
 
           #undef ret
         }
@@ -2145,7 +2161,9 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       #define ret expr_ret_28
       ret = SUCC;
 
+      #line 17 "examples/pl0.peg"
       rule=v;
+      #line 2167 "examples/pl0.h"
 
       #undef ret
     }
@@ -2166,7 +2184,9 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       #define ret expr_ret_30
       ret = SUCC;
 
+      #line 19 "examples/pl0.peg"
       rule=list(PROCLIST);
+      #line 2190 "examples/pl0.h"
 
       #undef ret
     }
@@ -2245,7 +2265,9 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
           #define ret expr_ret_33
           ret = SUCC;
 
+          #line 21 "examples/pl0.peg"
           add(rule, v != SUCC ? node(PROC, i, v) : node(PROC, i));
+          #line 2271 "examples/pl0.h"
 
           #undef ret
         }
@@ -2275,7 +2297,9 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
       #define ret expr_ret_30
       ret = SUCC;
 
+      #line 22 "examples/pl0.peg"
       add(rule, s);
+      #line 2303 "examples/pl0.h"
 
       #undef ret
     }
@@ -2378,7 +2402,9 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #define ret expr_ret_40
       ret = SUCC;
 
+      #line 25 "examples/pl0.peg"
       rule=node(IDENT, id, e);
+      #line 2408 "examples/pl0.h"
 
       #undef ret
     }
@@ -2432,7 +2458,9 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #define ret expr_ret_44
       ret = SUCC;
 
+      #line 28 "examples/pl0.peg"
       rule=node(CALL, id);
+      #line 2464 "examples/pl0.h"
 
       #undef ret
     }
@@ -2486,7 +2514,9 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #define ret expr_ret_46
       ret = SUCC;
 
+      #line 31 "examples/pl0.peg"
       rule=node(WRITE, id);
+      #line 2520 "examples/pl0.h"
 
       #undef ret
     }
@@ -2520,7 +2550,9 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #define ret expr_ret_48
       ret = SUCC;
 
+      #line 34 "examples/pl0.peg"
       rule=list(BEGIN);
+      #line 2556 "examples/pl0.h"
 
       #undef ret
     }
@@ -2541,7 +2573,9 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #define ret expr_ret_48
       ret = SUCC;
 
+      #line 36 "examples/pl0.peg"
       add(rule, node(STATEMENT, smt));
+      #line 2579 "examples/pl0.h"
 
       #undef ret
     }
@@ -2584,7 +2618,9 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
           #define ret expr_ret_52
           ret = SUCC;
 
+          #line 37 "examples/pl0.peg"
           add(rule, node(STATEMENT, smt));
+          #line 2624 "examples/pl0.h"
 
           #undef ret
         }
@@ -2671,7 +2707,9 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #define ret expr_ret_54
       ret = SUCC;
 
+      #line 41 "examples/pl0.peg"
       rule=node(IF, c, smt);
+      #line 2713 "examples/pl0.h"
 
       #undef ret
     }
@@ -2736,7 +2774,9 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       #define ret expr_ret_57
       ret = SUCC;
 
+      #line 44 "examples/pl0.peg"
       rule=node(WHILE, c, smt);
+      #line 2780 "examples/pl0.h"
 
       #undef ret
     }
@@ -2797,7 +2837,9 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
       #define ret expr_ret_63
       ret = SUCC;
 
+      #line 47 "examples/pl0.peg"
       rule = node(UNEXPR, ex);;
+      #line 2843 "examples/pl0.h"
 
       #undef ret
     }
@@ -2987,7 +3029,9 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
       #define ret expr_ret_65
       ret = SUCC;
 
+      #line 52 "examples/pl0.peg"
       rule=node(BINEXPR, op, ex, ex_);
+      #line 3035 "examples/pl0.h"
 
       #undef ret
     }
@@ -3020,7 +3064,9 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
     #define ret expr_ret_78
     ret = SUCC;
 
+    #line 54 "examples/pl0.peg"
     rule=list(EXPRS);
+    #line 3070 "examples/pl0.h"
 
     #undef ret
   }
@@ -3103,7 +3149,9 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
     #define ret expr_ret_78
     ret = SUCC;
 
+    #line 56 "examples/pl0.peg"
     add(rule, pm==SUCC ? t : node(UNEXPR, pm, t));
+    #line 3155 "examples/pl0.h"
 
     #undef ret
   }
@@ -3192,7 +3240,9 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
         #define ret expr_ret_86
         ret = SUCC;
 
+        #line 58 "examples/pl0.peg"
         add(rule, pm==SUCC ? t : node(BINEXPR, pm, t));
+        #line 3246 "examples/pl0.h"
 
         #undef ret
       }
@@ -3229,7 +3279,9 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
     #define ret expr_ret_94
     ret = SUCC;
 
+    #line 60 "examples/pl0.peg"
     rule=list(EXPRS);
+    #line 3285 "examples/pl0.h"
 
     #undef ret
   }
@@ -3250,7 +3302,9 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
     #define ret expr_ret_94
     ret = SUCC;
 
+    #line 61 "examples/pl0.peg"
     add(rule, f);
+    #line 3308 "examples/pl0.h"
 
     #undef ret
   }
@@ -3339,7 +3393,9 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
         #define ret expr_ret_98
         ret = SUCC;
 
+        #line 62 "examples/pl0.peg"
         add(rule, node(STAR, sd, f));
+        #line 3399 "examples/pl0.h"
 
         #undef ret
       }
@@ -3402,7 +3458,9 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       #define ret expr_ret_107
       ret = SUCC;
 
+      #line 64 "examples/pl0.peg"
       rule=node(IDENT, i);
+      #line 3464 "examples/pl0.h"
 
       #undef ret
     }
@@ -3443,7 +3501,9 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       #define ret expr_ret_109
       ret = SUCC;
 
+      #line 65 "examples/pl0.peg"
       rule=node(NUM, n);
+      #line 3507 "examples/pl0.h"
 
       #undef ret
     }
@@ -3499,7 +3559,9 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       #define ret expr_ret_111
       ret = SUCC;
 
+      #line 66 "examples/pl0.peg"
       rule=e;
+      #line 3565 "examples/pl0.h"
 
       #undef ret
     }

@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #ifndef TOKCODEGEN_INCLUDE
 #define TOKCODEGEN_INCLUDE
 #include "argparse.h"
@@ -10,8 +11,6 @@
 #include <stdio.h>
 
 #define NODE_NUM_FIXED 5
-
-#define cwrite(...) fprintf(ctx->f, __VA_ARGS__)
 
 // TODO debug messages
 // TODO parser context init
@@ -34,9 +33,52 @@ typedef struct {
   char *fbuffer;
   size_t expr_cnt;
   size_t indent_cnt;
+  size_t line_nbr;
   char lower[PGEN_PREFIX_LEN];
   char upper[PGEN_PREFIX_LEN];
 } codegen_ctx;
+
+static inline int cwrite_inner(codegen_ctx* ctx, const char* fmt, ...) {
+  size_t newlines = 0;
+  va_list ap;
+  va_start(ap, fmt);
+
+  #define CWRITE_INNER_BUFSZ (4096 * 4)
+  char buf[CWRITE_INNER_BUFSZ];
+
+  size_t csize = CWRITE_INNER_BUFSZ;
+  char* cbuf = buf;
+  int written;
+  while (1) {
+    va_list cpy;
+    va_copy(cpy, ap);
+    written = vsnprintf(cbuf, CWRITE_INNER_BUFSZ, fmt, cpy);
+    va_end(cpy);
+
+    if (written >= CWRITE_INNER_BUFSZ) { // C99
+      char* re = csize==CWRITE_INNER_BUFSZ ? NULL : cbuf;
+      csize *= 2;
+      cbuf = (char *) realloc(re, csize);
+    } else if (written < 0) {
+      return written;
+    } else {
+      break;
+    }
+  }
+  if (csize != CWRITE_INNER_BUFSZ)
+    free(cbuf);
+
+  for (size_t i = 0; i < (size_t) written; i++)
+    if (cbuf[i] == '\n')
+      newlines++;
+  ctx->line_nbr += newlines;
+
+  written = vfprintf(ctx->f, fmt, ap);
+  va_end(ap);
+  return written;
+}
+
+#define cwrite(...) cwrite_inner(ctx, __VA_ARGS__)
 
 static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
                                     ASTNode *tokast, ASTNode *pegast,
@@ -49,6 +91,7 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
   ctx->smauts = smauts;
   ctx->expr_cnt = 0;
   ctx->indent_cnt = 1;
+  ctx->line_nbr = 1;
 
   // Check to make sure we actually have code to generate.
   if ((!trie.accepting.len) & (!smauts.len))
@@ -1296,12 +1339,6 @@ static inline void end_block_0(codegen_ctx *ctx) {
   indent(ctx);
   cwrite("}");
 }
-static inline void start_embed(codegen_ctx *ctx, size_t line) {
-  //cwrite("#line %zu, \"%s\"\n", line, ctx->args.grammarTarget);
-}
-static inline void end_embed(codegen_ctx *ctx) {
-  //cwrite("#line %zu, \"%s\"\n", ctx->line + 1, ctx->args.outputTarget);
-}
 #define comment(...)                                                           \
   do {                                                                         \
     if (!ctx->args.u) {                                                        \
@@ -1318,6 +1355,12 @@ static inline void end_embed(codegen_ctx *ctx) {
     cwrite(__VA_ARGS__);                                                       \
   } while (0)
 
+static inline void start_embed(codegen_ctx *ctx, size_t line) {
+  iwrite("#line %zu \"%s\"\n", line, ctx->args.grammarTarget);
+}
+static inline void end_embed(codegen_ctx *ctx) {
+  iwrite("#line %zu \"%s\"\n\n", ctx->line_nbr + 1, ctx->args.outputTarget);
+}
 static inline void peg_write_interactive_macro(codegen_ctx *ctx) {
   cwrite("#ifndef PGEN_INTERACTIVE\n");
   cwrite("#define PGEN_INTERACTIVE %i\n\n", (int)ctx->args.i);
@@ -1644,7 +1687,10 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     iwrite("#define ret expr_ret_%zu\n", ret_to);
     iwrite("ret = SUCC;\n\n");
     // start_block(ctx);
-    iwrite("%s;\n\n", (char *)expr->extra);
+    CodeExprOpts *opts = (CodeExprOpts*)expr->extra;
+    if (ctx->args.l) start_embed(ctx, opts->line_nbr);
+    iwrite("%s;\n", opts->content);
+    if (ctx->args.l) end_embed(ctx);
     // end_block(ctx);
     if (ctx->args.i)
       iwrite("if (ret) intr_accept(ctx, \"CodeExpr\"); else intr_reject(ctx, "
