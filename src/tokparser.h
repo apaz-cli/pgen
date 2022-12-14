@@ -77,7 +77,6 @@ static inline codepoint_t tok_parse_Char(parser_ctx *ctx) {
   RULE_BEGIN("Char");
 
   // Escape sequences
-  int esc = 0;
   if (IS_CURRENT("\\")) {
     ADVANCE(strlen("\\"));
     codepoint_t ret = CURRENT();

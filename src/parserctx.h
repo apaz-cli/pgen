@@ -66,7 +66,7 @@ static inline void print_unconsumed(parser_ctx *ctx) {
 #ifdef _POSIX_C_SOURCE
   struct winsize w;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-  unsigned short cols = w.ws_col;
+  // unsigned short cols = w.ws_col;
   unsigned short rows = w.ws_row;
 
   Codepoint_String_View cpsv;

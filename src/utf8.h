@@ -45,7 +45,7 @@ static inline char UTF8_contByte(UTF8Decoder *state) {
   return ((c & 0xC0) == 0x80) ? (c & 0x3F) : UTF8_ERR;
 }
 
-/* Extract the next unicode code point. Returns c, UTF8_END, or UTF8_ERR. */
+/* Extract the next unicode code point. Returns the codepoint, UTF8_END, or UTF8_ERR. */
 static inline codepoint_t UTF8_decodeNext(UTF8Decoder *state) {
   codepoint_t c;
   char c0, c1, c2, c3;
@@ -87,6 +87,10 @@ static inline codepoint_t UTF8_decodeNext(UTF8Decoder *state) {
   return UTF8_ERR;
 }
 
+/*
+ * Encodes the codepoint as utf8 into the buffer, and returns the number of characters written.
+ * If the codepoint is invalid, nothing is written and zero is returned.
+ */
 static inline size_t UTF8_encodeNext(codepoint_t codepoint, char *buf4) {
   if (codepoint <= 0x7F) {
     buf4[0] = (char)codepoint;
@@ -113,7 +117,7 @@ static inline size_t UTF8_encodeNext(codepoint_t codepoint, char *buf4) {
 /*
  * Convert UTF32 codepoints to a utf8 string.
  * This will malloc() a buffer large enough, and store it to retstr and its
- * length to retcps. The result is not null terminated.
+ * length to retlen. The result is not null terminated.
  * Returns 1 on success, 0 on failure. Cleans up the buffer and does not store
  * to retstr or retlen on failure.
  */
@@ -130,7 +134,7 @@ static inline int UTF8_encode(codepoint_t *codepoints, size_t len, char **retstr
 
   for (i = 0; i < len; i++) {
     if (!(used = UTF8_encodeNext(codepoints[i], buf4)))
-      return 0;
+      return free(out_buf), 0;
     for (j = 0; j < used; j++)
       out_buf[characters_used++] = buf4[j];
   }

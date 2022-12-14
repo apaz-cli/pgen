@@ -1099,7 +1099,7 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
   cwrite("#define rew(label)               "
          "%s_parser_rewind(ctx, _rew_##label)\n",
          ctx->lower);
-  cwrite("#define node(kindname, ...)          "
+  cwrite("#define node(kindname, ...)      "
          "PGEN_CAT(%s_astnode_fixed_, "
          "PGEN_NARG(__VA_ARGS__))"
          "(ctx->alloc, kind(kindname), __VA_ARGS__)\n",
@@ -1704,7 +1704,6 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
 static inline void peg_write_definition(codegen_ctx *ctx, ASTNode *def) {
   char *def_name = (char *)def->children[0]->extra;
   ASTNode *def_expr = def->children[1];
-  ASTNode *current_expr;
 
   cwrite("static inline %s_astnode_t* %s_parse_%s(%s_parser_ctx* ctx) {\n",
          ctx->lower, ctx->lower, def_name, ctx->lower);
@@ -1755,9 +1754,6 @@ static inline void peg_write_parser_body(codegen_ctx *ctx) {
     ASTNode *def = pegast->children[n];
     if (strcmp(def->name, "Definition"))
       continue;
-
-    char *def_name = (char *)def->children[0]->extra;
-    ASTNode *def_expr = def->children[1];
     peg_write_definition_stub(ctx, def);
   }
   cwrite("\n\n");
@@ -1781,9 +1777,6 @@ static inline void peg_write_parser_body(codegen_ctx *ctx) {
     ASTNode *def = pegast->children[n];
     if (strcmp(def->name, "Definition"))
       continue;
-
-    char *def_name = (char *)def->children[0]->extra;
-    ASTNode *def_expr = def->children[1];
     peg_write_definition(ctx, def);
   }
   cwrite("\n\n");

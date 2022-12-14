@@ -5,12 +5,15 @@
 #include "util.h"
 
 // TODO: Make sure that every SM transition from has
-//       an SM transition to unless it's zero.
+//       an SM transition to unless it's zero. (This means a state is unreachable.)
+// TODO: Make sure that for each accepting state, a path to it exists.
 
 // TODO: Make sure that labeled ModExprs do not have ModExprLists in them with
 // more than one child.
 
-// TODO: Warn on token definitions not used in the parser.
+// TODO / Looking for ideas: Warn on token definitions not used in the parser.
+// Maybe parse the file back after we're done writing it? Seems a bit much. But,
+// it is useful to know if a %node directive is unnecessary.
 
 static inline void validateTokast(Args args, ASTNode *tokast) {
   // Cross compare for duplicate rules.

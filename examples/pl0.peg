@@ -5,7 +5,6 @@ program    <- {rule=list(BLOCKLIST)}
               (b:block {add(rule, b)})*
               DOT
 
-
 vdef       <- VAR {rule=list(VARLIST)}
               i:IDENT {add(rule, node(IDENT, i))}
               (COMMA i:IDENT {add(rule, i)})* SEMI

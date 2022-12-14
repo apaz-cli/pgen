@@ -74,9 +74,5 @@ else
   # Build and run pl0 example
   cd examples/
   cc pl0.c -g
-  ./a.out
+  #./a.out
 fi
-
-
-
-
