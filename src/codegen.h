@@ -25,12 +25,12 @@
 #define PGEN_PREFIX_LEN 8
 typedef struct {
   FILE *f;
-  Args args;
+  char *fbuffer;
   ASTNode *tokast;
   ASTNode *pegast;
+  Args args;
   TrieAutomaton trie;
   list_SMAutomaton smauts;
-  char *fbuffer;
   size_t expr_cnt;
   size_t indent_cnt;
   size_t line_nbr;

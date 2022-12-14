@@ -7,14 +7,14 @@ typedef struct {
   char *tokenizerTarget; // (path to .tok) May not be null
   char *grammarTarget;   // (path to .peg) May be null
   char *outputTarget;    // (path to output) May be null
-  bool h;                // Help
-  bool i;                // Interactive
-  bool d;                // Debug runtime errors
-  bool u;                // Generate Unsafe (but fast) code
-  bool t;                // Tokenizer debug prompt
-  bool g;                // Grammar debug prompt
-  bool m;                // Memory allocator debugging
-  bool l;                // Line directives
+  bool h:1;              // Help
+  bool i:1;              // Interactive
+  bool d:1;              // Debug runtime errors
+  bool u:1;              // Generate Unsafe (but fast) code
+  bool t:1;              // Tokenizer debug prompt
+  bool g:1;              // Grammar debug prompt
+  bool m:1;              // Memory allocator debugging
+  bool l:1;              // Line directives
 } Args;
 
 static inline Args argparse(int argc, char **argv) {

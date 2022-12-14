@@ -7,10 +7,10 @@
 #include <limits.h>
 
 typedef struct {
-  char inverted;
-  char rewind;
-  char optional;
-  char kleene_plus; // 0 for nothing, 1 for plus, 2 for kleene.
+  unsigned char inverted:1;
+  unsigned char rewind:1;
+  unsigned char optional:1;
+  unsigned char kleene_plus:2; // 0 for nothing, 1 for plus, 2 for kleene.
 } ModExprOpts;
 
 typedef struct {
