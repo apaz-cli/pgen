@@ -16,7 +16,7 @@
 #include "list.h"
 #include "utf8.h"
 
-typedef char* cstr;
+typedef char *cstr;
 LIST_DECLARE(cstr)
 LIST_DEFINE(cstr)
 
@@ -168,61 +168,82 @@ readFileCodepointLines(char *filePath) {
 
 static inline list_size_t find_sv_newlines(String_View sv) {
   list_size_t l = list_size_t_new();
-
   for (size_t i = 0; i < sv.len; i++) {
     if (sv.str[i] == '\n')
       list_size_t_add(&l, i);
   }
-
   return l;
 }
 
 static inline list_size_t find_cpsv_newlines(Codepoint_String_View cpsv) {
   list_size_t l = list_size_t_new();
-
   for (size_t i = 0; i < cpsv.len; i++) {
     if (cpsv.str[i] == '\n')
       list_size_t_add(&l, i);
   }
-
   return l;
 }
 
+// Assigns SIZE_MAX to *read on error when the number is larger than ULLONG_MAX.
+// Assigns 0 to *read on error when no digits are parsed.
+// Returns the number parsed on success, 0 on failure.
+// Note that 0 is a potential success value, so check *read.
 static inline unsigned long long
 codepoint_atoull_nosigns(const codepoint_t *a, size_t len, size_t *read) {
 
-  unsigned long long parsing = 0;
+  unsigned long long parsed = 0;
   size_t chars = 0;
   for (size_t i = 0; i < len; i++) {
     codepoint_t c = a[i];
     if (!((c >= 48) && (c <= 57)))
       break;
-    parsing *= 10; // TODO overflow/underflow checks.
-    parsing += (c - 48);
-    chars++;
+    else
+      chars++;
+
+    // Error if shifting the place would overflow
+    if ((parsed > ULLONG_MAX / 10)) {
+      *read = SIZE_MAX;
+      return 0;
+    }
+    parsed *= 10;
+
+    // Error if adding would overflow
+    unsigned long long toadd = (c - 48);
+    if (toadd > ULLONG_MAX - parsed) {
+      *read = SIZE_MAX;
+      return 0;
+    }
+    parsed += toadd;
   }
 
   *read = chars;
-  return parsing;
+  return parsed;
 }
 
+// Assigns SIZE_MAX to *read on error when the number is larger than INT_MAX or
+// lower than INT_MIN.
+// Assigns 0 to *read on error when no digits are parsed.
+// Returns the number parsed on success, 0 on failure.
+// Note that 0 is a potential success value, so check *read.
 static inline int codepoint_atoi(const codepoint_t *a, size_t len,
                                  size_t *read) {
-
   int neg = a[0] == '-';
-  int consumed = (neg | (a[0] == '+'));
-  a += consumed;
-  len -= consumed;
+  int sign_parsed = (neg | (a[0] == '+'));
+  a += sign_parsed;
+  len -= sign_parsed;
 
   size_t ullread;
   unsigned long long ull = codepoint_atoull_nosigns(a, len, &ullread);
+  if (ullread == 0)
+    return *read = 0, 0;
+  if (ullread == ULLONG_MAX)
+    return *read = SIZE_MAX, 0;
+
   if (neg ? ull > (unsigned long long)-(long long)INT_MIN
           : ull > (unsigned long long)INT_MAX)
     return *read = 0, 0;
-  int l = (int)(neg ? -ull : ull);
 
-  *read = ullread + consumed;
-  return l;
+  return *read = ullread + sign_parsed, (int)(neg ? -ull : ull);
 }
 
 #endif /* PGEN_INCLUDE_UTIL */

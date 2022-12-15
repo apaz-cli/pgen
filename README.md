@@ -165,6 +165,7 @@ Talk to me, submit an issue, send me an email, or find me on Discord, and I can 
 ## TODO
 * Provide a warning about left recursion.
 * Implement support in the syntax for error handling.
+* `%context` and `%contextinit`
 
 
 ## License

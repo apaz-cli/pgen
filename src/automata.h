@@ -45,7 +45,7 @@ typedef struct {
 } TrieAutomaton;
 
 typedef struct {
-  char* ident;
+  char *ident;
   list_int accepting;
   list_SMTransition trans;
 } SMAutomaton;

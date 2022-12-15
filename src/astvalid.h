@@ -4,8 +4,8 @@
 #include "ast.h"
 #include "util.h"
 
-// TODO: Make sure that every SM transition from has
-//       an SM transition to unless it's zero. (This means a state is unreachable.)
+// TODO: Make sure that every SM transition from has an SM
+//       transition to unless it's zero. (This means a state is unreachable.)
 // TODO: Make sure that for each accepting state, a path to it exists.
 
 // TODO: Make sure that labeled ModExprs do not have ModExprLists in them with
@@ -216,7 +216,8 @@ static inline void validateDirectives(Args args, list_ASTNodePtr *directives) {
   }
 }
 
-static inline void validateRewritePegast(Args args, ASTNode *pegast, ASTNode *tokast) {
+static inline void validateRewritePegast(Args args, ASTNode *pegast,
+                                         ASTNode *tokast) {
   if (!pegast)
     return;
 

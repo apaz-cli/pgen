@@ -7,10 +7,10 @@
 #include <limits.h>
 
 typedef struct {
-  unsigned char inverted:1;
-  unsigned char rewind:1;
-  unsigned char optional:1;
-  unsigned char kleene_plus:2; // 0 for nothing, 1 for plus, 2 for kleene.
+  unsigned char inverted : 1;
+  unsigned char rewind : 1;
+  unsigned char optional : 1;
+  unsigned char kleene_plus : 2; // 0 for nothing, 1 for plus, 2 for kleene.
 } ModExprOpts;
 
 typedef struct {
@@ -473,7 +473,7 @@ static inline ASTNode *peg_parse_CodeExpr(parser_ctx *ctx) {
   size_t diff = ctx->pos - _rew_to_sv_start - 1;
 
   INIT("CodeExpr");
-  CodeExprOpts* opts = (CodeExprOpts*)malloc(sizeof(size_t) + diff + 1);
+  CodeExprOpts *opts = (CodeExprOpts *)malloc(sizeof(size_t) + diff + 1);
   node->extra = opts;
   opts->line_nbr = _rew_to_line_nbr_sv_start;
   char *str = opts->content;

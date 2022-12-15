@@ -20,14 +20,21 @@ static inline ASTNode *tok_parse_TokenFile(parser_ctx *ctx);
 
 // The same as codepoint_atoi, but also advances by the amount read and has
 // debug info.
-static inline int tok_parse_Num(parser_ctx *ctx, size_t *read) {
+static inline int tok_parse_Num(parser_ctx *ctx, size_t *advance_by) {
 
   RULE_BEGIN("Num");
 
-  int i = codepoint_atoi(&CURRENT(), REMAINING(), read);
-  ADVANCE(*read);
+  size_t iread;
+  int i = codepoint_atoi(&CURRENT(), REMAINING(), &iread);
+  if (!iread || iread == SIZE_MAX) {
+    RULE_FAIL();
+    return *advance_by = 0, 0;
+  }
+  *advance_by = iread;
 
-  if (read)
+  ADVANCE(*advance_by);
+
+  if (advance_by)
     RULE_SUCCESS();
   else
     RULE_FAIL();
@@ -321,7 +328,6 @@ static inline ASTNode *tok_parse_CharSet(parser_ctx *ctx) {
     if (c2)
       *(cpptr + 1) = c2;
     ASTNode_addChild(node, cld);
-
   }
 
   if (!IS_CURRENT("]")) {

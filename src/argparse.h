@@ -33,19 +33,19 @@ static inline Args argparse(int argc, char **argv) {
 
   char exitmsg[] =
       "pgen - A tokenizer and parser generator.\n"
-      "    pgen [OPTION]... INPUT_TOK [INPUT_PEG] [-o OUTPUT_PATH]\n\n"
-      "  Options:\n"
-      "    -h, --help               Display this help message and exit.  \n"
-      "    -i, --interactive        Generate an interactive parser.      \n"
-      "    -d, --debug              Generate checks for runtime errors.  \n"
-      "    -u, --unsafe             Don't check for errors in gen'd code.\n"
-      "    -t, --tokenizer-debug    Troubleshoot .tok syntax errors.     \n"
-      "    -g, --grammar-debug      Troubleshoot .peg syntax errors.     \n"
-      "    -m, --memdebug           Debug the generated memory allocator.\n"
-      "    -l, --lines              Generate #line directives.           \n"
+      "    pgen [OPTION]... INPUT_TOK [INPUT_PEG] [-o OUTPUT_PATH]           \n"
+      "                                                                      \n"
+      "  Options:                                                            \n"
+      "    -h, --help               Display this help message and exit.      \n"
+      "    -i, --interactive        Generate an interactive parser.          \n"
+      "    -d, --debug              Generate checks for runtime errors.      \n"
+      "    -u, --unsafe             Don't check for errors in generated code.\n"
+      "    -t, --tokenizer-debug    Troubleshoot .tok syntax errors.         \n"
+      "    -g, --grammar-debug      Troubleshoot .peg syntax errors.         \n"
+      "    -m, --memdebug           Debug the generated memory allocator.    \n"
+      "    -l, --lines              Generate #line directives.               \n"
       ;
 
-  // NOTE: --safe and --unsafe check for different things.
   // Unsafe strips comments, disables checking the result of malloc, and removes
   // validation of the ast for faster compile times, as the grammar is assumed
   // to be correct.

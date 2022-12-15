@@ -13,10 +13,12 @@
 #define NODE_NUM_FIXED 5
 
 // TODO debug messages
-// TODO parser context init
 // TODO move token print into codegen.
 // TODO parse failure returns NULL rule.
 // TODO SlashExpr and ModExprList rewind to before ModExpr on partial failure.
+// TODO Context position and allocator rewind independently
+// TODO %context
+// TODO %contextinit
 
 /*******/
 /* ctx */
@@ -38,16 +40,16 @@ typedef struct {
   char upper[PGEN_PREFIX_LEN];
 } codegen_ctx;
 
-static inline int cwrite_inner(codegen_ctx* ctx, const char* fmt, ...) {
+static inline int cwrite_inner(codegen_ctx *ctx, const char *fmt, ...) {
   size_t newlines = 0;
   va_list ap;
   va_start(ap, fmt);
 
-  #define CWRITE_INNER_BUFSZ (4096 * 4)
+#define CWRITE_INNER_BUFSZ (4096 * 4)
   char buf[CWRITE_INNER_BUFSZ];
 
   size_t csize = CWRITE_INNER_BUFSZ;
-  char* cbuf = buf;
+  char *cbuf = buf;
   int written;
   while (1) {
     va_list cpy;
@@ -56,9 +58,9 @@ static inline int cwrite_inner(codegen_ctx* ctx, const char* fmt, ...) {
     va_end(cpy);
 
     if (written >= CWRITE_INNER_BUFSZ) { // C99
-      char* re = csize==CWRITE_INNER_BUFSZ ? NULL : cbuf;
+      char *re = csize == CWRITE_INNER_BUFSZ ? NULL : cbuf;
       csize *= 2;
-      cbuf = (char *) realloc(re, csize);
+      cbuf = (char *)realloc(re, csize);
     } else if (written < 0) {
       return written;
     } else {
@@ -68,7 +70,7 @@ static inline int cwrite_inner(codegen_ctx* ctx, const char* fmt, ...) {
   if (csize != CWRITE_INNER_BUFSZ)
     free(cbuf);
 
-  for (size_t i = 0; i < (size_t) written; i++)
+  for (size_t i = 0; i < (size_t)written; i++)
     if (cbuf[i] == '\n')
       newlines++;
   ctx->line_nbr += newlines;
@@ -642,7 +644,8 @@ static inline void peg_write_directive_label(codegen_ctx *ctx, int p) {
 static inline void write_oom_directive(codegen_ctx *ctx) {
   int oom_written = 0;
   ASTNode *pegast = ctx->pegast;
-  if (!pegast) return;
+  if (!pegast)
+    return;
   for (size_t n = 0; n < pegast->num_children; n++) {
     ASTNode *dir = pegast->children[n];
     if (strcmp(dir->name, "Directive"))
@@ -804,7 +807,8 @@ static inline void peg_write_astnode_kind(codegen_ctx *ctx) {
         char c = paste[i];
         if (!strcmp("EMPTY", paste)) {
           ERROR("Node kind cannot be EMPTY.");
-        } else if (((c < 'A') | (c > 'Z')) & (c != '_') & ((c < '0') | (c > '9'))) {
+        } else if (((c < 'A') | (c > 'Z')) & (c != '_') &
+                   ((c < '0') | (c > '9'))) {
           ERROR("Node kind %s would not create a valid (uppercase) identifier.",
                 paste);
         }
@@ -831,7 +835,8 @@ static inline void peg_write_astnode_kind(codegen_ctx *ctx) {
         char c = paste[i];
         if (!strcmp("EMPTY", paste)) {
           ERROR("Node kind cannot be EMPTY.");
-        } else if (((c < 'A') | (c > 'Z')) & (c != '_') & ((c < '0') | (c > '9'))) {
+        } else if (((c < 'A') | (c > 'Z')) & (c != '_') &
+                   ((c < '0') | (c > '9'))) {
           ERROR("Node kind %s would not create a valid (uppercase) identifier.",
                 paste);
         }
@@ -1484,7 +1489,8 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("static inline void intr_enter(%s_parser_ctx* ctx,"
            " const char* name, size_t pos) {\n",
            ctx->lower);
-    cwrite("  intr_stack.rules[intr_stack.size++] = (intr_entry){name, pos};\n");
+    cwrite(
+        "  intr_stack.rules[intr_stack.size++] = (intr_entry){name, pos};\n");
     cwrite("  intr_stack.status = 0;\n");
     cwrite("  intr_display(ctx, name);\n");
     cwrite("}\n\n");
@@ -1568,7 +1574,8 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     }
     size_t ret = ctx->expr_cnt++;
     int stateless = opts.inverted || opts.rewind;
-    if (stateless) iwrite("rec(mexpr_state_%zu)\n", ret);
+    if (stateless)
+      iwrite("rec(mexpr_state_%zu)\n", ret);
     iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
 
     // Get plus or kleene SUCC/NULL or normal node return into ret
@@ -1579,7 +1586,8 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       size_t ret = ctx->expr_cnt++;
       iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
       iwrite("int plus_times_%zu = 0;\n", ret);
-      iwrite("while (1) "); start_block(ctx);
+      iwrite("while (1) ");
+      start_block(ctx);
       if (!stateless)
         iwrite("rec(plus_rew_%zu);\n", ret);
       peg_visit_write_exprs(ctx, expr->children[0], ret, 0);
@@ -1612,7 +1620,8 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       // In that case, we should tell the expressions below to capture the token
       // or rule.
       // Here's where we determine if there's a capture to forward.
-      peg_visit_write_exprs(ctx, expr->children[0], ret, expr->num_children == 2);
+      peg_visit_write_exprs(ctx, expr->children[0], ret,
+                            expr->num_children == 2);
     }
     // Apply optional/inverted to ret
     if (opts.optional) {
@@ -1669,9 +1678,10 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     iwrite("expr_ret_%zu = NULL;\n", ret_to);
     end_block(ctx);
     if (ctx->args.i)
-      iwrite("if (expr_ret_%zu) intr_accept(ctx, \"%s\"); else intr_reject(ctx, "
-             "\"%s\");\n",
-             ret_to, tokname, tokname);
+      iwrite(
+          "if (expr_ret_%zu) intr_accept(ctx, \"%s\"); else intr_reject(ctx, "
+          "\"%s\");\n",
+          ret_to, tokname, tokname);
   } else if (!strcmp(expr->name, "LowerIdent")) {
     iwrite("expr_ret_%zu = %s_parse_%s(ctx);\n", ret_to, ctx->lower,
            (char *)expr->extra);
@@ -1687,10 +1697,12 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     iwrite("#define ret expr_ret_%zu\n", ret_to);
     iwrite("ret = SUCC;\n\n");
     // start_block(ctx);
-    CodeExprOpts *opts = (CodeExprOpts*)expr->extra;
-    if (ctx->args.l) start_embed(ctx, opts->line_nbr);
+    CodeExprOpts *opts = (CodeExprOpts *)expr->extra;
+    if (ctx->args.l)
+      start_embed(ctx, opts->line_nbr);
     iwrite("%s;\n", opts->content);
-    if (ctx->args.l) end_embed(ctx);
+    if (ctx->args.l)
+      end_embed(ctx);
     // end_block(ctx);
     if (ctx->args.i)
       iwrite("if (ret) intr_accept(ctx, \"CodeExpr\"); else intr_reject(ctx, "
@@ -1740,7 +1752,9 @@ static inline void peg_write_definition(codegen_ctx *ctx, ASTNode *def) {
     iwrite("else if (rule) intr_accept(ctx, \"%s\");\n", def_name);
     iwrite("else intr_reject(ctx, \"%s\");\n", def_name);
   } else if (ctx->args.d) {
-    iwrite("if (rule==SUCC) fprintf(stderr, \"ERROR: Rule %s returned SUCC.\\n\"), exit(1);\n", def_name);
+    iwrite("if (rule==SUCC) fprintf(stderr, \"ERROR: Rule %s returned "
+           "SUCC.\\n\"), exit(1);\n",
+           def_name);
   }
   cwrite("  return rule;\n");
   cwrite("  #undef rule\n");

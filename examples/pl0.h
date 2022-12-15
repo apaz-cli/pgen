@@ -3,9 +3,9 @@
 
 #ifndef PGEN_UTF8_INCLUDED
 #define PGEN_UTF8_INCLUDED
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <inttypes.h>
 
 #define UTF8_END -1 /* 1111 1111 */
 #define UTF8_ERR -2 /* 1111 1110 */
@@ -45,7 +45,8 @@ static inline char UTF8_contByte(UTF8Decoder *state) {
   return ((c & 0xC0) == 0x80) ? (c & 0x3F) : UTF8_ERR;
 }
 
-/* Extract the next unicode code point. Returns the codepoint, UTF8_END, or UTF8_ERR. */
+/* Extract the next unicode code point. Returns the codepoint, UTF8_END, or
+ * UTF8_ERR. */
 static inline codepoint_t UTF8_decodeNext(UTF8Decoder *state) {
   codepoint_t c;
   char c0, c1, c2, c3;
@@ -88,8 +89,9 @@ static inline codepoint_t UTF8_decodeNext(UTF8Decoder *state) {
 }
 
 /*
- * Encodes the codepoint as utf8 into the buffer, and returns the number of characters written.
- * If the codepoint is invalid, nothing is written and zero is returned.
+ * Encodes the codepoint as utf8 into the buffer, and returns the number of
+ * characters written. If the codepoint is invalid, nothing is written and zero
+ * is returned.
  */
 static inline size_t UTF8_encodeNext(codepoint_t codepoint, char *buf4) {
   if (codepoint <= 0x7F) {
@@ -121,10 +123,10 @@ static inline size_t UTF8_encodeNext(codepoint_t codepoint, char *buf4) {
  * Returns 1 on success, 0 on failure. Cleans up the buffer and does not store
  * to retstr or retlen on failure.
  */
-static inline int UTF8_encode(codepoint_t *codepoints, size_t len, char **retstr,
-                       size_t *retlen) {
+static inline int UTF8_encode(codepoint_t *codepoints, size_t len,
+                              char **retstr, size_t *retlen) {
   char buf4[4];
-  size_t characters_used = 0, used, i, j;
+  size_t characters_used, used, i, j;
   char *out_buf, *new_obuf;
 
   if ((!codepoints) | (!len))
@@ -132,6 +134,7 @@ static inline int UTF8_encode(codepoint_t *codepoints, size_t len, char **retstr
   if (!(out_buf = (char *)malloc(len * sizeof(codepoint_t) + 1)))
     return 0;
 
+  characters_used = 0;
   for (i = 0; i < len; i++) {
     if (!(used = UTF8_encodeNext(codepoints[i], buf4)))
       return free(out_buf), 0;
@@ -172,8 +175,10 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
     cpbuf[cps_read++] = cp;
   }
 
-  if (cp == UTF8_ERR)
-    return free(cpbuf), 0;
+  if (cp == UTF8_ERR) {
+    free(cpbuf);
+    return 0;
+  }
 
   *retcps = cpbuf;
   *retlen = cps_read;
