@@ -62,6 +62,7 @@ static inline int cwrite_inner(codegen_ctx *ctx, const char *fmt, ...) {
       csize *= 2;
       cbuf = (char *)realloc(re, csize);
     } else if (written < 0) {
+      va_end(ap);
       return written;
     } else {
       break;
@@ -344,19 +345,70 @@ static inline void tok_write_ctxstruct(codegen_ctx *ctx) {
          ctx->lower, ctx->lower, ctx->upper);
 }
 
-static inline void tok_write_statecheck(codegen_ctx *ctx, size_t smaut_num,
-                                        list_int states) {
-
-  // Single int
-  if (states.len == 1) {
-    cwrite("smaut_state_%zu == %i", smaut_num, states.buf[0]);
+static inline void tok_write_staterange(codegen_ctx *ctx, size_t smaut_num,
+                                        StateRange range) {
+  if (range.f == range.s) {
+    cwrite("smaut_state_%zu == %i", smaut_num, range.f);
+  } else if (range.f + 1 == range.s) {
+    cwrite("(smaut_state_%zu == %i) | (smaut_state_%zu == %i)", smaut_num,
+           range.f, smaut_num, range.s);
+  } else {
+    cwrite("(smaut_state_%zu >= %i) & (smaut_state_%zu <= %i)", smaut_num,
+           range.f, smaut_num, range.s);
   }
+}
 
-  // Charset
-  else {
-    cwrite("(smaut_state_%zu == %i)", smaut_num, states.buf[0]);
+static inline void tok_write_staterangecheck(codegen_ctx *ctx, size_t smaut_num,
+                                             list_StateRange states) {
+  if (!states.len) {
+    cwrite("1");
+  } else if (states.len == 1) { // Single range
+    tok_write_staterange(ctx, smaut_num, states.buf[0]);
+  } else { // List of ranges
+    cwrite("(");
+    tok_write_staterange(ctx, smaut_num, states.buf[0]);
     for (size_t i = 1; i < states.len; i++)
-      cwrite(" | (smaut_state_%zu == %i)", smaut_num, states.buf[i]);
+      cwrite(") | ("), tok_write_staterange(ctx, smaut_num, states.buf[i]);
+    cwrite(")");
+  }
+}
+
+static inline void tok_write_charrange(codegen_ctx *ctx, CharRange range) {
+  if (range.f == range.s) {
+    cwrite("c == %" PRI_CODEPOINT "", range.f);
+  } else if (range.f + 1 == range.s) {
+    cwrite("(c == %" PRI_CODEPOINT ") | (c == %" PRI_CODEPOINT ")", range.f,
+           range.s);
+  } else {
+    cwrite("(c >= %" PRI_CODEPOINT ") & (c <= %" PRI_CODEPOINT ")", range.f,
+           range.s);
+  }
+}
+
+static inline void tok_write_charrangecheck(codegen_ctx *ctx,
+                                            list_CharRange states,
+                                            bool inverted) {
+
+  if (!states.len) {
+    cwrite(inverted ? "1" : "0");
+  } else if (states.len == 1) {
+    if (inverted)
+      cwrite("!(");
+    tok_write_charrange(ctx, states.buf[0]);
+    if (inverted)
+      cwrite(")");
+  } else {
+    if (inverted)
+      cwrite("!(");
+    cwrite("(");
+    tok_write_charrange(ctx, states.buf[0]);
+    for (size_t i = 1; i < states.len; i++) {
+      cwrite(") | ("), tok_write_charrange(ctx, states.buf[i]);
+    }
+    cwrite(")");
+    if (inverted)
+      cwrite(")");
+    // cwrite("/* unimplemented */");
   }
 }
 
@@ -364,7 +416,7 @@ static inline void tok_write_charsetcheck(codegen_ctx *ctx, ASTNode *charset) {
 
   // Single char
   if (!charset->num_children) {
-    if (strcmp(charset->name, "CharSet") == 0) {
+    if (!strcmp(charset->name, "CharSet")) {
       cwrite("%i", (int)*(bool *)charset->extra);
     } else { // single char
       cwrite("c == %" PRI_CODEPOINT "", *(codepoint_t *)charset->extra);
@@ -384,7 +436,7 @@ static inline void tok_write_charsetcheck(codegen_ctx *ctx, ASTNode *charset) {
 
     for (size_t i = 0; i < charset->num_children; i++) {
       ASTNode *child = charset->children[i];
-      if (strcmp(child->name, "Char") == 0) {
+      if (!strcmp(child->name, "Char")) {
         codepoint_t c = *(codepoint_t *)child->extra;
         if (charset->num_children == 1) {
           // If it's the only one, it doensn't need extra parens.
@@ -513,9 +565,9 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
       for (size_t i = 0; i < aut.trans.len; i++) {
         SMTransition trans = list_SMTransition_get(&aut.trans, i);
         cwrite("      %sif ((", eels++ ? "else " : "");
-        tok_write_statecheck(ctx, a, trans.from);
+        tok_write_staterangecheck(ctx, a, trans.from);
         cwrite(") &\n         (");
-        tok_write_charsetcheck(ctx, trans.act);
+        tok_write_charrangecheck(ctx, trans.on, trans.inverted);
         cwrite(")) {\n");
         cwrite("          smaut_state_%zu = %i;\n", a, trans.to);
         cwrite("      }\n");
@@ -528,7 +580,7 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
         cwrite("      // Check accept\n");
 
       cwrite("      if (");
-      tok_write_statecheck(ctx, a, aut.accepting);
+      tok_write_staterangecheck(ctx, a, aut.accepting);
       cwrite(") {\n");
       cwrite("        smaut_munch_size_%zu = iidx + 1;\n", a);
       cwrite("      }\n");
@@ -1466,7 +1518,7 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
            max_len);
     cwrite("    }\n\n");
 
-    cwrite("    printf(\" | \"); // 3 Separator chars\n\n");
+    cwrite("    printf(\" | \"); // Middle bar\n\n");
 
     cwrite("    // Print tokens\n");
     cwrite("    size_t remaining_tokens = ctx->len - ctx->pos;\n");
@@ -1565,8 +1617,8 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
 
   } else if (!strcmp(expr->name, "ModExpr")) {
     ModExprOpts opts = *(ModExprOpts *)expr->extra;
-    if ((opts.inverted == 0) & (opts.kleene_plus == 0) & (opts.optional == 0) &
-            (opts.rewind == 0) &&
+    if ((!opts.inverted) & (!opts.kleene_plus) & (!opts.optional) &
+            (!opts.rewind) &&
         expr->num_children == 1) {
       // Forward capture in trivial case.
       peg_visit_write_exprs(ctx, expr->children[0], ret_to, capture);

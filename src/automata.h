@@ -23,17 +23,32 @@ typedef struct {
   int to;
 } TrieTransition;
 
+typedef struct {
+  int f;
+  int s;
+} StateRange;
+
+typedef struct {
+  codepoint_t f;
+  codepoint_t s;
+} CharRange;
+
 LIST_DECLARE(int)
 LIST_DEFINE(int)
 LIST_DECLARE(State)
 LIST_DEFINE(State)
 LIST_DECLARE(TrieTransition)
 LIST_DEFINE(TrieTransition)
+LIST_DECLARE(StateRange)
+LIST_DEFINE(StateRange)
+LIST_DECLARE(CharRange)
+LIST_DEFINE(CharRange)
 
 typedef struct {
-  ASTNode *act;
-  list_int from;
+  list_CharRange on;
+  list_StateRange from;
   int to;
+  bool inverted;
 } SMTransition;
 
 LIST_DECLARE(SMTransition)
@@ -46,7 +61,7 @@ typedef struct {
 
 typedef struct {
   char *ident;
-  list_int accepting;
+  list_StateRange accepting;
   list_SMTransition trans;
 } SMAutomaton;
 
@@ -55,53 +70,185 @@ LIST_DEFINE(TrieAutomaton)
 LIST_DECLARE(SMAutomaton)
 LIST_DEFINE(SMAutomaton)
 
-static inline list_int numset_to_list(ASTNode *numset) {
-  list_int l = list_int_new();
+static inline void print_stateranges(list_StateRange l) {
+  printf("[");
+  for (size_t i = 0; i < l.len; i++) {
+    if (i)
+      printf(", ");
+    printf("[%i, %i]", l.buf[i].f, l.buf[i].s);
+  }
+  printf("]\n");
+}
+
+static const char numset_failstr[] =
+    "Error: -1 cannot be used as a state in .tok files. "
+    "It's the failure state.";
+
+static inline StateRange get_num_staterange(ASTNode *num) {
+  int n = *(int *)num->extra;
+  if (n == -1)
+    ERROR(numset_failstr);
+  return (StateRange){n, n};
+}
+
+static inline StateRange get_numrange_staterange(ASTNode *numrange) {
+  int *iptr = (int *)numrange->extra;
+  int first = *iptr, second = *(iptr + 1);
+  if (first == -1 || second == -1)
+    ERROR(numset_failstr);
+  return (StateRange){first, second};
+}
+
+static inline void get_numsetlist_stateranges(ASTNode *numsetlist,
+                                              list_StateRange *l) {
+  for (size_t i = 0; i < numsetlist->num_children; i++) {
+    ASTNode *cld = numsetlist->children[i];
+    if (!strcmp(cld->name, "Num")) {
+      StateRange r = get_num_staterange(cld);
+      list_StateRange_add(l, r);
+    } else if (!strcmp(cld->name, "NumRange")) {
+      StateRange r = get_numrange_staterange(cld);
+      list_StateRange_add(l, r);
+    } else if (!strcmp(cld->name, "NumSetList")) {
+      get_numsetlist_stateranges(cld, l);
+    } else
+      ERROR("%s is not a numset.", cld->name);
+  }
+}
+
+static inline list_StateRange numset_to_stateranges(ASTNode *numset) {
+  list_StateRange l = list_StateRange_new();
   if (strcmp(numset->name, "Num") == 0) {
-    list_int_add(&l, *(int *)numset->extra);
+    list_StateRange_add(&l, get_num_staterange(numset));
   } else if (strcmp(numset->name, "NumRange") == 0) {
-    int *iptr = (int *)numset->extra;
-    int first = *iptr, second = *(iptr + 1);
-    for (int i = first; i <= second; i++)
-      list_int_add(&l, i);
+    list_StateRange_add(&l, get_numrange_staterange(numset));
   } else if (strcmp(numset->name, "NumSetList") == 0) {
-    // recurse, combine.
-    for (size_t i = 0; i < numset->num_children; i++) {
-      list_int _l = numset_to_list(numset->children[i]);
-      for (size_t j = 0; j < _l.len; j++)
-        list_int_add(&l, list_int_get(&_l, j));
-      list_int_clear(&_l);
-    }
+    get_numsetlist_stateranges(numset, &l);
   } else
     ERROR("%s is not a numset.", numset->name);
-
   return l;
 }
 
-static inline list_int list_int_sort(list_int l) {
-  int temp;
-  size_t interval, i, j;
-  for (interval = l.len / 2; interval > 0; interval /= 2) {
-    for (i = interval; i < l.len; i += 1) {
-      temp = l.buf[i];
-      j = i;
-      for (; j >= interval && l.buf[j - interval] > temp; j -= interval) {
-        l.buf[j] = l.buf[j - interval];
-      }
-      l.buf[j] = temp;
+static inline list_StateRange compressStateRanges(list_StateRange srs) {
+
+  if (srs.len <= 1)
+    return srs;
+
+  // Shellsort ranges by the first entry.
+  StateRange temp;
+  for (size_t interval = srs.len / 2; interval > 0; interval /= 2) {
+    for (size_t i = interval; i < srs.len; i += 1) {
+      temp = srs.buf[i];
+      size_t j = i;
+      for (; j >= interval && srs.buf[j - interval].f > temp.f; j -= interval)
+        srs.buf[j] = srs.buf[j - interval];
+      srs.buf[j] = temp;
     }
   }
-  return l;
+
+  // Compress
+  if (srs.len > 1) {
+    size_t ins = 0;
+    int min = srs.buf[0].f;
+    int max = srs.buf[0].s;
+    for (size_t i = 1; i < srs.len; i++) {
+      if (srs.buf[i].f > max + 1) {
+        srs.buf[ins++] = (StateRange){min, max};
+        min = srs.buf[i].f;
+        max = srs.buf[i].s;
+      } else {
+        max = MAX(max, srs.buf[i].s);
+      }
+    }
+    srs.buf[ins++] = (StateRange){min, max};
+    srs.len = ins;
+  }
+
+  return srs;
 }
 
-static inline void list_int_print(FILE *stream, list_int l) {
-  if (!l.len)
-    return;
+static inline void print_charranges(list_CharRange l) {
+  printf("[");
+  for (size_t i = 0; i < l.len; i++) {
+    CharRange range = l.buf[i];
+    i ? printf(", ") : 1;
+    printf("[%" PRI_CODEPOINT ", %" PRI_CODEPOINT "]", range.f, range.s);
+  }
+  printf("]\n");
+}
 
-  fprintf(stream, "(%i", l.buf[0]);
-  for (size_t i = 1; i < l.len; i++)
-    fprintf(stream, ", %i", l.buf[i]);
-  fputc(')', stream);
+static inline list_CharRange compressCharRanges(list_CharRange crs) {
+
+  if (crs.len <= 1)
+    return crs;
+
+  // Shellsort ranges by the first entry.
+  CharRange temp;
+  for (size_t interval = crs.len / 2; interval > 0; interval /= 2) {
+    for (size_t i = interval; i < crs.len; i += 1) {
+      temp = crs.buf[i];
+      size_t j = i;
+      for (; j >= interval && crs.buf[j - interval].f > temp.f; j -= interval)
+        crs.buf[j] = crs.buf[j - interval];
+      crs.buf[j] = temp;
+    }
+  }
+
+  // Compress
+  if (crs.len > 1) {
+    size_t ins = 0;
+    codepoint_t min = crs.buf[0].f;
+    codepoint_t max = crs.buf[0].s;
+    for (size_t i = 1; i < crs.len; i++) {
+      if (crs.buf[i].f > max + 1) {
+        crs.buf[ins++] = (CharRange){min, max};
+        min = crs.buf[i].f;
+        max = crs.buf[i].s;
+      } else {
+        max = MAX(max, crs.buf[i].s);
+      }
+    }
+    crs.buf[ins++] = (CharRange){min, max};
+    crs.len = ins;
+  }
+
+  return crs;
+}
+
+static inline list_CharRange charset_to_charranges(ASTNode *charset,
+                                                   bool *inverted) {
+  // If the charset is a single quoted char, then char->num_children is 0 and
+  // char->extra is that character's codepoint. If the charset is of
+  // the form [^? ...] then charset->extra is a bool* of whether
+  // the ^ is present, and charset->children has the range's contents.
+  // The children are of the form char->extra = codepoint or
+  // charrange->extra = codepoint[2]. A charset of the
+  // form [^? ...] may have no children.
+
+  list_CharRange l = list_CharRange_new();
+
+  if (!strcmp(charset->name, "Char")) {
+    codepoint_t c = *(codepoint_t *)charset->extra;
+    list_CharRange_add(&l, (CharRange){c, c});
+    return *inverted = false, l;
+  }
+
+  if (!strcmp(charset->name, "CharSet")) {
+    for (size_t i = 0; i < charset->num_children; i++) {
+      ASTNode *cld = charset->children[i];
+      if (!strcmp(cld->name, "CharRange")) {
+        codepoint_t *cpptr = (codepoint_t *)cld->extra;
+        list_CharRange_add(&l, (CharRange){cpptr[0], cpptr[1]});
+      } else {
+        codepoint_t cp = *(codepoint_t *)cld->extra;
+        list_CharRange_add(&l, (CharRange){cp, cp});
+      }
+    }
+    return *inverted = *(bool *)charset->extra ? true : false, l;
+  }
+
+  ERROR("UNREACHABLE CODE!");
+  return l;
 }
 
 static inline int trieTransition_compare(const void *trans1,
@@ -221,6 +368,7 @@ static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
       TrieTransition t = list_TrieTransition_get(&aut.trans, i);
       printf("Transition: (%i, %c) -> (%i)\n", t.from, t.c, t.to);
     }
+    printf("Finished building trie.\n");
     fflush(stdout);
   }
 
@@ -233,7 +381,7 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
   // Now, build SFAs for the state machine definitions.
   for (size_t n = 0; n < tokast->num_children; n++) {
     SMAutomaton aut;
-    aut.accepting = list_int_new();
+    aut.accepting = list_StateRange_new();
     aut.trans = list_SMTransition_new();
 
     ASTNode *r = tokast->children[n];
@@ -250,11 +398,7 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
 
     // Grab the accepting states.
     ASTNode *accepting = def->children[0];
-    list_int accepting_states = numset_to_list(accepting);
-    for (size_t i = 0; i < accepting_states.len; i++) {
-      list_int_add(&aut.accepting, list_int_get(&accepting_states, i));
-    }
-    list_int_clear(&accepting_states);
+    aut.accepting = numset_to_stateranges(accepting);
 
     // Process each rule
     ASTNode **rules = def->children + 1;
@@ -266,15 +410,23 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
       ASTNode *onCharset = pair->children[1];
       int toState = *(int *)rule->extra;
       if (AUT_DEBUG)
-        printf("Parsing rule %zu.\n", k);
+        printf("Parsing transition rule %zu\n", k);
 
       // For each starting state, make a transition to the end state on the
       // charset.
       SMTransition t;
-      t.from = list_int_sort(numset_to_list(startingStates));
+      bool inv;
+      t.from = compressStateRanges(numset_to_stateranges(startingStates));
       t.to = toState;
-      t.act = onCharset;
+      t.on = charset_to_charranges(onCharset, &inv);
+      t.inverted = inv;
       list_SMTransition_add(&aut.trans, t);
+
+      if (AUT_DEBUG) {
+        printf("  from: \n");
+        printf("  on:   \n");
+        printf("  to:   \n");
+      }
     } // rule in smdef
     list_SMAutomaton_add(&auts, aut);
   } // automaton for smdef in tokast
@@ -287,15 +439,37 @@ static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
       SMAutomaton aut = list_SMAutomaton_get(&auts, k);
 
       printf("Accepting states for smaut %zu: ", k);
-      list_int_print(stdout, aut.accepting);
+      // list_int_print(stdout, aut.accepting);
+      list_StateRange l = aut.accepting;
+      printf("((%i, %i)", l.buf[0].f, l.buf[0].s);
+      for (size_t i = 1; i < l.len; i++)
+        printf(", (%i, %i)", l.buf[i].f, l.buf[i].s);
+      fputc(')', stdout);
+
       puts("");
       for (size_t i = 0; i < aut.trans.len; i++) {
         SMTransition t = list_SMTransition_get(&aut.trans, i);
         printf("Transition: ");
-        list_int_print(stdout, t.from);
-        printf(" -> (%i)\n", t.to);
+        for (size_t z = 0; z < t.from.len; z++) {
+          if (!z)
+            printf("(");
+          else
+            printf(", ");
+
+          for (size_t i = 1; i < t.from.len; i++) {
+            int f = t.from.buf[i].f, s = t.from.buf[i].s;
+            if (f != s)
+              printf("%i", f);
+            else
+              printf("(%i, %i)", f, s);
+          }
+
+          if (z == t.from.len - 1)
+            printf(")");
+          printf(" -> (%i)\n", t.to);
+        }
+        fflush(stdout);
       }
-      fflush(stdout);
     }
   }
 
@@ -309,10 +483,11 @@ static inline void destroyTrieAutomaton(TrieAutomaton trie) {
 
 static inline void destroySMAutomata(list_SMAutomaton smauts) {
   for (size_t i = 0; i < smauts.len; i++) {
-    list_int_clear(&(smauts.buf[i].accepting));
+    list_StateRange_clear(&(smauts.buf[i].accepting));
     list_SMTransition trans = smauts.buf[i].trans;
     for (size_t j = 0; j < trans.len; j++) {
-      list_int_clear(&trans.buf[j].from);
+      list_StateRange_clear(&trans.buf[j].from);
+      list_CharRange_clear(&trans.buf[j].on);
     }
     list_SMTransition_clear(&trans);
   }

@@ -24,13 +24,13 @@ static inline void validateTokast(Args args, ASTNode *tokast) {
     codepoint_t *cpstr1 = (codepoint_t *)def1->extra;
     char *identstr1 = (char *)rule1->children[0]->extra;
     // Singular comparisons
-    if (strcmp(identstr1, "STREAMEND") == 0) {
+    if (!strcmp(identstr1, "STREAMEND")) {
       fprintf(stderr,
               "Error: Tokenizer rules cannot be named STREAMEND, "
               "because it's reserved for the end of the token stream.\n");
       exit(1);
     }
-    if (strcmp(identstr1, "STREAMBEGIN") == 0) {
+    if (!strcmp(identstr1, "STREAMBEGIN")) {
       fprintf(stderr,
               "Error: Tokenizer rules cannot be named STREAMBEGIN, "
               "because it's reserved for the beginning of the token stream.\n");
@@ -52,7 +52,7 @@ static inline void validateTokast(Args args, ASTNode *tokast) {
         if (strcmp(def2->name, "LitDef"))
           continue;
 
-        if (strcmp(identstr1, identstr2) == 0) {
+        if (!strcmp(identstr1, identstr2)) {
           fprintf(stderr, "Error: There are two or more rules named %s.\n",
                   identstr1);
           exit(1);

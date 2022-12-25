@@ -1066,8 +1066,8 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
          ((c == 45) | (c == 43))) {
           smaut_state_1 = 1;
       }
-      else if (((smaut_state_1 == 0) | (smaut_state_1 == 1) | (smaut_state_1 == 2)) &
-         (((c >= 48) & (c <= 57)))) {
+      else if (((smaut_state_1 >= 0) & (smaut_state_1 <= 2)) &
+         ((c >= 48) & (c <= 57))) {
           smaut_state_1 = 2;
       }
       else {

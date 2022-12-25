@@ -183,7 +183,7 @@ static inline ASTNode *tok_parse_NumSet(parser_ctx *ctx) {
       node->extra = iptr = (int *)malloc(sizeof(int) * 2);
       if (!iptr)
         OOM();
-      *iptr = MIN(range1, range2);
+      *(iptr + 0) = MIN(range1, range2);
       *(iptr + 1) = MAX(range1, range2);
       RETURN(node);
     }
