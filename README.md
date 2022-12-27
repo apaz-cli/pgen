@@ -151,6 +151,7 @@ There's documentation now, but realistically you're not going to figure everythi
 * Design an algorithm for merging state machines
 * Provide a warning about left recursion
 * Implement support in the syntax for error handling
+* Multiple `%node` declarations in one
 * `%context` and `%contextinit`
 * Make sure that every SM transition is reachable
 * Add regex rules in `.tok` files
