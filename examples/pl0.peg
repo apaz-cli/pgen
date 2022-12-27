@@ -17,7 +17,7 @@ block      <- v:vdef {rule=v}
               /
               {rule=list(PROCLIST)}
               (PROC i:IDENT SEMI v:vdef?
-              {add(rule, v != SUCC ? node(PROC, i, v) : node(PROC, i))})*
+              {add(rule, has(v) ? node(PROC, i, v) : node(PROC, i))})*
               s:statement {add(rule, s)} SEMI
 
 statement  <- id:IDENT ceq:CEQ e:expression
@@ -52,9 +52,9 @@ condition  <- ODD ex:expression
 
 expression <- {rule=list(EXPRS)}
               pm:(PLUS / MINUS)? t:term
-              {add(rule, pm==SUCC ? t : node(UNEXPR, pm, t))}
+              {add(rule, has(pm) ? node(UNEXPR, pm, t) : t)}
               (pm:(PLUS / MINUS) t:term
-              {add(rule, pm==SUCC ? t : node(BINEXPR, pm, t))})*
+              {add(rule, has(pm) ? node(BINEXPR, pm, t) : t)})*
 
 term       <- {rule=list(EXPRS)}
               f:factor {add(rule, f)}
