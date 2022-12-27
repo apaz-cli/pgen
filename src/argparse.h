@@ -95,7 +95,7 @@ static inline Args argparse(int argc, char **argv) {
   }
 
   // Help message
-  if (args.h) {
+  if (args.h || argc == 1) {
     puts(exitmsg);
     exit(0);
   }

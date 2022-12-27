@@ -130,7 +130,7 @@ directive <- PERCENT LOWERIDENT (&(!EOL) WS)* EOL
 
 definition <- LOWERIDENT ARROW slashexpr
 
-slashexpr <- modexprlist (DIV modexprlist)
+slashexpr <- modexprlist (DIV modexprlist)*
 
 modexprlist <- modexpr*
 
@@ -143,29 +143,20 @@ baseexpr <- UPPERIDENT
 
 ```
 
-Realistically, you're not going to figure out the syntax on your own.
-Talk to me, submit an issue, send me an email, or find me on Discord, and I can walk you through how to use it.
-
-
-## Roadmap
-
-- [x] Completed `tok` grammar
-- [x] Completed `peg` grammar
-- [x] Handwritten `tok` parser
-- [x] Handwritten `peg` parser
-- [x] Validity checking
-- [x] Automaton construction and minimization
-- [x] Tokenizer codegen
-- [x] Optimizations
-- [x] Parser codegen
-- [x] Error checking
-- [ ] Documentation
+There's documentation now, but realistically you're not going to figure everything out on your own. Talk to me, submit an issue, send me an email, or find me on Discord, and I can walk you through how to use it.
 
 
 ## TODO
-* Provide a warning about left recursion.
-* Implement support in the syntax for error handling.
+* Context position and allocator rewind independently
+* Design an algorithm for merging state machines
+* Provide a warning about left recursion
+* Implement support in the syntax for error handling
 * `%context` and `%contextinit`
+* Make sure that every SM transition is reachable
+* Add regex rules in `.tok` files
+* Add a flag to warn on token/astnode kinds not used in the parser
+* Debug messages for parsing failures
+* Token/Node print functions
 
 
 ## License

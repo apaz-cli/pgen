@@ -74,5 +74,12 @@ else
   # Build and run pl0 example
   cd examples/
   cc pl0.c -g
-  ./a.out
+  ./a.out > ../.testast.json
+  cd ..
+
+  DIFF="$(diff .refast.json .testast.json)"
+  if [ ! "$DIFF" = "" ]; then
+    echo "The test AST was different than expected.\nDiff:"
+    echo "$DIFF"
+  fi
 fi

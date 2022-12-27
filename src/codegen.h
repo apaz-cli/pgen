@@ -12,13 +12,6 @@
 
 #define NODE_NUM_FIXED 5
 
-// TODO debug messages
-// TODO move token print into codegen.
-// TODO parse failure returns NULL rule.
-// TODO SlashExpr and ModExprList rewind to before ModExpr on partial failure.
-// TODO Context position and allocator rewind independently
-// TODO %context
-// TODO %contextinit
 
 /*******/
 /* ctx */
