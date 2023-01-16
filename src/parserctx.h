@@ -34,8 +34,10 @@ static inline void parser_ctx_init(parser_ctx *ctx,
 #define HAS_REMAINING(num) (REMAINING() >= (num))
 #define ADVANCE(num) (ctx->pos += (num))
 #define IS_CURRENT(str) ctx_is_current(ctx, str)
-#define RECORD(id) size_t _rew_to_##id = ctx->pos, _rew_to_line_nbr_##id = ctx->line_nbr
-#define REWIND(id) (ctx->line_nbr = _rew_to_line_nbr_##id, ctx->pos = _rew_to_##id)
+#define RECORD(id)                                                             \
+  size_t _rew_to_##id = ctx->pos, _rew_to_line_nbr_##id = ctx->line_nbr
+#define REWIND(id)                                                             \
+  (ctx->line_nbr = _rew_to_line_nbr_##id, ctx->pos = _rew_to_##id)
 #define WS() parse_ws(ctx)
 #define INIT(name) ASTNode *node = ASTNode_new(name)
 
@@ -170,7 +172,8 @@ static inline void parse_ws(parser_ctx *ctx) {
     } else if (IS_CURRENT(fcom)) { // Multi line comment
       ADVANCE(strlen(fcom));
       while (!IS_CURRENT(ecom)) {
-        if (HAS_CURRENT() && CURRENT() != '\n') ctx->line_nbr++;
+        if (HAS_CURRENT() && CURRENT() != '\n')
+          ctx->line_nbr++;
         NEXT();
       }
       // Found "*/" or EOF
@@ -183,6 +186,92 @@ static inline void parse_ws(parser_ctx *ctx) {
   }
 
   RULE_SUCCESS();
+}
+
+// returns 0 on EOF.
+static inline codepoint_t parse_Char(parser_ctx *ctx) {
+
+  // Escape sequences
+  if (IS_CURRENT("\\")) {
+    NEXT();
+    if (!HAS_CURRENT())
+      return 0;
+    codepoint_t ret = CURRENT();
+    NEXT();
+    if (ret == 'n') // newline
+      return '\n';
+    else if (ret == 'r') // carriage return
+      return '\r';
+    else if (ret == 't') // tab
+      return '\t';
+    else if (ret == '\\') // backslash
+      return '\\';
+    else if (ret == '\'') // single quote
+      return '\'';
+    else if (ret == '\"') // double quote
+      return '\"';
+    else if (ret == 'b') // backspace
+      return '\b';
+    else if (ret == 'v') // vertical tab
+      return '\v';
+    else if (ret == 'a') // alert
+      return '\a';
+    else if (ret == 'f') // form feed
+      return '\f';
+    else if (ret == '?') // question mark
+      return '\?';
+    else
+      return ret;
+  }
+
+  // Normal character
+  else if (HAS_CURRENT()) {
+    codepoint_t ret = CURRENT();
+    NEXT();
+    return ret;
+  }
+
+  // EOF
+  return 0;
+}
+
+// Sets *err = 1 when fails to parse a string, *err = 0 when a string is parsed.
+// Doesn't modify parser state on failure.
+static inline list_codepoint_t parse_string(parser_ctx *ctx, int *err) {
+
+  list_codepoint_t cps = list_codepoint_t_new();
+
+  RECORD(begin);
+
+  // Consume starting "
+  if (!IS_CURRENT("\"")) {
+    return *err = 1, cps;
+  }
+  NEXT();
+
+  // Read the contents
+  while (HAS_CURRENT() && !IS_CURRENT("\"")) {
+
+    codepoint_t c = parse_Char(ctx);
+    if (!c) {
+      list_codepoint_t_clear(&cps);
+      REWIND(begin);
+      return *err = 1, cps;
+    }
+
+    list_codepoint_t_add(&cps, c);
+  }
+
+  // Consume ending "
+  if (HAS_CURRENT()) {
+    NEXT();
+  } else {
+    list_codepoint_t_clear(&cps);
+    REWIND(begin);
+    return *err = 1, cps;
+  }
+
+  return *err = 0, cps;
 }
 
 #endif /* PARSERCTX_INCLUDE */

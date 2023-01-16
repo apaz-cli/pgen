@@ -1,6 +1,9 @@
-#include <stdarg.h>
 #ifndef TOKCODEGEN_INCLUDE
 #define TOKCODEGEN_INCLUDE
+#include <assert.h>
+#include <stdarg.h>
+#include <stdio.h>
+
 #include "argparse.h"
 #include "ast.h"
 #include "automata.h"
@@ -8,14 +11,19 @@
 #include "parserctx.h"
 #include "pegparser.h"
 #include "utf8.h"
-#include <stdio.h>
 
 #define NODE_NUM_FIXED 5
-
 
 /*******/
 /* ctx */
 /*******/
+
+typedef char *charptr;
+LIST_DECLARE(charptr)
+LIST_DEFINE(charptr)
+typedef ASTNode *ASTNodePtr;
+LIST_DECLARE(ASTNodePtr)
+LIST_DEFINE(ASTNodePtr)
 
 #define PGEN_PREFIX_LEN 8
 typedef struct {
@@ -31,6 +39,8 @@ typedef struct {
   size_t line_nbr;
   char lower[PGEN_PREFIX_LEN];
   char upper[PGEN_PREFIX_LEN];
+  list_charptr tok_kind_names;
+  list_charptr peg_kind_names;
 } codegen_ctx;
 
 static inline int cwrite_inner(codegen_ctx *ctx, const char *fmt, ...) {
@@ -88,6 +98,8 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
   ctx->expr_cnt = 0;
   ctx->indent_cnt = 1;
   ctx->line_nbr = 1;
+  ctx->tok_kind_names = list_charptr_new();
+  ctx->peg_kind_names = list_charptr_new();
 
   // Check to make sure we actually have code to generate.
   if ((!trie.accepting.len) & (!smauts.len))
@@ -103,7 +115,7 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
     if (!tokstart)
       break;
     if (args.tokenizerTarget[--tokstart] == '/') {
-      pref_start = &(args.tokenizerTarget[tokstart + 1]);
+      pref_start = args.tokenizerTarget + tokstart + 1;
       break;
     }
   }
@@ -166,6 +178,9 @@ static inline void codegen_ctx_destroy(codegen_ctx *ctx) {
   ASTNode_destroy(ctx->tokast);
   if (ctx->pegast)
     ASTNode_destroy(ctx->pegast);
+
+  list_charptr_clear(&ctx->tok_kind_names);
+  list_charptr_clear(&ctx->peg_kind_names);
 }
 
 /****************/
@@ -260,10 +275,6 @@ static inline void write_helpermacros(codegen_ctx *ctx) {
 static inline void tok_write_header(codegen_ctx *ctx) {
   cwrite("#ifndef %s_TOKENIZER_INCLUDE\n"
          "#define %s_TOKENIZER_INCLUDE\n"
-         "\n"
-         "#ifndef %s_SOURCEINFO\n"
-         "#define %s_SOURCEINFO 1\n"
-         "#endif\n"
          "\n",
          ctx->upper, ctx->upper, ctx->upper, ctx->upper);
 }
@@ -302,15 +313,13 @@ static inline void tok_write_tokenstruct(codegen_ctx *ctx) {
          "  codepoint_t* content; // The token begins at "
          "tokenizer->start[token->start].\n"
          "  size_t len;\n"
-         "#if %s_SOURCEINFO\n"
          "  size_t line;\n"
          "  size_t col;\n"
-         "#endif\n"
          "#ifdef %s_TOKEN_EXTRA\n"
          "  %s_TOKEN_EXTRA\n"
          "#endif\n"
          "} %s_token;\n\n",
-         ctx->lower, ctx->upper, ctx->upper, ctx->upper, ctx->lower);
+         ctx->lower, ctx->upper, ctx->upper, ctx->lower);
 }
 
 static inline void tok_write_ctxstruct(codegen_ctx *ctx) {
@@ -318,24 +327,20 @@ static inline void tok_write_ctxstruct(codegen_ctx *ctx) {
          "  codepoint_t* start;\n"
          "  size_t len;\n"
          "  size_t pos;\n"
-         "#if %s_SOURCEINFO\n"
          "  size_t pos_line;\n"
          "  size_t pos_col;\n"
-         "#endif\n"
          "} %s_tokenizer;\n\n",
-         ctx->upper, ctx->lower);
+         ctx->lower);
 
   cwrite("static inline void %s_tokenizer_init(%s_tokenizer* tokenizer, "
          "codepoint_t* start, size_t len) {\n"
          "  tokenizer->start = start;\n"
          "  tokenizer->len = len;\n"
          "  tokenizer->pos = 0;\n"
-         "#if %s_SOURCEINFO\n"
-         "  tokenizer->pos_line = 0;\n"
+         "  tokenizer->pos_line = 1;\n"
          "  tokenizer->pos_col = 0;\n"
-         "#endif\n"
          "}\n\n",
-         ctx->lower, ctx->lower, ctx->upper);
+         ctx->lower, ctx->lower);
 }
 
 static inline void tok_write_staterange(codegen_ctx *ctx, size_t smaut_num,
@@ -402,54 +407,6 @@ static inline void tok_write_charrangecheck(codegen_ctx *ctx,
     if (inverted)
       cwrite(")");
     // cwrite("/* unimplemented */");
-  }
-}
-
-static inline void tok_write_charsetcheck(codegen_ctx *ctx, ASTNode *charset) {
-
-  // Single char
-  if (!charset->num_children) {
-    if (!strcmp(charset->name, "CharSet")) {
-      cwrite("%i", (int)*(bool *)charset->extra);
-    } else { // single char
-      cwrite("c == %" PRI_CODEPOINT "", *(codepoint_t *)charset->extra);
-    }
-  }
-
-  // Charset
-  else {
-    bool inverted = *(bool *)charset->extra;
-    if (!charset->num_children) {
-      cwrite("%i", (int)inverted);
-      return;
-    }
-
-    if (inverted)
-      cwrite("!(");
-
-    for (size_t i = 0; i < charset->num_children; i++) {
-      ASTNode *child = charset->children[i];
-      if (!strcmp(child->name, "Char")) {
-        codepoint_t c = *(codepoint_t *)child->extra;
-        if (charset->num_children == 1) {
-          // If it's the only one, it doensn't need extra parens.
-          cwrite("c == %" PRI_CODEPOINT, c);
-        } else {
-          cwrite("(c == %" PRI_CODEPOINT ")", c);
-        }
-      } else {
-        codepoint_t *cpptr = (codepoint_t *)child->extra;
-        codepoint_t r1 = *cpptr, r2 = *(cpptr + 1);
-        codepoint_t c1 = MIN(r1, r2), c2 = MAX(r1, r2);
-        cwrite("((c >= %" PRI_CODEPOINT ") & (c <= %" PRI_CODEPOINT "))", c1,
-               c2);
-      }
-      if (i != charset->num_children - 1)
-        cwrite(" | ");
-    }
-
-    if (inverted)
-      cwrite(")");
   }
 }
 
@@ -611,7 +568,6 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   cwrite("  ret.content = tokenizer->start + tokenizer->pos;\n");
   cwrite("  ret.len = max_munch;\n\n");
 
-  cwrite("#if %s_SOURCEINFO\n", ctx->upper);
   cwrite("  ret.line = tokenizer->pos_line;\n");
   cwrite("  ret.col = tokenizer->pos_col;\n");
   cwrite("\n");
@@ -622,8 +578,7 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   cwrite("    } else {\n");
   cwrite("      tokenizer->pos_col++;\n");
   cwrite("    }\n");
-  cwrite("  }\n");
-  cwrite("#endif\n\n");
+  cwrite("  }\n\n");
 
   cwrite("  tokenizer->pos += max_munch;\n");
   cwrite("  return ret;\n");
@@ -662,7 +617,7 @@ static inline void peg_write_footer(codegen_ctx *ctx) {
   cwrite("#endif /* PGEN_%s_ASTNODE_INCLUDE */\n\n", ctx->upper);
 }
 
-static const char *const known_directives[] = {
+static const char *known_directives[] = {
     "oom",        "node",    "include",  "preinclude", "postinclude",
     "code",       "precode", "postcode", "define",     "predefine",
     "postdefine", "extra",   "extrainit"};
@@ -813,12 +768,31 @@ static inline void peg_write_postdirectives(codegen_ctx *ctx) {
   cwrite("\n");
 }
 
+static inline void peg_write_parser_errdef(codegen_ctx *ctx) {
+  cwrite("struct %s_parse_err;\n", ctx->lower);
+  cwrite("typedef struct %s_parse_err %s_parse_err;\n", ctx->lower, ctx->lower);
+  cwrite("struct %s_parse_err {\n", ctx->lower);
+  cwrite("  const char* msg;\n");
+  // cwrite("  void (*msgfree)(const char* msg, void* extra);\n");
+  cwrite("  int severity;\n");
+  cwrite("  size_t line;\n");
+  cwrite("  size_t col;\n");
+  cwrite("};\n\n");
+}
+
 static inline void peg_write_parser_ctx(codegen_ctx *ctx) {
+  cwrite("#ifndef %s_MAX_PARSER_ERRORS\n", ctx->upper);
+  cwrite("#define %s_MAX_PARSER_ERRORS 20\n", ctx->upper);
+  cwrite("#endif\n");
   cwrite("typedef struct {\n");
   cwrite("  %s_token* tokens;\n", ctx->lower);
   cwrite("  size_t len;\n");
   cwrite("  size_t pos;\n");
+  cwrite("  int exit;\n");
   cwrite("  pgen_allocator *alloc;\n");
+  cwrite("  size_t num_errors;\n");
+  cwrite("  %s_parse_err errlist[%s_MAX_PARSER_ERRORS];\n", ctx->lower,
+         ctx->upper);
   cwrite("} %s_parser_ctx;\n\n", ctx->lower);
 }
 
@@ -831,82 +805,135 @@ static inline void peg_write_parser_ctx_init(codegen_ctx *ctx) {
   cwrite("  parser->tokens = tokens;\n");
   cwrite("  parser->len = num_tokens;\n");
   cwrite("  parser->pos = 0;\n");
+  cwrite("  parser->exit = 0;\n");
   cwrite("  parser->alloc = allocator;\n");
+  cwrite("  parser->num_errors = 0;\n");
+  cwrite("  size_t to_zero = sizeof(%s_parse_err) * %s_MAX_PARSER_ERRORS;\n",
+         ctx->lower, ctx->upper);
+  cwrite("  memset(&parser->errlist, 0, to_zero);\n");
   cwrite("}\n");
 }
 
-static inline void peg_write_astnode_kind(codegen_ctx *ctx) {
-  size_t num_kinds = 0;
-  cwrite("typedef enum {\n");
-  cwrite("  %s_NODE_EMPTY,\n", ctx->upper);
-  ASTNode *pegast = ctx->pegast;
-  for (size_t n = 0; n < pegast->num_children; n++) {
-    ASTNode *dir = pegast->children[n];
-    if (strcmp(dir->name, "Directive"))
-      continue;
-    char *dir_name = (char *)dir->children[0]->extra;
+static inline void peg_write_report_parse_error(codegen_ctx *ctx) {
 
-    if (!strcmp(dir_name, "node")) {
-      char *paste = (char *)dir->extra;
-      for (size_t i = 0; i < strlen(paste); i++) {
-        char c = paste[i];
-        if (!strcmp("EMPTY", paste)) {
-          ERROR("Node kind cannot be EMPTY.");
-        } else if (((c < 'A') | (c > 'Z')) & (c != '_') &
-                   ((c < '0') | (c > '9'))) {
-          ERROR("Node kind %s would not create a valid (uppercase) identifier.",
-                paste);
-        }
-      }
-      cwrite("  %s_NODE_%s,\n", ctx->upper, paste);
-      num_kinds++;
+  cwrite("static void inline freemsg(const char* msg, void* extra) {\n"
+         "  (void)extra;\n"
+         "  free((void*)msg);\n"
+         "}\n\n");
+
+  cwrite(
+      "static inline %s_parse_err* %s_report_parse_error(%s_parser_ctx* ctx,\n"
+      "              const char* msg, void (*msgfree)(const char* msg, void* "
+      "extra), int severity) {\n",
+      ctx->lower, ctx->lower, ctx->lower);
+  cwrite("  if (ctx->num_errors >= %s_MAX_PARSER_ERRORS) {\n", ctx->upper);
+  cwrite("    ctx->exit = 1;\n");
+  cwrite("    return NULL;\n");
+  cwrite("  }\n");
+  cwrite("  %s_parse_err* err = &ctx->errlist[ctx->num_errors++];\n",
+         ctx->lower, ctx->lower);
+  cwrite("  err->msg = (const char*)msg;\n");
+  cwrite("  err->severity = severity;\n");
+  cwrite("  if (ctx->pos < ctx->len) {\n");
+  cwrite("    size_t toknum = ctx->pos + (ctx->pos != ctx->len - 1);\n");
+  cwrite("    %s_token tok = ctx->tokens[toknum];\n", ctx->lower);
+  cwrite("    err->line = tok.line;\n");
+  cwrite("    err->col = tok.col;\n");
+  cwrite("  } else {\n");
+  cwrite("    err->line = 0;\n");
+  cwrite("    err->col = 0;\n");
+  cwrite("  }\n\n");
+
+  cwrite("  if (severity == 3)\n");
+  cwrite("    ctx->exit = 1;\n");
+  cwrite("  return err;\n");
+  cwrite("}\n\n");
+}
+
+static inline void find_kinds(codegen_ctx *ctx) {
+  // Checking that the names of the kinds are
+  // valid and unique is done in astvalid.h.
+
+  list_charptr *tks = &ctx->tok_kind_names;
+  list_charptr *pks = &ctx->peg_kind_names;
+
+  // Add all token names to tok_kind_names
+  ASTNode *tokast = ctx->tokast;
+  if (ctx->tokast) {
+    for (size_t n = 0; n < tokast->num_children; n++) {
+      ASTNode *rule = tokast->children[n];
+      ASTNode *ruleident = rule->children[0];
+      list_charptr_add(tks, (char *)ruleident->extra);
     }
   }
+
+  // Add all %node directive bodies to peg_kind_names
+  ASTNode *pegast = ctx->pegast;
+  if (pegast) {
+    for (size_t n = 0; n < pegast->num_children; n++) {
+      ASTNode *node_dir = pegast->children[n];
+      char *dir_name = (char *)node_dir->children[0]->extra;
+      if (strcmp(node_dir->name, "Directive") || strcmp(dir_name, "node"))
+        continue;
+      list_charptr_add(pks, (char *)node_dir->extra);
+    }
+  }
+
+  if (!ctx->args.u)
+    for (size_t j = 0; j < pks->len; j++)
+      for (size_t i = 0; i < tks->len; i++)
+        if (!strcmp(tks->buf[i], pks->buf[j]))
+          ERROR("%%node %s is already declared as a token.\n", tks->buf[i]);
+}
+
+static inline void peg_write_astnode_kind(codegen_ctx *ctx) {
+  cwrite("typedef enum {\n");
+  for (size_t i = 0; i < ctx->tok_kind_names.len; i++)
+    cwrite("  %s_NODE_%s,\n", ctx->upper, ctx->tok_kind_names.buf[i]);
+  for (size_t i = 0; i < ctx->peg_kind_names.len; i++)
+    cwrite("  %s_NODE_%s,\n", ctx->upper, ctx->peg_kind_names.buf[i]);
   cwrite("} %s_astnode_kind;\n\n", ctx->lower);
 
-  cwrite("#define %s_NUM_NODEKINDS %zu\n", ctx->upper, num_kinds + 1);
-  cwrite("static const char* %s_nodekind_name[%s_NUM_NODEKINDS] = {\n  "
-         "\"%s_NODE_EMPTY\",\n",
-         ctx->lower, ctx->upper, ctx->upper);
-  for (size_t n = 0; n < pegast->num_children; n++) {
-    ASTNode *dir = pegast->children[n];
-    if (strcmp(dir->name, "Directive"))
-      continue;
-    char *dir_name = (char *)dir->children[0]->extra;
+  size_t num_kinds = ctx->tok_kind_names.len + ctx->peg_kind_names.len;
+  cwrite("#define %s_NUM_NODEKINDS %zu\n", ctx->upper, num_kinds);
 
-    if (!strcmp(dir_name, "node")) {
-      char *paste = (char *)dir->extra;
-      for (size_t i = 0; i < strlen(paste); i++) {
-        char c = paste[i];
-        if (!strcmp("EMPTY", paste)) {
-          ERROR("Node kind cannot be EMPTY.");
-        } else if (((c < 'A') | (c > 'Z')) & (c != '_') &
-                   ((c < '0') | (c > '9'))) {
-          ERROR("Node kind %s would not create a valid (uppercase) identifier.",
-                paste);
-        }
-      }
-      cwrite("  \"%s_NODE_%s\",\n", ctx->upper, paste);
-      num_kinds++;
-    }
-  }
+  cwrite("static const char* %s_nodekind_name[%s_NUM_NODEKINDS] = {\n",
+         ctx->lower, ctx->upper);
+  for (size_t i = 0; i < ctx->tok_kind_names.len; i++)
+    cwrite("  \"%s_NODE_%s\",\n", ctx->upper, ctx->tok_kind_names.buf[i]);
+  for (size_t i = 0; i < ctx->peg_kind_names.len; i++)
+    cwrite("  \"%s_NODE_%s\",\n", ctx->upper, ctx->peg_kind_names.buf[i]);
   cwrite("};\n\n");
 }
 
+// Check to make sure that the given ASTNode kind can be used.
+// Error the program otherwise.
 static inline void peg_ensure_kind(codegen_ctx *ctx, char *kind) {
   int found = 0;
-  ASTNode *pegast = ctx->pegast;
-  for (size_t n = 0; n < pegast->num_children; n++) {
-    ASTNode *dir = pegast->children[n];
-    if (strcmp(dir->name, "Directive"))
-      continue;
-    char *dir_name = (char *)dir->children[0]->extra;
+  ASTNode *tokast = ctx->tokast;
+  for (size_t n = 0; n < tokast->num_children; n++) {
+    ASTNode *rule = tokast->children[n];
+    char *tokname = (char *)rule->children[0]->extra;
+    if (!strcmp(tokname, kind)) {
+      found = 1;
+      break;
+    }
+  }
 
-    if (!strcmp(dir_name, "node")) {
-      char *_kind = (char *)dir->extra;
-      if (!strcmp(kind, _kind)) {
-        found = 1;
-        break;
+  if (!found) {
+    ASTNode *pegast = ctx->pegast;
+    for (size_t n = 0; n < pegast->num_children; n++) {
+      ASTNode *dir = pegast->children[n];
+      if (strcmp(dir->name, "Directive"))
+        continue;
+      char *dir_name = (char *)dir->children[0]->extra;
+
+      if (!strcmp(dir_name, "node")) {
+        char *_kind = (char *)dir->extra;
+        if (!strcmp(kind, _kind)) {
+          found = 1;
+          break;
+        }
       }
     }
   }
@@ -930,10 +957,8 @@ static inline void peg_write_astnode_def(codegen_ctx *ctx) {
            "offset.\n");
     cwrite("  // if (!tok_repr && !len_or_toknum) then nothing is stored.\n");
   }
-  cwrite("#if %s_SOURCEINFO\n", ctx->upper);
   cwrite("  codepoint_t* tok_repr;\n");
   cwrite("  size_t len_or_toknum;\n");
-  cwrite("#endif\n");
 
   // Insert %extra directives.
   int inserted_extra = 0;
@@ -964,7 +989,6 @@ static inline void peg_write_astnode_def(codegen_ctx *ctx) {
 }
 
 static inline void peg_write_minmax(codegen_ctx *ctx) {
-  cwrite("#if %s_SOURCEINFO\n", ctx->upper);
   const char *mm[] = {"MIN", "MAX"};
   for (size_t m = 0; m < 2; m++) {
     for (size_t i = 1; i < NODE_NUM_FIXED + 1; i++) {
@@ -988,8 +1012,7 @@ static inline void peg_write_minmax(codegen_ctx *ctx) {
   }
   // Min or Max nonzero
   cwrite("#define PGEN_MAX(a, b) ((a) > (b) ? (a) : (b))\n");
-  cwrite("#define PGEN_MIN(a, b) ((a) ? ((a) > (b) ? (b) : (a)) : (b))\n");
-  cwrite("#endif\n\n");
+  cwrite("#define PGEN_MIN(a, b) ((a) ? ((a) > (b) ? (b) : (a)) : (b))\n\n\n");
 }
 
 static inline void peg_write_astnode_init(codegen_ctx *ctx) {
@@ -1008,8 +1031,8 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
          ctx->lower);
   cwrite("  %s_astnode_t **children;\n", ctx->lower);
   cwrite("  if (initial_size) {\n");
-  cwrite("    children = (%s_astnode_t**)"
-         "malloc(sizeof(%s_astnode_t*) * initial_size);\n",
+  cwrite("    children = (%s_astnode_t**)malloc("
+         "sizeof(%s_astnode_t*) * initial_size);\n",
          ctx->lower, ctx->lower);
   if (!ctx->args.u)
     cwrite("    if (!children) PGEN_OOM();\n");
@@ -1022,10 +1045,8 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   cwrite("  node->max_children = initial_size;\n");
   cwrite("  node->num_children = 0;\n");
   cwrite("  node->children = children;\n");
-  cwrite("#if %s_SOURCEINFO\n", ctx->upper);
   cwrite("  node->tok_repr = NULL;\n");
   cwrite("  node->len_or_toknum = 0;\n");
-  cwrite("#endif\n");
 
   // Insert %extrainit directives.
   int inserted_extrainit = 0;
@@ -1064,10 +1085,8 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   cwrite("  node->max_children = 0;\n");
   cwrite("  node->num_children = 0;\n");
   cwrite("  node->children = NULL;\n");
-  cwrite("#if %s_SOURCEINFO\n", ctx->upper);
   cwrite("  node->tok_repr = NULL;\n");
   cwrite("  node->len_or_toknum = 0;\n");
-  cwrite("#endif\n");
   inserted_extrainit = 0;
   for (size_t n = 0; n < pegast->num_children; n++) {
     ASTNode *dir = pegast->children[n];
@@ -1128,10 +1147,8 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
     cwrite("  node->max_children = 0;\n");
     cwrite("  node->num_children = %zu;\n", i);
     cwrite("  node->children = children;\n");
-    cwrite("#if %s_SOURCEINFO\n", ctx->upper);
     cwrite("  node->tok_repr = NULL;\n");
     cwrite("  node->len_or_toknum = 0;\n");
-    cwrite("#endif\n");
     for (size_t j = 0; j < i; j++) {
       cwrite("  children[%zu] = n%zu;\n", j, j);
       cwrite("  n%zu->parent = node;\n", j);
@@ -1142,6 +1159,10 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
 }
 
 static inline void peg_write_parsermacros(codegen_ctx *ctx) {
+
+  cwrite("#define SUCC                     "
+         "(%s_astnode_t*)(void*)(uintptr_t)_Alignof(%s_astnode_t)\n\n",
+         ctx->lower, ctx->lower);
 
   cwrite("#define rec(label)               "
          "pgen_parser_rewind_t _rew_##label = "
@@ -1174,9 +1195,45 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
   cwrite("#define srepr(node, s)           "
          "%s_astnode_srepr(ctx->alloc, node, (char*)s)\n",
          ctx->lower);
-  cwrite("#define SUCC                     "
-         "((%s_astnode_t*)(void*)(uintptr_t)_Alignof(%s_astnode_t))\n",
-         ctx->lower, ctx->lower);
+  cwrite("#define cprepr(node, cps, len)   "
+         "%s_astnode_cprepr(node, cps, len)\n",
+         ctx->lower);
+  cwrite(
+      "#define expect(kind, cap)        "
+      "((ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == %s_TOK_##kind) "
+      "? ctx->pos++, (cap ? cprepr(leaf(kind), NULL, ctx->pos-1) : SUCC) "
+      ": NULL)\n",
+      ctx->lower);
+  cwrite("\n");
+
+  cwrite("#define LB {\n");
+  cwrite("#define RB }\n");
+  cwrite("\n");
+
+  cwrite("#define INFO(msg)                "
+         "%s_report_parse_error(ctx, (const char*)msg, NULL,   0)\n",
+         ctx->lower);
+  cwrite("#define WARNING(msg)             "
+         "%s_report_parse_error(ctx, (const char*)msg, NULL,   1)\n",
+         ctx->lower);
+  cwrite("#define ERROR(msg)               "
+         "%s_report_parse_error(ctx, (const char*)msg, NULL,   2)\n",
+         ctx->lower);
+  cwrite("#define FATAL(msg)               "
+         "%s_report_parse_error(ctx, (const char*)msg, NULL,   3)\n",
+         ctx->lower);
+  cwrite("#define INFO_F(msg, freefn)      "
+         "%s_report_parse_error(ctx, (const char*)msg, freefn, 0)\n",
+         ctx->lower);
+  cwrite("#define WARNING_F(msg, freefn)   "
+         "%s_report_parse_error(ctx, (const char*)msg, freefn, 1)\n",
+         ctx->lower);
+  cwrite("#define ERROR_F(msg, freefn)     "
+         "%s_report_parse_error(ctx, (const char*)msg, freefn, 2)\n",
+         ctx->lower);
+  cwrite("#define FATAL_F(msg, freefn)     "
+         "%s_report_parse_error(ctx, (const char*)msg, freefn, 3)\n",
+         ctx->lower);
 
   cwrite("\n");
 }
@@ -1185,10 +1242,16 @@ static inline void peg_write_repr(codegen_ctx *ctx) {
   cwrite("static inline %s_astnode_t* %s_astnode_repr(%s_astnode_t* node, "
          "%s_astnode_t* t) {\n",
          ctx->lower, ctx->lower, ctx->lower, ctx->lower);
-  cwrite("#if %s_SOURCEINFO\n", ctx->upper);
   cwrite("  node->tok_repr = t->tok_repr;\n");
   cwrite("  node->len_or_toknum = t->len_or_toknum;\n");
-  cwrite("#endif\n");
+  cwrite("  return node;\n");
+  cwrite("}\n\n");
+
+  cwrite("static inline %s_astnode_t* %s_astnode_cprepr("
+         "%s_astnode_t* node, codepoint_t* cps, size_t len_or_toknum) {\n",
+         ctx->lower, ctx->lower, ctx->lower);
+  cwrite("  node->tok_repr = cps;\n");
+  cwrite("  node->len_or_toknum = len_or_toknum;\n");
   cwrite("  return node;\n");
   cwrite("}\n\n");
 
@@ -1197,7 +1260,6 @@ static inline void peg_write_repr(codegen_ctx *ctx) {
          "%s_astnode_t* node, "
          "char* s) {\n",
          ctx->lower, ctx->lower, ctx->lower);
-  cwrite("#if %s_SOURCEINFO\n", ctx->upper);
   cwrite("  size_t cpslen = strlen(s);\n");
   cwrite("  codepoint_t* cps = (codepoint_t*)pgen_alloc("
          "allocator, "
@@ -1207,7 +1269,6 @@ static inline void peg_write_repr(codegen_ctx *ctx) {
   cwrite("  cps[cpslen] = 0;\n");
   cwrite("  node->tok_repr = cps;\n");
   cwrite("  node->len_or_toknum = cpslen;\n");
-  cwrite("#endif\n");
   cwrite("  return node;\n");
   cwrite("}\n\n");
 }
@@ -1258,7 +1319,6 @@ static inline void peg_write_node_print(codegen_ctx *ctx) {
   cwrite("static inline int %s_node_print_content(%s_astnode_t* node, "
          "%s_token* tokens) {\n",
          ctx->lower, ctx->lower, ctx->lower);
-  cwrite("#if %s_SOURCEINFO\n", ctx->upper);
   cwrite("  int found = 0;\n");
   cwrite("  codepoint_t* utf32 = NULL; size_t utf32len = 0;\n");
   cwrite("  char* utf8 = NULL; size_t utf8len = 0;\n");
@@ -1277,7 +1337,6 @@ static inline void peg_write_node_print(codegen_ctx *ctx) {
   cwrite("    if (success) return fwrite(utf8, utf8len, 1, stdout), "
          "free(utf8), 1;\n");
   cwrite("  }\n");
-  cwrite("#endif\n");
   cwrite("  return 0;\n");
   cwrite("}\n\n");
 
@@ -1296,7 +1355,8 @@ static inline void peg_write_astnode_print(codegen_ctx *ctx) {
          "for (size_t i = 0; i < depth; i++) printf(\"  \")\n");
   cwrite("  if (!node)\n");
   cwrite("    return 0;\n");
-  cwrite("  else if (node == SUCC)\n");
+  cwrite("  else if (node == "
+         "(pl0_astnode_t*)(void*)(uintptr_t)_Alignof(pl0_astnode_t))\n");
   cwrite("    puts(\"ERROR, CAPTURED SUCC.\"), exit(1);\n\n");
 
   cwrite("  indent(); puts(\"{\");\n");
@@ -1305,11 +1365,9 @@ static inline void peg_write_astnode_print(codegen_ctx *ctx) {
   cwrite("  indent(); printf(\"\\\"kind\\\": \"); "
          "printf(\"\\\"%%s\\\",\\n\", %s_nodekind_name[node->kind] + %zu);\n",
          ctx->lower, strlen(ctx->lower) + 6);
-  cwrite("  #if %s_SOURCEINFO\n", ctx->upper);
   cwrite("  indent(); printf(\"\\\"content\\\": \\\"\");\n"
          "  %s_node_print_content(node, tokens); printf(\"\\\",\\n\");\n",
          ctx->lower);
-  cwrite("  #endif\n");
   cwrite("  size_t cnum = node->num_children;\n");
   cwrite("  if (cnum) {\n");
   cwrite(
@@ -1346,19 +1404,22 @@ static inline void peg_write_definition_stub(codegen_ctx *ctx, ASTNode *def) {
 
 static inline void peg_visit_add_labels(codegen_ctx *ctx, ASTNode *expr,
                                         list_cstr *idlist) {
-  if (expr->num_children == 2 && !strcmp(expr->name, "ModExpr")) {
+  if (expr->num_children >= 2 && !strcmp(expr->name, "ModExpr")) {
     ASTNode *label_ident = expr->children[1];
-    char *idname = (char *)label_ident->extra;
+    if (!strcmp(label_ident->name, "LowerIdent")) {
 
-    int append = 1;
-    for (size_t i = 0; i < idlist->len; i++) {
-      if (!strcmp(idname, idlist->buf[i])) {
-        append = 0;
-        break;
+      char *idname = (char *)label_ident->extra;
+
+      int append = 1;
+      for (size_t i = 0; i < idlist->len; i++) {
+        if (!strcmp(idname, idlist->buf[i])) {
+          append = 0;
+          break;
+        }
       }
+      if (append)
+        list_cstr_add(idlist, idname);
     }
-    if (append)
-      list_cstr_add(idlist, idname);
   }
 
   for (size_t i = 0; i < expr->num_children; i++)
@@ -1579,8 +1640,8 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n\n", ctx->lower, ret);
     for (size_t i = 0; i < expr->num_children; i++) {
       comment("SlashExpr %zu", i);
-      iwrite("if (!expr_ret_%zu)\n", ret);
-      start_block(ctx);
+      iwrite("if (!expr_ret_%zu) ", ret);
+      start_block_0(ctx);
       peg_visit_write_exprs(ctx, expr->children[i], ret, capture);
       end_block(ctx);
     }
@@ -1595,13 +1656,16 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       comment("ModExprList Forwarding");
       peg_visit_write_exprs(ctx, expr->children[0], ret, capture);
     } else {
+      // TODO only the last item in the ModExprList should forward.
       for (size_t i = 0; i < expr->num_children; i++) {
         comment("ModExprList %zu", i);
-        if (i)
-          iwrite("if (expr_ret_%zu)\n", ret);
-        start_block(ctx);
+        if (i) {
+          iwrite("if (expr_ret_%zu) ", ret);
+          start_block_0(ctx);
+        }
         peg_visit_write_exprs(ctx, expr->children[i], ret, 0);
-        end_block(ctx);
+        if (i)
+          end_block(ctx);
       }
     }
     comment("ModExprList end");
@@ -1610,13 +1674,20 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
 
   } else if (!strcmp(expr->name, "ModExpr")) {
     ModExprOpts opts = *(ModExprOpts *)expr->extra;
+    int has_label = expr->num_children >= 2 &&
+                    !strcmp(expr->children[1]->name, "LowerIdent");
+    ASTNode *label = has_label ? expr->children[1] : NULL;
+    int has_errhandler = (expr->num_children - has_label) == 2;
+    ASTNode *errhandler =
+        has_errhandler ? expr->children[has_label ? 2 : 1] : NULL;
+
+    // Simplify
     if ((!opts.inverted) & (!opts.kleene_plus) & (!opts.optional) &
-            (!opts.rewind) &&
-        expr->num_children == 1) {
-      // Forward capture in trivial case.
+        (!opts.rewind) & (!has_errhandler) & (expr->num_children == 1)) {
       peg_visit_write_exprs(ctx, expr->children[0], ret_to, capture);
       return;
     }
+
     size_t ret = ctx->expr_cnt++;
     int stateless = opts.inverted || opts.rewind;
     if (stateless)
@@ -1626,8 +1697,6 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     // Get plus or kleene SUCC/NULL or normal node return into ret
     if (opts.kleene_plus == 1) {
       // Plus (match one or more)
-      // This can be implemented with a do while loop.
-      // Plus cannot forward capture. Which one would be returned?
       size_t ret = ctx->expr_cnt++;
       iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
       iwrite("int plus_times_%zu = 0;\n", ret);
@@ -1656,7 +1725,7 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
         iwrite("rec(kleene_rew_%zu);\n", ret);
       peg_visit_write_exprs(ctx, expr->children[0], sentinel, 0);
       end_block(ctx);
-      iwrite("expr_ret_%zu = SUCC;\n", ret); // Always accepts
+      iwrite("expr_ret_%zu = SUCC;\n", ret); // Always accepts with SUCC
 
     } else {
       // No plus or Kleene
@@ -1665,8 +1734,7 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       // In that case, we should tell the expressions below to capture the token
       // or rule.
       // Here's where we determine if there's a capture to forward.
-      peg_visit_write_exprs(ctx, expr->children[0], ret,
-                            expr->num_children == 2);
+      peg_visit_write_exprs(ctx, expr->children[0], ret, capture | has_label);
     }
     // Apply optional/inverted to ret
     if (opts.optional) {
@@ -1677,14 +1745,40 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       comment("invert");
       iwrite("expr_ret_%zu = expr_ret_%zu ? NULL : SUCC;\n", ret, ret);
     }
+
+    // Handle errors
+    if (errhandler) {
+      if (!strcmp(errhandler->name, "ErrString")) {
+        codepoint_t *cps = (codepoint_t *)errhandler->extra;
+        String_View sv =
+            UTF8_encode_view((Codepoint_String_View){cps, cpstrlen(cps)});
+        iwrite("if (!expr_ret_%zu) {\n", ret);
+        iwrite("  FATAL(\"%s\");\n", sv.str);
+        iwrite("  return NULL;\n");
+        iwrite("}\n");
+        free(sv.str);
+      } else {
+        iwrite("if (!expr_ret_%zu) ", ret);
+        start_block_0(ctx);
+        size_t err_val = ctx->expr_cnt++;
+        iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, err_val);
+        peg_visit_write_exprs(ctx, errhandler, err_val, 0);
+        iwrite("return expr_ret_%zu==SUCC ? NULL : expr_ret_%zu;\n", err_val,
+               err_val);
+
+        end_block(ctx);
+      }
+    }
+
     // Rewind if applicable
     if (stateless) {
       comment("rewind");
       iwrite("rew(mexpr_state_%zu);\n", ret);
     }
+
     // Copy ret into ret_to and label if applicable
     iwrite("expr_ret_%zu = expr_ret_%zu;\n", ret_to, ret);
-    if (expr->num_children == 2) {
+    if (has_label) {
       char *label_name = (char *)expr->children[1]->extra;
       iwrite("%s = expr_ret_%zu;\n", label_name, ret);
     }
@@ -1696,19 +1790,18 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     char *tokname = (char *)expr->extra;
     if (ctx->args.i)
       iwrite("intr_enter(ctx, \"%s\", ctx->pos);\n", tokname);
-    iwrite("if (ctx->tokens[ctx->pos].kind == %s_TOK_%s) ", ctx->upper,
-           tokname);
+    iwrite(
+        "if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == %s_TOK_%s) ",
+        ctx->upper, tokname);
     start_block_0(ctx);
     if (capture) {
       if (!ctx->args.u)
         comment("Capturing %s.", tokname);
       iwrite("expr_ret_%zu = leaf(%s);\n", ret_to, tokname);
-      iwrite("#if %s_SOURCEINFO\n", ctx->upper);
       iwrite("expr_ret_%zu->tok_repr = ctx->tokens[ctx->pos].content;\n",
              ret_to);
       iwrite("expr_ret_%zu->len_or_toknum = ctx->tokens[ctx->pos].len;\n",
              ret_to);
-      iwrite("#endif\n");
       if (!ctx->args.u)
         peg_ensure_kind(ctx, tokname);
     } else {
@@ -1730,6 +1823,7 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
   } else if (!strcmp(expr->name, "LowerIdent")) {
     iwrite("expr_ret_%zu = %s_parse_%s(ctx);\n", ret_to, ctx->lower,
            (char *)expr->extra);
+    iwrite("if (ctx->exit) return NULL;\n");
   } else if (!strcmp(expr->name, "CodeExpr")) {
     // No need to respect capturing for a CodeExpr.
     // The user will allocate their own with node() or list() if they want to.
@@ -1740,7 +1834,7 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     if (ctx->args.i)
       iwrite("intr_enter(ctx, \"CodeExpr\", ctx->pos);\n");
     iwrite("#define ret expr_ret_%zu\n", ret_to);
-    iwrite("ret = SUCC;\n\n");
+    iwrite("ret = SUCC;\n");
     // start_block(ctx);
     CodeExprOpts *opts = (CodeExprOpts *)expr->extra;
     if (ctx->args.l)
@@ -1782,8 +1876,8 @@ static inline void peg_write_definition(codegen_ctx *ctx, ASTNode *def) {
   size_t ult_ret = ctx->expr_cnt++;
   size_t ret = ctx->expr_cnt++;
   cwrite("  #define rule expr_ret_%zu\n", ult_ret);
-  cwrite("  %s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
   cwrite("  %s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ult_ret);
+  cwrite("  %s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
   if (ctx->args.i)
     iwrite("intr_enter(ctx, \"%s\", ctx->pos);\n", def_name);
 
@@ -1850,6 +1944,7 @@ static inline void peg_write_undef_parsermacros(codegen_ctx *ctx) {
   cwrite("#undef leaf\n");
   cwrite("#undef add\n");
   cwrite("#undef has\n");
+  cwrite("#undef expect\n");
   cwrite("#undef repr\n");
   cwrite("#undef srepr\n");
   cwrite("#undef rret\n");
@@ -1862,12 +1957,27 @@ static inline void peg_write_undef_parsermacros(codegen_ctx *ctx) {
     cwrite("#undef PGEN_MAX%zu\n", i);
   }
   cwrite("\n");
+
+  cwrite("#undef LB\n");
+  cwrite("#undef RB\n");
+  cwrite("\n");
+
+  cwrite("#undef INFO\n");
+  cwrite("#undef INFO_F\n");
+  cwrite("#undef WARNING\n");
+  cwrite("#undef WARNING_F\n");
+  cwrite("#undef ERROR\n");
+  cwrite("#undef ERROR_F\n");
+  cwrite("#undef FATAL\n");
+  cwrite("#undef FATAL_F\n");
 }
 
 static inline void peg_write_parser(codegen_ctx *ctx) {
   peg_write_header(ctx);
+  peg_write_parser_errdef(ctx);
   peg_write_parser_ctx(ctx);
   peg_write_parser_ctx_init(ctx);
+  peg_write_report_parse_error(ctx);
   peg_write_astnode_kind(ctx);
   peg_write_astnode_def(ctx);
   peg_write_minmax(ctx);
@@ -1875,9 +1985,9 @@ static inline void peg_write_parser(codegen_ctx *ctx) {
   peg_write_astnode_add(ctx);
   peg_write_parser_rewind(ctx);
   peg_write_repr(ctx);
-  peg_write_parsermacros(ctx);
   peg_write_node_print(ctx);
   peg_write_astnode_print(ctx);
+  peg_write_parsermacros(ctx);
   peg_write_middirectives(ctx);
   peg_write_interactive_stack(ctx);
   peg_write_parser_body(ctx);
@@ -1891,6 +2001,8 @@ static inline void peg_write_parser(codegen_ctx *ctx) {
 /**************/
 
 static inline void codegen_write(codegen_ctx *ctx) {
+  find_kinds(ctx);
+
   // Write headers
   if (ctx->tokast) {
     write_utf8_lib(ctx);

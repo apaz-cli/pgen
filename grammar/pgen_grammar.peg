@@ -12,6 +12,7 @@
 # () - Matches if all expressions within match.
 # {} - Code to insert into the parser. Must return an ASTNode* or NULL to check for match.
 # :  - Capture the info from a match inside the node for the current rule.
+# |  - Register an error using the string or expression on the right, and exit parsing.
 
 # Notes:
 # Instead of using an unbalancing { or } inside a codeexpr, use the macros LB or RB.
@@ -27,17 +28,21 @@ GrammarFile    <- (_ (Directive / Definition))* _ EOF
 
 Directive      <- '%' _ LowerIdent [^\n]*[\n]
 
-Definition     <- LowerIdent _ StructDef? _ '<-' _ SlashExpr
+Definition     <- LowerIdent _ Variables? _ '<-' _ SlashExpr
 
-StructDef      <- '<' _ StructMember (_ ',' _ StructMember)* _ '>'
+Variables      <- '<' _ Variable (_ ',' _ Variable)* _ '>'
 
-StructMember   <- (!('>' / ',') .)*
+Variable       <- (!('>' / ',') .)*
 
 SlashExpr      <- ModExprList (_ '/' ModExprList)*
 
 ModExprList    <- (_ ModExpr)*
 
-ModExpr        <- (LowerIdent _ ':' _)? (('&' / '!') _)* BaseExpr _ ('?' / '*' / '+')*
+ModExpr        <- (LowerIdent _ ':' _)?
+                  (('&' / '!') _)*
+                  BaseExpr
+                  (_ ('?' / '*' / '+'))*
+                  (_ '|' _ (ErrorString / BaseExpr))?
 
 BaseExpr       <- ('prev' / 'next')
                 / UpperIdent
@@ -52,3 +57,4 @@ CodeExpr       <- '{' _ (&'{' CodeExpr / !'}' .)* _ '}'
 # Misc
 UpperIdent     <- [_A-Z]+
 LowerIdent     <- [_a-z]+
+ErrorString    <- '"' (!'"' .)* '"'

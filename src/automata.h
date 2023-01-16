@@ -147,22 +147,20 @@ static inline list_StateRange compressStateRanges(list_StateRange srs) {
   }
 
   // Compress
-  if (srs.len > 1) {
-    size_t ins = 0;
-    int min = srs.buf[0].f;
-    int max = srs.buf[0].s;
-    for (size_t i = 1; i < srs.len; i++) {
-      if (srs.buf[i].f > max + 1) {
-        srs.buf[ins++] = (StateRange){min, max};
-        min = srs.buf[i].f;
-        max = srs.buf[i].s;
-      } else {
-        max = MAX(max, srs.buf[i].s);
-      }
+  size_t ins = 0;
+  int min = srs.buf[0].f;
+  int max = srs.buf[0].s;
+  for (size_t i = 1; i < srs.len; i++) {
+    if (srs.buf[i].f > max + 1) {
+      srs.buf[ins++] = (StateRange){min, max};
+      min = srs.buf[i].f;
+      max = srs.buf[i].s;
+    } else {
+      max = MAX(max, srs.buf[i].s);
     }
-    srs.buf[ins++] = (StateRange){min, max};
-    srs.len = ins;
   }
+  srs.buf[ins++] = (StateRange){min, max};
+  srs.len = ins;
 
   return srs;
 }
@@ -195,22 +193,20 @@ static inline list_CharRange compressCharRanges(list_CharRange crs) {
   }
 
   // Compress
-  if (crs.len > 1) {
-    size_t ins = 0;
-    codepoint_t min = crs.buf[0].f;
-    codepoint_t max = crs.buf[0].s;
-    for (size_t i = 1; i < crs.len; i++) {
-      if (crs.buf[i].f > max + 1) {
-        crs.buf[ins++] = (CharRange){min, max};
-        min = crs.buf[i].f;
-        max = crs.buf[i].s;
-      } else {
-        max = MAX(max, crs.buf[i].s);
-      }
+  size_t ins = 0;
+  codepoint_t min = crs.buf[0].f;
+  codepoint_t max = crs.buf[0].s;
+  for (size_t i = 1; i < crs.len; i++) {
+    if (crs.buf[i].f > max + 1) {
+      crs.buf[ins++] = (CharRange){min, max};
+      min = crs.buf[i].f;
+      max = crs.buf[i].s;
+    } else {
+      max = MAX(max, crs.buf[i].s);
     }
-    crs.buf[ins++] = (CharRange){min, max};
-    crs.len = ins;
   }
+  crs.buf[ins++] = (CharRange){min, max};
+  crs.len = ins;
 
   return crs;
 }

@@ -107,12 +107,23 @@ int main(void) {
   // Parse AST
   pl0_astnode_t *ast = pl0_parse_program(&parser);
 
+  // Check for errors
+  if (parser.num_errors) {
+    for (size_t i = 0; i < parser.num_errors; i++) {
+      pl0_parse_err error = parser.errlist[i];
+      fprintf(stderr, "An error was encountered on line %zu during parsing:\n"
+             "%s\n\n",
+             error.line, error.msg);
+    }
+    exit(1);
+  }
+
   // Print AST
   pl0_astnode_print_json(toklist.buf, ast);
 
   // Clean up
   pgen_allocator_destroy(&allocator);
   free(toklist.buf);
-  free(input_str);
   free(cps);
+  free(input_str);
 }

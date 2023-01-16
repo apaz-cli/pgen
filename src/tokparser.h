@@ -5,7 +5,7 @@
 
 static inline int tok_parse_Num(parser_ctx *ctx, size_t *read);
 static inline ASTNode *tok_parse_Ident(parser_ctx *ctx);
-static inline codepoint_t tok_parse_Char(parser_ctx *ctx);
+static inline codepoint_t parse_Char(parser_ctx *ctx);
 static inline ASTNode *tok_parse_NumSet(parser_ctx *ctx);
 static inline ASTNode *tok_parse_CharSet(parser_ctx *ctx);
 static inline ASTNode *tok_parse_Pair(parser_ctx *ctx);
@@ -76,53 +76,6 @@ static inline ASTNode *tok_parse_Ident(parser_ctx *ctx) {
   idstr[idstrsize] = '\0';
 
   RETURN(node);
-}
-
-// returns 0 on EOF.
-static inline codepoint_t tok_parse_Char(parser_ctx *ctx) {
-
-  RULE_BEGIN("Char");
-
-  // Escape sequences
-  if (IS_CURRENT("\\")) {
-    ADVANCE(strlen("\\"));
-    codepoint_t ret = CURRENT();
-    NEXT();
-    if (ret == 'n') // newline
-      return '\n';
-    else if (ret == 'r') // carriage return
-      return '\r';
-    else if (ret == 't') // tab
-      return '\t';
-    else if (ret == '\\') // backslash
-      return '\\';
-    else if (ret == '\'') // single quote
-      return '\'';
-    else if (ret == '\"') // double quote
-      return '\"';
-    else if (ret == 'b') // backspace
-      return '\b';
-    else if (ret == 'v') // vertical tab
-      return '\v';
-    else if (ret == 'a') // alert
-      return '\a';
-    else if (ret == 'f') // form feed
-      return '\f';
-    else if (ret == '?') // question mark
-      return '\?';
-    else
-      return ret;
-  }
-
-  // Normal characters
-  else if (HAS_CURRENT()) {
-    codepoint_t ret = CURRENT();
-    NEXT();
-    RETURN(ret);
-  }
-
-  // EOF
-  RETURN(0);
 }
 
 // num->extra = int(int?)
@@ -250,7 +203,7 @@ static inline ASTNode *tok_parse_CharSet(parser_ctx *ctx) {
   if (IS_CURRENT("'")) {
     NEXT();
 
-    codepoint_t c = tok_parse_Char(ctx);
+    codepoint_t c = parse_Char(ctx);
     if (!c) {
       REWIND(begin);
       RETURN(NULL);
@@ -294,7 +247,7 @@ static inline ASTNode *tok_parse_CharSet(parser_ctx *ctx) {
       break;
 
     // Parse a char.
-    codepoint_t c1 = tok_parse_Char(ctx);
+    codepoint_t c1 = parse_Char(ctx);
     codepoint_t c2 = 0;
     if (!c1) {
       REWIND(begin);
@@ -310,7 +263,7 @@ static inline ASTNode *tok_parse_CharSet(parser_ctx *ctx) {
         RETURN(NULL);
       }
 
-      c2 = tok_parse_Char(ctx);
+      c2 = parse_Char(ctx);
       if (!c2) {
         REWIND(begin);
         RETURN(NULL);
@@ -399,29 +352,13 @@ static inline ASTNode *tok_parse_LitDef(parser_ctx *ctx) {
 
   RULE_BEGIN("LitDef");
 
-  // Consume starting "
-  if (!IS_CURRENT("\"")) {
+  // Read the contents
+  int err = 0;
+  list_codepoint_t cps = parse_string(ctx, &err);
+  if (err) {
     REWIND(begin);
     RETURN(NULL);
   }
-  NEXT();
-
-  // Read the contents
-  list_codepoint_t cps = list_codepoint_t_new();
-  while (!IS_CURRENT("\"")) {
-    if (!HAS_CURRENT())
-      RETURN(NULL);
-
-    codepoint_t c = tok_parse_Char(ctx);
-    if (!c) {
-      list_codepoint_t_clear(&cps);
-      REWIND(begin);
-      RETURN(NULL);
-    }
-
-    list_codepoint_t_add(&cps, c);
-  }
-  NEXT(); // '\"' b/c out of while
 
   WS();
 
@@ -525,12 +462,10 @@ static inline ASTNode *tok_parse_SMDef(parser_ctx *ctx) {
     }
 
     // Consume either a semicolon or a newline.
-    if (!IS_CURRENT(";")) {
-      if (!IS_CURRENT("\n")) {
-        ASTNode_destroy(node);
-        REWIND(begin);
-        RETURN(NULL);
-      }
+    if (!IS_CURRENT(";") && !IS_CURRENT("\n")) {
+      ASTNode_destroy(node);
+      REWIND(begin);
+      RETURN(NULL);
     }
     NEXT(); // One char, either ; or \n.
 
@@ -592,13 +527,14 @@ static inline ASTNode *tok_parse_TokenDef(parser_ctx *ctx) {
 
   WS();
 
-  if (!IS_CURRENT(";")) {
+  // Consume either a semicolon or a newline.
+  if (!IS_CURRENT(";") && !IS_CURRENT("\n")) {
     ASTNode_destroy(id);
     ASTNode_destroy(rule);
     REWIND(begin);
     RETURN(NULL);
   }
-  NEXT();
+  NEXT(); // One char, either ; or \n.
 
   INIT("TokenDef");
   ASTNode_addChild(node, id);

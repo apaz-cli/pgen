@@ -10,9 +10,10 @@ tokenizer and parser for that grammar.
 
 The syntax of pgen is based on the paper ["Parsing Expression Grammars: A Recognition-Based Syntactic Foundation"](https://bford.info/pub/lang/peg.pdf)
 by [Bryan Ford](https://scholar.google.com/citations?hl=en&user=TwyzQP4AAAAJ).
-This specific parser is inspired by [packcc](https://github.com/arithy/packcc) by [Arihiro Yoshida](https://github.com/arithy).
-You may see many commonalities. The main difference is that while `packcc` does away with the
-lexer (tokenizer), `pgen` re-introduces it.
+This specific parser is inspired by [packcc](https://github.com/arithy/packcc)
+by [Arihiro Yoshida](https://github.com/arithy).
+You may see many commonalities. The main difference is that while `packcc`
+does away with the lexer (tokenizer), `pgen` re-introduces it.
 
 The job of a parser is to turn a token stream into an abstract syntax tree.
 However, that's not what most parser-generators provide. Instead, what
@@ -91,6 +92,7 @@ For an example tokenizer, see `examples/pl0.tok`.
 // () - Matches if all expressions inside match. Returns SUCC or the single match within if there's only one.
 // {} - Code to insert into the parser. Assign to `ret` for the return value of this expression, or `rule` for the rule.
 // :  - Capture the info from a match inside a variable in the current rule.
+# |  - Register an error using the string or expression on the right, and exit parsing.
 
 // Directives:
 // %oom         - Define the action that should be taken when out of memory
@@ -117,7 +119,19 @@ For an example tokenizer, see `examples/pl0.tok`.
 // add(list, node)         - Add an astnode as a child to an astnode created by list()
 // has(node)               - 0 if the node is NULL or SUCC, 1 otherwise.
 // repr(node, ofnode)      - Set the string representation of the current node to another node's
-// srepr(node, string)     - Set the string representation of the current node to a string
+// srepr(node, string)     - Set the string representation of node to a cstring
+// cprepr(node, cps, len)  - Set the string representation of node to a codepoint string
+// expect(kind, cap)       - Parses a token the same way `TOKEN` does. Returns the astnode if cap(tured).
+
+// INFO(msg)               - Log an error to ctx->errlist with the position and severity 0.
+// WARNING(msg)            - Log an error to ctx->errlist with the position and severity 1.
+// ERROR(msg)              - Log an error to ctx->errlist with the position and severity 2.
+// FATAL(msg)              - Log an error to ctx->errlist with the position and severity 3.
+// INFO_F(msg, freefn)     - INFO(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
+// WARNING_F(msg, freefn)  - WARNING(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
+// ERROR_F(msg, freefn)    - ERROR(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
+// FATAL_F(msg, freefn)    - FATAL(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
+
 
 // Notes:
 // Instead of using an unbalancing { or } inside a codeexpr, use the macros LB or RB.
@@ -128,22 +142,108 @@ grammar <- (directive / definition)*
 
 directive <- PERCENT LOWERIDENT (&(!EOL) WS)* EOL
 
-definition <- LOWERIDENT ARROW slashexpr
+definition <- LOWERIDENT variables? ARROW slashexpr
+
+variables <- LESSTHAN variable (COMMA variable)* GREATERTHAN
+
+variable <- (!(GREATERTHAN / COMMA) {
+              /* A demonstration of how to make a wildcard to match any token
+                 (except in this case GREATERTHAN or COMMA) by hacking the parser context. */
+              ret = pgen_astnode_leaf(ctx->alloc, ctx->tokens[ctx->pos++].kind);
+            })*
 
 slashexpr <- modexprlist (DIV modexprlist)*
 
 modexprlist <- modexpr*
 
-modexpr <- (LOWERIDENT COLON)? (AMPERSAND / EXCLAIMATION)* baseexpr (QUESTION / STAR / PLUS)*
+modexpr <- (LOWERIDENT COLON)?                    // Variable assignment
+           (AMPERSAND / EXCLAIMATION)*            // Operators
+           baseexpr                               // The modified expression
+           (QUESTION / STAR / PLUS)*              // More Operators
+           (PIPE (STRING / baseexpr))?            // Error handlers
 
-baseexpr <- UPPERIDENT
-          / LOWERIDENT !ARROW
-          / CODEEXPR
+baseexpr <- UPPERIDENT                            // Token to match
+          / LOWERIDENT !(LT / ARROW)              // Rule to call
+          / CODEEXPR                              // Code to execute
           / OPENPAREN slashexpr CLOSEPAREN
 
 ```
 
 There's documentation now, but realistically you're not going to figure everything out on your own. Talk to me, submit an issue, send me an email, or find me on Discord, and I can walk you through how to use it.
+
+
+## C API / Example
+
+See `examples/pl0.c` for the full example put together. Your parser will be generated prefixed by the 
+
+### 1. Load your file into a cstring, then decode it with the UTF8 -> UTF32 decoder.
+
+```c
+char *input_str = NULL;
+size_t input_len = 0;
+readFile("pl0.pl0", &input_str, &input_len);
+```
+```c
+codepoint_t *cps = NULL;
+size_t cpslen = 0;
+if (!UTF8_decode(input_str, input_len, &cps, &cpslen))
+  fprintf(stderr, "Could not decode to UTF32.\n"), exit(1);
+```
+
+### 2. Initialize the tokenizer, then run the tokenizer.
+
+You will have to create some sort of list data structure to hold the tokens.
+Here, we add a token to that list with `add_tok`. You will have to roll your
+own.
+
+This is also the step where you can discard any tokens you don't want.
+This you can parse comments and whitespace as tokens, and then ignore them.
+
+The `.kind` member of your token struct will contain what kind of token it is,
+as described by your `.tok` file. When there are no more tokens left to parse,
+`.kind` of the returned token will be `PL0_TOK_STREAMEND`. You can also create
+and append your own `LANG_TOK_STREAMBEGIN` token at the beginning, if you wish.
+
+```c
+pl0_tokenizer tokenizer;
+pl0_tokenizer_init(&tokenizer, cps, cpslen);
+```
+```c
+pl0_token tok;
+do {
+  tok = pl0_nextToken(&tokenizer);
+
+  // Discard whitespace and end of stream, add other tokens to the list.
+  if (!(tok.kind == PL0_TOK_SLCOM | tok.kind == PL0_TOK_MLCOM |
+        tok.kind == PL0_TOK_WS | tok.kind == PL0_TOK_STREAMEND))
+    add_tok(tok);
+
+} while (tok.kind != PL0_TOK_STREAMEND);
+```
+
+### 3. Initialize the allocator and parser.
+
+```c
+pgen_allocator allocator = pgen_allocator_new();
+pl0_parser_ctx parser;
+pl0_parser_ctx_init(&parser, &allocator, toklist.buf, toklist.size);
+```
+
+### 4. Call a rule to parse an AST.
+
+Any rule can be an entry point for your parser.
+
+```c
+pl0_astnode_t *ast = pl0_parse_program(&parser);
+```
+
+### 5. When you're done with your AST, clean up the memory you used.
+```c
+pgen_allocator_destroy(&allocator); // The whole AST is freed with the allocator
+free(toklist.buf);                  // The list of tokens (roll your own)
+free(cps);                          // The file as UTF32
+free(input_str);                    // The file as UTF8
+```
 
 
 ## TODO
@@ -158,13 +258,11 @@ There's documentation now, but realistically you're not going to figure everythi
 * Add a flag to warn on token/astnode kinds not used in the parser
 * Debug messages for parsing failures
 * Token/Node print functions
-
+* Segregate out lang-specific generated code from lang-independent
 
 ## License
 
-The license for `pgen` is GPLv3. The license applies only to the files already in this repository.
-The code that you generate using `pgen` belongs to you (or whoever has the copyright to the
-`.tok`/`.peg` files it was generated from.
+The license for `pgen` is GPLv3. The license applies only to the files already in this repository. The code that you generate using `pgen` belongs to you (or whoever has the copyright to the `.tok`/`.peg` files it was generated from.
 
 However, if you modify or distribute `pgen` itself then that must still follow the rules of the GPL.
 

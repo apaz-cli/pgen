@@ -67,14 +67,21 @@ elif [ "$1" = "macrocheck" ]; then
 else
   # Build debug
   cc src/pgen.c -o pgen -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable -fsanitize=address
+  if [ ! "$?" -eq 0 ]; then exit 1; fi
 
   # Generate pl0 example
-  ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h
+  ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h $@
+  if [ ! "$?" -eq 0 ]; then exit 1; fi
+
 
   # Build and run pl0 example
   cd examples/
-  cc pl0.c -g
+  clang pl0.c -g -fsanitize=address
+  if [ ! "$?" -eq 0 ]; then exit 1; fi
+
   ./a.out > ../.testast.json
+  if [ ! "$?" -eq 0 ]; then exit 1; fi
+
   cd ..
 
   DIFF="$(diff .refast.json .testast.json)"

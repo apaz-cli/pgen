@@ -108,13 +108,13 @@ static inline bool cpstr_equals(codepoint_t *str1, codepoint_t *str2) {
   return *str1 == *str2;
 }
 
-static inline void printStringView(String_View sv) {
-  fwrite(sv.str, sv.len, 1, stdout);
+static inline void printStringView(FILE* f, String_View sv) {
+  fwrite(sv.str, sv.len, 1, f);
 }
 
-static inline void printCodepointStringView(Codepoint_String_View cpsv) {
+static inline void printCodepointStringView(FILE* f, Codepoint_String_View cpsv) {
   String_View sv = UTF8_encode_view(cpsv);
-  printStringView(sv);
+  printStringView(f, sv);
   free(sv.str);
 }
 
@@ -220,8 +220,8 @@ codepoint_atoull_nosigns(const codepoint_t *a, size_t len, size_t *read) {
   return parsed;
 }
 
-// Assigns SIZE_MAX to *read on error when the number is larger than INT_MAX or
-// lower than INT_MIN.
+// Assigns SIZE_MAX to *read on error when the number is
+// larger than INT_MAX or lower than INT_MIN.
 // Assigns 0 to *read on error when no digits are parsed.
 // Returns the number parsed on success, 0 on failure.
 // Note that 0 is a potential success value, so check *read.

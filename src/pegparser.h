@@ -7,6 +7,7 @@
 #include <limits.h>
 
 typedef struct {
+  ASTNode *label_name;
   unsigned char inverted : 1;
   unsigned char rewind : 1;
   unsigned char optional : 1;
@@ -21,7 +22,7 @@ typedef struct {
 static inline ASTNode *peg_parse_GrammarFile(parser_ctx *ctx);
 static inline ASTNode *peg_parse_Directive(parser_ctx *ctx);
 static inline ASTNode *peg_parse_Definition(parser_ctx *ctx);
-static inline ASTNode *peg_parse_StructDef(parser_ctx *ctx);
+static inline ASTNode *peg_parse_Variables(parser_ctx *ctx);
 static inline ASTNode *peg_parse_SlashExpr(parser_ctx *ctx);
 static inline ASTNode *peg_parse_ModExprList(parser_ctx *ctx);
 static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx);
@@ -134,7 +135,7 @@ static inline ASTNode *peg_parse_Definition(parser_ctx *ctx) {
 
   WS();
 
-  ASTNode *stdef = peg_parse_StructDef(ctx);
+  ASTNode *stdef = peg_parse_Variables(ctx);
 
   WS();
 
@@ -162,16 +163,16 @@ static inline ASTNode *peg_parse_Definition(parser_ctx *ctx) {
   RETURN(node);
 }
 
-static inline ASTNode *peg_parse_StructDef(parser_ctx *ctx) {
+static inline ASTNode *peg_parse_Variables(parser_ctx *ctx) {
 
-  RULE_BEGIN("StructDef");
+  RULE_BEGIN("Variables");
 
   if (!IS_CURRENT("<") || IS_CURRENT("<-")) {
     RETURN(NULL);
   }
   NEXT();
 
-  INIT("StructDef");
+  INIT("Variables");
 
   while (1) {
 
@@ -283,7 +284,9 @@ static inline ASTNode *peg_parse_ModExprList(parser_ctx *ctx) {
   RETURN(node);
 }
 
-// modexpr->children[1]
+// modexpr->children[0] is a base expression.
+// Then comes the label (if present), then the error string or action (if
+// present). modexpr->extra points to ModExprOpts.
 static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
 
   RULE_BEGIN("ModExpr");
@@ -294,6 +297,7 @@ static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
   opts->rewind = 0;
   opts->optional = 0;
   opts->kleene_plus = 0;
+  opts->label_name = NULL;
 
   ASTNode *labelident = peg_parse_LowerIdent(ctx);
   if (labelident) {
@@ -302,12 +306,9 @@ static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
     if (!IS_CURRENT(":")) {
       ASTNode_destroy(labelident);
       REWIND(begin);
+      labelident = NULL;
     } else {
       NEXT();
-
-      WS();
-
-      ASTNode_addChild(node, labelident);
     }
   }
 
@@ -330,6 +331,8 @@ static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
   ASTNode *bex = peg_parse_BaseExpr(ctx);
   if (!bex) {
     ASTNode_destroy(node);
+    if (labelident)
+      ASTNode_destroy(labelident);
     REWIND(begin);
     RETURN(NULL);
   }
@@ -352,12 +355,44 @@ static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
     WS();
   }
 
-  // Make the BaseExpr appear before the optional LowerIdent
-  if (node->num_children == 2) {
-    ASTNode *tmp = node->children[0];
-    node->children[0] = node->children[1];
-    node->children[1] = tmp;
+  WS();
+
+  ASTNode *errhandler = NULL;
+  if (IS_CURRENT("|")) {
+    NEXT();
+    WS();
+
+    int err = 0;
+    list_codepoint_t cps = parse_string(ctx, &err);
+    if (!err) {
+      errhandler = ASTNode_new("ErrString");
+      codepoint_t *cpstr;
+      errhandler->extra = cpstr = (codepoint_t *)malloc(
+          sizeof(codepoint_t) + cps.len * sizeof(codepoint_t));
+      if (!cpstr)
+        OOM();
+      for (size_t i = 0; i < cps.len; i++)
+        cpstr[i] = list_codepoint_t_get(&cps, i);
+      cpstr[cps.len] = 0;
+      list_codepoint_t_clear(&cps);
+    }
+
+    if (!errhandler)
+      errhandler = peg_parse_BaseExpr(ctx);
+
+    if (!errhandler) {
+      if (labelident)
+        ASTNode_destroy(labelident);
+      ASTNode_destroy(node);
+      REWIND(begin);
+      RETURN(NULL);
+    }
   }
+
+  if (labelident)
+    ASTNode_addChild(node, labelident);
+  if (errhandler)
+    ASTNode_addChild(node, errhandler);
 
   RETURN(node);
 }

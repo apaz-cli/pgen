@@ -1,10 +1,10 @@
 #include "argparse.h"
-#include "astvalid.h"
-#include "automata.h"
-#include "codegen.h"
 #include "parserctx.h"
-#include "pegparser.h"
 #include "tokparser.h"
+#include "pegparser.h"
+#include "automata.h"
+#include "astvalid.h"
+#include "codegen.h"
 
 int main(int argc, char **argv) {
 

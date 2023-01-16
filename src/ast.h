@@ -10,10 +10,6 @@
 /* AST Implementation */
 /**********************/
 
-/* This AST Node implementation is not efficient,
-   simplicity is what's important. The daic implementation
-   will be optimized and will use a custom memory allocator.
-   This is the dumbest example possible. */
 struct ASTNode;
 typedef struct ASTNode ASTNode;
 struct ASTNode {

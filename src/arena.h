@@ -268,6 +268,9 @@ static inline void pgen_defer(pgen_allocator *allocator, void (*freefn)(void *),
   pgen_allocator_print_freelist(allocator);
 #endif
 
+  if (!freefn | !ptr)
+    return;
+
   // Grow list by factor of 2 if too small
   size_t next_len = allocator->freelist.len + 1;
   if (next_len >= allocator->freelist.cap) {

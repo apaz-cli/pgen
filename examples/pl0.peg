@@ -1,97 +1,93 @@
-%oom exit(1)
+%oom (fprintf(stderr, "OUT OF MEMORY!\n"), exit(1))
+%define recover(kind) (ERROR("Missing token: " #kind), ret = leaf(kind))
 
-
-program    <- {rule=list(BLOCKLIST)}
+%node PROGRAM
+program    <- {rule=list(PROGRAM)}
               (b:block {add(rule, b)})*
-              DOT
+              DOT|"Expected a dot at the end of the program"
 
+%node VARLIST
+%node CONSTLIST
 vdef       <- VAR {rule=list(VARLIST)}
-              i:IDENT {add(rule, node(IDENT, i))}
-              (COMMA i:IDENT {add(rule, i)})* SEMI
+              i:IDENT|"Expected an identifier" {add(rule, node(IDENT, i))}
+              (COMMA i:IDENT|"Expected an identifier" {add(rule, i)})*
+              SEMI|{recover(SEMI)}
               /
               CONST {rule=list(CONSTLIST)}
-              i:IDENT EQ n:NUM {add(rule, node(CONST, i, n))}
-              (COMMA i:IDENT e:EQ n:NUM {add(rule, node(CONST, i, n))})* SEMI
+              i:IDENT|"Expected an identifier"
+              EQ|"Expected an equal sign"
+              n:NUM|"Expected a number" {add(rule, node(CONST, i, n))}
+              (COMMA
+               i:IDENT|"Expected an identifier"
+               e:EQ|"Expected an equal sign"
+               n:NUM|"Expected an number" {add(rule, node(CONST, i, n))})*
+              SEMI|{recover(SEMI)}
 
+%node PROCLIST
 block      <- v:vdef {rule=v}
               /
               {rule=list(PROCLIST)}
-              (PROC i:IDENT SEMI v:vdef?
-              {add(rule, has(v) ? node(PROC, i, v) : node(PROC, i))})*
-              s:statement {add(rule, s)} SEMI
+              (PROC
+               i:IDENT|"Expected an identifier"
+               SEMI|{recover(SEMI)} v:vdef?
+               {add(rule, has(v) ? node(PROC, i, v) : node(PROC, i))})*
+              s:statement {add(rule, s)}
+              SEMI|{recover(SEMI)}
 
+%node STATEMENT
 statement  <- id:IDENT ceq:CEQ e:expression
-              {rule=node(IDENT, id, e)}
+              {rule=node(CEQ, id, e)}
               /
-              CALL id:IDENT
+              CALL id:IDENT|"Expected an identifier"
               {rule=node(CALL, id)}
               /
-              WRITE id:IDENT
+              WRITE id:IDENT|"Expected an identifier"
               {rule=node(WRITE, id)}
               /
               BEGIN
               {rule=list(BEGIN)}
-              smt:statement
+              smt:statement|"Expected a statement"
               {add(rule, node(STATEMENT, smt))}
-              (SEMI smt:statement {add(rule, node(STATEMENT, smt))})*
-              END
+              (SEMI smt:statement
+               {add(rule, node(STATEMENT, smt))})*
+              END|"Expected end"
               /
-              IF c:condition THEN smt:statement
+              IF
+              c:condition|"Expected a condition"
+              THEN|"Expected then"
+              smt:statement|"Expected a statement"
               {rule=node(IF, c, smt)}
               /
-              WHILE c:condition DO smt:statement
+              WHILE
+              c:condition|"Expected a condition"
+              DO|"Expected do"
+              smt:statement|"Expected a statement"
               {rule=node(WHILE, c, smt)}
 
+%node EXPRS
+%node UNEXPR
+%node BINEXPR
 condition  <- ODD ex:expression
               {rule = node(UNEXPR, ex);}
               /
               ex:expression
               op:(EQ / HASH / LT / LEQ / GT / GEQ)
-              ex_:expression
+              ex_:expression|"Expected an expression"
               {rule=node(BINEXPR, op, ex, ex_)}
 
 expression <- {rule=list(EXPRS)}
               pm:(PLUS / MINUS)? t:term
               {add(rule, has(pm) ? node(UNEXPR, pm, t) : t)}
-              (pm:(PLUS / MINUS) t:term
+              (pm:(PLUS / MINUS) t:term|"Expected a term"
               {add(rule, has(pm) ? node(BINEXPR, pm, t) : t)})*
 
+%node TERM
 term       <- {rule=list(EXPRS)}
               f:factor {add(rule, f)}
-              (sd:(STAR / DIV) f:factor {add(rule, node(STAR, sd, f))})*
+              (sd:(STAR / DIV) f:factor|"Expected a factor"
+               {add(rule, node(TERM, sd, f))})*
 
-factor     <- i:IDENT {rule=node(IDENT, i)} /
-              n:NUM {rule=node(NUM, n)} /
-              OPEN e:expression CLOSE {rule=e}
+factor     <- i:IDENT /
+              n:NUM /
+              OPEN e:expression CLOSE|"Expected closing parentheses" {rule=e}
 
-
-%node STAR
-%node DIV
-%node IDENT
-%node NUM
-%node BLOCKLIST
-%node VAR
-%node VARLIST
-%node CONST
-%node CONSTLIST
-%node PROC
-%node PROCLIST
-%node CEQ
-%node CALL
-%node WRITE
-%node BEGIN
-%node IF
-%node WHILE
-%node STATEMENT
-%node EXPRS
-%node UNEXPR
-%node BINEXPR
-%node EQ
-%node HASH
-%node LT
-%node LEQ
-%node GT
-%node GEQ
-%node PLUS
-%node MINUS
-%node SIGN

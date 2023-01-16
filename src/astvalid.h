@@ -2,11 +2,16 @@
 #define PGEN_ASTVALID_INCLUDE
 #include "argparse.h"
 #include "ast.h"
+#include "codegen.h"
 #include "util.h"
 
 static inline void validateTokast(Args args, ASTNode *tokast) {
+  (void)args;
+
+  // TODO error if two tokenizer rules contain the same content
+
   // Cross compare for duplicate rules.
-  // Also make sure that there's no token named STREAMEND.
+  // Also make sure that there's no token named STREAMBEGIN or STREAMEND.
   for (size_t n = 0; n < tokast->num_children; n++) {
     ASTNode *rule1 = tokast->children[n];
     ASTNode *def1 = rule1->children[1];
@@ -95,13 +100,6 @@ static inline void resolveReplace(ASTNode *node, char *prev_name,
   }
 }
 
-typedef ASTNode *ASTNodePtr;
-LIST_DECLARE(ASTNodePtr)
-LIST_DEFINE(ASTNodePtr)
-typedef char *charptr;
-LIST_DECLARE(charptr)
-LIST_DEFINE(charptr)
-
 // Also pulls out all the names of the rules.
 static inline list_charptr resolvePrevNext(ASTNode *pegast) {
   if (!pegast)
@@ -177,7 +175,8 @@ static inline void validatePegVisit(ASTNode *node, ASTNode *tokast,
     if (!strcmp(node->name, "Directive")) {
     } else if (!strcmp(node->name, "ModExpr")) {
       validatePegVisit(node->children[0], tokast, names);
-      if (node->num_children > 1)
+      if (node->num_children > 1 &&
+          !strcmp(node->children[1]->name, "LowerIdent"))
         validateVisitLabel(node->children[1], names);
     } else {
       for (size_t i = 0; i < node->num_children; i++)
@@ -187,18 +186,18 @@ static inline void validatePegVisit(ASTNode *node, ASTNode *tokast,
 }
 
 static inline void validateDirectives(Args args, list_ASTNodePtr *directives) {
-  if (!args.u)
+  if (args.u)
     return;
   for (size_t i = 0; i < directives->len; i++) {
     for (size_t j = i + 1; j < directives->len; j++) {
       char *dir_name1 = (char *)directives->buf[i]->children[0]->extra;
       char *dir_name2 = (char *)directives->buf[j]->children[0]->extra;
       if (!strcmp(dir_name1, "node") && !strcmp(dir_name2, "node")) {
-        // Note: invalid identifiers are taken care of in codegen.
+        // Note: Undeclared directives are taken care of in codegen.
         char *nname1 = (char *)directives->buf[i]->extra;
         char *nname2 = (char *)directives->buf[j]->extra;
         if (!strcmp(nname1, nname2)) {
-          ERROR("There are two %%node directives both naming %s.", nname1);
+          ERROR("There are two %%node directives for %s.", nname1);
         }
       }
     }
@@ -210,13 +209,30 @@ static inline void validateRewritePegast(Args args, ASTNode *pegast,
   if (!pegast)
     return;
 
+  // Grab all the directives, and make sure their contents are reasonable.
   list_ASTNodePtr directives;
   if (!args.u) {
     directives = list_ASTNodePtr_new();
     for (size_t i = 0; i < pegast->num_children; i++) {
       ASTNode *node = pegast->children[i];
-      if (!strcmp(node->name, "Directive"))
+      if (!strcmp(node->name, "Directive")) {
+        char *dir_name = (char *)node->children[0]->extra;
+        if (!args.u && !strcmp(dir_name, "node")) {
+          char *dir_content = (char *)node->extra;
+          for (size_t i = 0; i < strlen(dir_content); i++) {
+            char c = dir_content[i];
+            if (!strcmp("EMPTY", dir_content)) {
+              ERROR("Node kind cannot be EMPTY.");
+            } else if (((c < 'A') | (c > 'Z')) & (c != '_') &
+                       ((c < '0') | (c > '9'))) {
+              ERROR("Node kind %s would not create a valid (uppercase) "
+                    "identifier.",
+                    dir_content);
+            }
+          }
+        }
         list_ASTNodePtr_add(&directives, node);
+      }
     }
   }
 

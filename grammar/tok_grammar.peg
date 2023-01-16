@@ -23,6 +23,6 @@ pair <- '(' _ numset _ ',' _ charset _ ')'
 # Definitions
 LitDef <- '"' (!'"' char)* '"'
 SMDef <- numset _ '{' ( _ pair _ '->' _ num ' '* (';' / [\n]))+ _'}'
-TokenDef <- ident _ ':' _ (LitDef / SMDef) _ ';'
+TokenDef <- ident _ ':' _ (LitDef / SMDef) _ (';' / [\n])
 
 ###############################################################################

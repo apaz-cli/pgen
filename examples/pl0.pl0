@@ -4,7 +4,6 @@
 const max = 100;
 var arg, ret, i;
 
-/*
 procedure isprime;
 begin
 	ret := 1;
@@ -19,7 +18,6 @@ begin
 		i := i + 1
 	end
 end;
-*/
 
 procedure primes;
 begin
