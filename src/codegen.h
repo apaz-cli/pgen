@@ -1356,7 +1356,8 @@ static inline void peg_write_astnode_print(codegen_ctx *ctx) {
   cwrite("  if (!node)\n");
   cwrite("    return 0;\n");
   cwrite("  else if (node == "
-         "(pl0_astnode_t*)(void*)(uintptr_t)_Alignof(pl0_astnode_t))\n");
+         "(%s_astnode_t*)(void*)(uintptr_t)_Alignof(%s_astnode_t))\n",
+         ctx->lower, ctx->lower);
   cwrite("    puts(\"ERROR, CAPTURED SUCC.\"), exit(1);\n\n");
 
   cwrite("  indent(); puts(\"{\");\n");
@@ -1835,14 +1836,12 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       iwrite("intr_enter(ctx, \"CodeExpr\", ctx->pos);\n");
     iwrite("#define ret expr_ret_%zu\n", ret_to);
     iwrite("ret = SUCC;\n");
-    // start_block(ctx);
     CodeExprOpts *opts = (CodeExprOpts *)expr->extra;
     if (ctx->args.l)
       start_embed(ctx, opts->line_nbr);
     iwrite("%s;\n", opts->content);
     if (ctx->args.l)
       end_embed(ctx);
-    // end_block(ctx);
     if (ctx->args.i)
       iwrite("if (ret) intr_accept(ctx, \"CodeExpr\"); else intr_reject(ctx, "
              "\"CodeExpr\");\n");

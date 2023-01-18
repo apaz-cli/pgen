@@ -7,14 +7,14 @@ typedef struct {
   char *tokenizerTarget; // (path to .tok) May not be null
   char *grammarTarget;   // (path to .peg) May be null
   char *outputTarget;    // (path to output) May be null
-  bool h:1;              // Help
-  bool i:1;              // Interactive
-  bool d:1;              // Debug runtime errors
-  bool u:1;              // Generate Unsafe (but fast) code
-  bool t:1;              // Tokenizer debug prompt
-  bool g:1;              // Grammar debug prompt
-  bool m:1;              // Memory allocator debugging
-  bool l:1;              // Line directives
+  bool h : 1;            // Help
+  bool i : 1;            // Interactive
+  bool d : 1;            // Debug runtime errors
+  bool u : 1;            // Generate Unsafe (but fast) code
+  bool t : 1;            // Tokenizer debug prompt
+  bool g : 1;            // Grammar debug prompt
+  bool m : 1;            // Memory allocator debugging
+  bool l : 1;            // Line directives
 } Args;
 
 static inline Args argparse(int argc, char **argv) {
@@ -43,8 +43,7 @@ static inline Args argparse(int argc, char **argv) {
       "    -t, --tokenizer-debug    Troubleshoot .tok syntax errors.         \n"
       "    -g, --grammar-debug      Troubleshoot .peg syntax errors.         \n"
       "    -m, --memdebug           Debug the generated memory allocator.    \n"
-      "    -l, --lines              Generate #line directives.               \n"
-      ;
+      "    -l, --lines              Generate #line directives.               \n";
 
   // Unsafe strips comments, disables checking the result of malloc, and removes
   // validation of the ast for faster compile times, as the grammar is assumed
@@ -75,6 +74,10 @@ static inline Args argparse(int argc, char **argv) {
       } else {
         ERROR("-o requires an argument.");
       }
+    }
+    // Unrecognized
+    else if (strlen(a) && a[0] == '-') {
+      ERROR("Unrecognized option \"%s\"", a);
     }
     // Targets
     else {
