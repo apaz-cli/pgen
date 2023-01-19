@@ -1782,8 +1782,10 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
   if (expr_ret_2) {
     pl0_astnode_t* expr_ret_7 = NULL;
     if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == PL0_TOK_DOT) {
-      // Not capturing DOT.
-      expr_ret_7 = SUCC;
+      // Capturing DOT.
+      expr_ret_7 = leaf(DOT);
+      expr_ret_7->tok_repr = ctx->tokens[ctx->pos].content;
+      expr_ret_7->len_or_toknum = ctx->tokens[ctx->pos].len;
       ctx->pos++;
     } else {
       expr_ret_7 = NULL;
@@ -1927,8 +1929,10 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
     if (expr_ret_11) {
       pl0_astnode_t* expr_ret_17 = NULL;
       if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == PL0_TOK_SEMI) {
-        // Not capturing SEMI.
-        expr_ret_17 = SUCC;
+        // Capturing SEMI.
+        expr_ret_17 = leaf(SEMI);
+        expr_ret_17->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_17->len_or_toknum = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_17 = NULL;
@@ -2146,8 +2150,10 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
     if (expr_ret_19) {
       pl0_astnode_t* expr_ret_29 = NULL;
       if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == PL0_TOK_SEMI) {
-        // Not capturing SEMI.
-        expr_ret_29 = SUCC;
+        // Capturing SEMI.
+        expr_ret_29 = leaf(SEMI);
+        expr_ret_29->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_29->len_or_toknum = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_29 = NULL;
@@ -2338,8 +2344,10 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
     if (expr_ret_36) {
       pl0_astnode_t* expr_ret_45 = NULL;
       if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == PL0_TOK_SEMI) {
-        // Not capturing SEMI.
-        expr_ret_45 = SUCC;
+        // Capturing SEMI.
+        expr_ret_45 = leaf(SEMI);
+        expr_ret_45->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_45->len_or_toknum = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_45 = NULL;
@@ -2630,8 +2638,10 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
     if (expr_ret_58) {
       pl0_astnode_t* expr_ret_64 = NULL;
       if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == PL0_TOK_END) {
-        // Not capturing END.
-        expr_ret_64 = SUCC;
+        // Capturing END.
+        expr_ret_64 = leaf(END);
+        expr_ret_64->tok_repr = ctx->tokens[ctx->pos].content;
+        expr_ret_64->len_or_toknum = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_64 = NULL;

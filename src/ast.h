@@ -1,5 +1,5 @@
-#ifndef PCC_AST_INCLUDED
-#define PCC_AST_INCLUDED
+#ifndef PGEN_AST_INCLUDED
+#define PGEN_AST_INCLUDED
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -20,7 +20,7 @@ struct ASTNode {
   void *extra;
 };
 
-#define PCCAST_OOM()                                                           \
+#define PGENAST_OOM()                                                           \
   do {                                                                         \
     fprintf(stderr, "Out of memory.\n");                                       \
     exit(1);                                                                   \
@@ -46,7 +46,7 @@ static inline void ASTNode_addChild(ASTNode *parent, ASTNode *child) {
       parent->children, sizeof(ASTNode *) * parent->num_children);
   parent->children[parent->num_children - 1] = child;
   if (!parent->children)
-    PCCAST_OOM();
+    PGENAST_OOM();
 }
 
 static inline void ASTNode_destroy(ASTNode *self) {
@@ -79,4 +79,4 @@ static inline void AST_print_helper(ASTNode *current, size_t depth) {
 
 static inline void AST_print(ASTNode *root) { AST_print_helper(root, 0); }
 
-#endif /* PCC_AST_INCLUDED */
+#endif /* PGEN_AST_INCLUDED */

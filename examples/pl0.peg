@@ -91,3 +91,7 @@ factor     <- i:IDENT /
               n:NUM /
               OPEN e:expression CLOSE|"Expected closing parentheses" {rule=e}
 
+
+exprone <- exprone
+exprtwo <- exprthree
+exprthree <- exprtwo

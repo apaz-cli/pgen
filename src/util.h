@@ -1,7 +1,6 @@
 #ifndef PGEN_INCLUDE_UTIL
 #define PGEN_INCLUDE_UTIL
 #include <errno.h>
-#include <fcntl.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -10,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 

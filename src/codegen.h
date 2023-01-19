@@ -1657,14 +1657,14 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       comment("ModExprList Forwarding");
       peg_visit_write_exprs(ctx, expr->children[0], ret, capture);
     } else {
-      // TODO only the last item in the ModExprList should forward.
       for (size_t i = 0; i < expr->num_children; i++) {
+        int last = (i == expr->num_children - 1);
         comment("ModExprList %zu", i);
         if (i) {
           iwrite("if (expr_ret_%zu) ", ret);
           start_block_0(ctx);
         }
-        peg_visit_write_exprs(ctx, expr->children[i], ret, 0);
+        peg_visit_write_exprs(ctx, expr->children[i], ret, last ? capture : 0);
         if (i)
           end_block(ctx);
       }

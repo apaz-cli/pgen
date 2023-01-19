@@ -2,6 +2,7 @@
 #include "parserctx.h"
 #include "tokparser.h"
 #include "pegparser.h"
+#include "pegoptim.h"
 #include "automata.h"
 #include "astvalid.h"
 #include "codegen.h"
