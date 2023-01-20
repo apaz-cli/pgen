@@ -1405,22 +1405,21 @@ static inline void peg_write_definition_stub(codegen_ctx *ctx, ASTNode *def) {
 
 static inline void peg_visit_add_labels(codegen_ctx *ctx, ASTNode *expr,
                                         list_cstr *idlist) {
-  if (expr->num_children >= 2 && !strcmp(expr->name, "ModExpr")) {
+  if (expr->num_children >= 2 && !strcmp(expr->name, "ModExpr") &&
+      !strcmp(expr->children[1]->name, "LowerIdent")) {
     ASTNode *label_ident = expr->children[1];
-    if (!strcmp(label_ident->name, "LowerIdent")) {
 
-      char *idname = (char *)label_ident->extra;
+    char *idname = (char *)label_ident->extra;
 
-      int append = 1;
-      for (size_t i = 0; i < idlist->len; i++) {
-        if (!strcmp(idname, idlist->buf[i])) {
-          append = 0;
-          break;
-        }
+    int append = 1;
+    for (size_t i = 0; i < idlist->len; i++) {
+      if (!strcmp(idname, idlist->buf[i]) && !strcmp(idname, "rule")) {
+        append = 0;
+        break;
       }
-      if (append)
-        list_cstr_add(idlist, idname);
     }
+    if (append)
+      list_cstr_add(idlist, idname);
   }
 
   for (size_t i = 0; i < expr->num_children; i++)
