@@ -18,9 +18,6 @@
 /* ctx */
 /*******/
 
-typedef char *charptr;
-LIST_DECLARE(charptr)
-LIST_DEFINE(charptr)
 typedef ASTNode *ASTNodePtr;
 LIST_DECLARE(ASTNodePtr)
 LIST_DEFINE(ASTNodePtr)
@@ -39,8 +36,8 @@ typedef struct {
   size_t line_nbr;
   char lower[PGEN_PREFIX_LEN];
   char upper[PGEN_PREFIX_LEN];
-  list_charptr tok_kind_names;
-  list_charptr peg_kind_names;
+  list_cstr tok_kind_names;
+  list_cstr peg_kind_names;
 } codegen_ctx;
 
 static inline int cwrite_inner(codegen_ctx *ctx, const char *fmt, ...) {
@@ -98,8 +95,8 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args args,
   ctx->expr_cnt = 0;
   ctx->indent_cnt = 1;
   ctx->line_nbr = 1;
-  ctx->tok_kind_names = list_charptr_new();
-  ctx->peg_kind_names = list_charptr_new();
+  ctx->tok_kind_names = list_cstr_new();
+  ctx->peg_kind_names = list_cstr_new();
 
   // Check to make sure we actually have code to generate.
   if ((!trie.accepting.len) & (!smauts.len))
@@ -179,8 +176,8 @@ static inline void codegen_ctx_destroy(codegen_ctx *ctx) {
   if (ctx->pegast)
     ASTNode_destroy(ctx->pegast);
 
-  list_charptr_clear(&ctx->tok_kind_names);
-  list_charptr_clear(&ctx->peg_kind_names);
+  list_cstr_clear(&ctx->tok_kind_names);
+  list_cstr_clear(&ctx->peg_kind_names);
 }
 
 /****************/
@@ -854,8 +851,8 @@ static inline void find_kinds(codegen_ctx *ctx) {
   // Checking that the names of the kinds are
   // valid and unique is done in astvalid.h.
 
-  list_charptr *tks = &ctx->tok_kind_names;
-  list_charptr *pks = &ctx->peg_kind_names;
+  list_cstr *tks = &ctx->tok_kind_names;
+  list_cstr *pks = &ctx->peg_kind_names;
 
   // Add all token names to tok_kind_names
   ASTNode *tokast = ctx->tokast;
@@ -863,7 +860,7 @@ static inline void find_kinds(codegen_ctx *ctx) {
     for (size_t n = 0; n < tokast->num_children; n++) {
       ASTNode *rule = tokast->children[n];
       ASTNode *ruleident = rule->children[0];
-      list_charptr_add(tks, (char *)ruleident->extra);
+      list_cstr_add(tks, (char *)ruleident->extra);
     }
   }
 
@@ -875,7 +872,7 @@ static inline void find_kinds(codegen_ctx *ctx) {
       char *dir_name = (char *)node_dir->children[0]->extra;
       if (strcmp(node_dir->name, "Directive") || strcmp(dir_name, "node"))
         continue;
-      list_charptr_add(pks, (char *)node_dir->extra);
+      list_cstr_add(pks, (char *)node_dir->extra);
     }
   }
 
@@ -1413,7 +1410,7 @@ static inline void peg_visit_add_labels(codegen_ctx *ctx, ASTNode *expr,
 
     int append = 1;
     for (size_t i = 0; i < idlist->len; i++) {
-      if (!strcmp(idname, idlist->buf[i]) && !strcmp(idname, "rule")) {
+      if (!strcmp(idname, idlist->buf[i]) || !strcmp(idname, "rule")) {
         append = 0;
         break;
       }

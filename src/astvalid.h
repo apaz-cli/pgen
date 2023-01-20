@@ -117,7 +117,7 @@ static inline void resolvePrevNext(list_ASTNodePtr *defs) {
   }
 }
 
-static inline void validateVisitLabel(ASTNode *label, list_charptr *names) {
+static inline void validateVisitLabel(ASTNode *label, list_cstr *names) {
   char *lname = (char *)label->extra;
   if (!strcmp(lname, "rule") || !strcmp(lname, "ret"))
     ERROR("Labels cannot be named \"rule\" or \"ret\".");
@@ -128,7 +128,7 @@ static inline void validateVisitLabel(ASTNode *label, list_charptr *names) {
 }
 
 static inline void validatePegVisit(ASTNode *node, ASTNode *tokast,
-                                    list_charptr *names) {
+                                    list_cstr *names) {
   // Pull out all the upperidents from pegast and find them in the tokast.
   if (!strcmp(node->name, "UpperIdent")) {
     char *name = (char *)node->extra;
@@ -216,8 +216,8 @@ static inline void validateDirectives(Args args, list_ASTNodePtr *directives) {
 }
 
 static inline int is_left_recursive(list_ASTNodePtr *definitions,
-                                    list_charptr *defnames, ASTNode *rule,
-                                    char *name, list_charptr *trace) {
+                                    list_cstr *defnames, ASTNode *rule,
+                                    char *name, list_cstr *trace) {
   // Find the first-executed rule.
   // If it's not a LowerExpr, return 0.
   // If it is, recurse and check that rule, keeping track of the trace.
@@ -233,20 +233,20 @@ static inline int is_left_recursive(list_ASTNodePtr *definitions,
     } else if (!strcmp(rule->name, "BaseExpr")) {
       rule = rule->children[0];
     } else if (!strcmp(rule->name, "CodeExpr")) {
-      return list_charptr_clear(trace), 0;
+      return list_cstr_clear(trace), 0;
     } else if (!strcmp(rule->name, "UpperIdent")) {
-      return list_charptr_clear(trace), 0;
+      return list_cstr_clear(trace), 0;
     } else if (!strcmp(rule->name, "LowerIdent")) {
       break;
     } else
       ERROR("Unexpected astnode kind in left recursion check: %s", rule->name);
   }
-  list_charptr_add(trace, name);
+  list_cstr_add(trace, name);
   char *nextrulename = (char *)rule->extra;
 
   // Is directly left recursive (bad).
   if (!strcmp(nextrulename, name)) {
-    list_charptr_add(trace, nextrulename);
+    list_cstr_add(trace, nextrulename);
     return 2;
   }
 
@@ -254,7 +254,7 @@ static inline int is_left_recursive(list_ASTNodePtr *definitions,
   else {
     for (size_t i = 0; i < trace->len; i++) {
       if (!strcmp(nextrulename, trace->buf[i])) {
-        list_charptr_add(trace, nextrulename);
+        list_cstr_add(trace, nextrulename);
         return 1;
       }
     }
@@ -276,9 +276,9 @@ static inline int is_left_recursive(list_ASTNodePtr *definitions,
 }
 
 static inline void validateLeftRecursion(list_ASTNodePtr *definitions,
-                                         list_charptr *defnames) {
+                                         list_cstr *defnames) {
   for (size_t i = 0; i < definitions->len; i++) {
-    list_charptr trace = list_charptr_new();
+    list_cstr trace = list_cstr_new();
     int lr = is_left_recursive(definitions, defnames, definitions->buf[i],
                                defnames->buf[i], &trace);
     if (lr) {
@@ -292,7 +292,7 @@ static inline void validateLeftRecursion(list_ASTNodePtr *definitions,
 }
 
 static inline void validateDefinitions(list_ASTNodePtr *definitions,
-                                       list_charptr *defnames) {
+                                       list_cstr *defnames) {
   for (size_t i = 0; i < defnames->len; i++) {
     for (size_t j = i + 1; j < defnames->len; j++) {
       if (!strcmp(defnames->buf[i], defnames->buf[j])) {
@@ -310,7 +310,7 @@ static inline void validateRewritePegast(Args args, ASTNode *pegast,
   // Grab all the directives, and make sure their contents are reasonable.
   list_ASTNodePtr directives = list_ASTNodePtr_new();
   list_ASTNodePtr definitions = list_ASTNodePtr_new();
-  list_charptr defnames = list_charptr_new();
+  list_cstr defnames = list_cstr_new();
   for (size_t i = 0; i < pegast->num_children; i++) {
     ASTNode *node = pegast->children[i];
     if (!strcmp(node->name, "Directive")) {
@@ -319,7 +319,7 @@ static inline void validateRewritePegast(Args args, ASTNode *pegast,
     } else {
       list_ASTNodePtr_add(&definitions, node);
       if (!args.u)
-        list_charptr_add(&defnames, (char *)node->children[0]->extra);
+        list_cstr_add(&defnames, (char *)node->children[0]->extra);
     }
   }
 
@@ -334,7 +334,7 @@ static inline void validateRewritePegast(Args args, ASTNode *pegast,
   }
   list_ASTNodePtr_clear(&directives);
   list_ASTNodePtr_clear(&definitions);
-  list_charptr_clear(&defnames);
+  list_cstr_clear(&defnames);
 }
 
 #endif /* PGEN_ASTVALID_INCLUDE */
