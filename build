@@ -69,24 +69,28 @@ else
   cc src/pgen.c -o pgen -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable -fsanitize=address
   if [ ! "$?" -eq 0 ]; then exit 1; fi
 
-  # Generate pl0 example
-  ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h $@
-  if [ ! "$?" -eq 0 ]; then exit 1; fi
+  # Test
+  if [ "$1" = "test" ]; then
+    shift;
 
+    # Generate pl0 example
+    ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h $@
+    if [ ! "$?" -eq 0 ]; then exit 1; fi
 
-  # Build and run pl0 example
-  cd examples/
-  clang pl0.c -g -fsanitize=address
-  if [ ! "$?" -eq 0 ]; then exit 1; fi
+    # Build and run pl0 example
+    cd examples/
+    clang pl0.c -g -fsanitize=address
+    if [ ! "$?" -eq 0 ]; then exit 1; fi
 
-  ./a.out > ../.testast.json
-  if [ ! "$?" -eq 0 ]; then exit 1; fi
+    ./a.out > ../.testast.json
+    if [ ! "$?" -eq 0 ]; then exit 1; fi
 
-  cd ..
+    cd ..
 
-  DIFF="$(diff .refast.json .testast.json)"
-  if [ ! "$DIFF" = "" ]; then
-    echo "The test AST was different than expected.\nDiff:"
-    echo "$DIFF"
+    DIFF="$(diff .refast.json .testast.json)"
+    if [ ! "$DIFF" = "" ]; then
+      echo "The test AST was different than expected.\nDiff:"
+      echo "$DIFF"
+    fi
   fi
 fi
