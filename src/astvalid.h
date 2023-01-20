@@ -227,6 +227,11 @@ static inline int is_left_recursive(list_ASTNodePtr *definitions,
     } else if (!strcmp(rule->name, "SlashExpr")) {
       rule = rule->children[0];
     } else if (!strcmp(rule->name, "ModExprList")) {
+      if (!rule->num_children) {
+        list_cstr_clear(trace);
+        fprintf(stderr, "PGEN Warning: Empty rule %s.\n", name);
+        return 0;
+      }
       rule = rule->children[0];
     } else if (!strcmp(rule->name, "ModExpr")) {
       rule = rule->children[0];
