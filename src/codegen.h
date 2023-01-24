@@ -813,7 +813,7 @@ static inline void peg_write_parser_ctx_init(codegen_ctx *ctx) {
 
 static inline void peg_write_report_parse_error(codegen_ctx *ctx) {
 
-  cwrite("static void inline freemsg(const char* msg, void* extra) {\n"
+  cwrite("static inline void freemsg(const char* msg, void* extra) {\n"
          "  (void)extra;\n"
          "  free((void*)msg);\n"
          "}\n\n");

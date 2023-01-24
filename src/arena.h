@@ -162,8 +162,11 @@ static inline void pgen_allocator_print_freelist(pgen_allocator *allocator) {
 }
 #endif
 
-#define PGEN_ALLOC_OF(allocator, type)                                         \
+#define PGEN_ALLOC(allocator, type)                                         \
   (type *)pgen_alloc(allocator, sizeof(type), _Alignof(type))
+static void *_aa_last;
+#define PGEN_ALLOC_ASSIGN(allocator, type, value)                              \
+  (_aa_last = PGEN_ALLOC(allocator, type), (*(type *)_aa_last = value), *(type *)_aa_last)
 static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
                                size_t alignment) {
 #if PGEN_ALLOCATOR_DEBUG

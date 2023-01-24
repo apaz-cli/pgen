@@ -85,7 +85,7 @@ expression <- {rule=list(EXPRS)}
 term       <- {rule=list(EXPRS)}
               f:factor {add(rule, f)}
               (sd:(STAR / DIV) f:factor|"Expected a factor"
-               {add(rule, node(TERM, sd, f))})*
+              {add(rule, node(TERM, sd, f))})*
 
 factor     <- i:IDENT /
               n:NUM /

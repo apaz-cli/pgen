@@ -119,8 +119,8 @@ static inline void resolvePrevNext(list_ASTNodePtr *defs) {
 
 static inline void validateVisitLabel(ASTNode *label, list_cstr *names) {
   char *lname = (char *)label->extra;
-  if (!strcmp(lname, "rule") || !strcmp(lname, "ret"))
-    ERROR("Labels cannot be named \"rule\" or \"ret\".");
+  if (!strcmp(lname, "ret"))
+    ERROR("Labels cannot be named \"ret\".");
   for (size_t i = 0; i < names->len; i++) {
     if (!strcmp(lname, names->buf[i]))
       ERROR("Cannot use %s as both a rule and a label.", lname);
@@ -192,8 +192,7 @@ static inline void validateDirectives(Args args, list_ASTNodePtr *directives) {
       for (size_t i = 0; i < strlen(dir_content); i++) {
         char c = dir_content[i];
         if (((c < 'A') | (c > 'Z')) & (c != '_') & ((c < '0') | (c > '9'))) {
-          ERROR("Node kind %s would not create a valid (uppercase) "
-                "identifier.",
+          ERROR("Node kind %s would not create a valid (uppercase) identifier.",
                 dir_content);
         }
       }
