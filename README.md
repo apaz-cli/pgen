@@ -37,7 +37,7 @@ write for `packcc` is that normal peg grammars operate on individual
 characters of the input. For `pgen`, you define both a tokenizer and a
 parser. The tokenizer recognizes and groups together sequences of characters
 into tokens. It uses the [maximal munch](https://en.wikipedia.org/wiki/Maximal_munch)
-heuristic and throws an error if there are ambiguities. Then the parser
+heuristic and selects the first rule if there are ambiguities. Then the parser
 strings together the token stream coming from the tokenizer into an
 [abstract syntax tree](https://en.wikipedia.org/wiki/Abstract_syntax_tree).
 
@@ -92,7 +92,7 @@ For an example tokenizer, see `examples/pl0.tok`.
 // () - Matches if all expressions inside match. Returns SUCC or the single match within if there's only one.
 // {} - Code to insert into the parser. Assign to `ret` for the return value of this expression, or `rule` for the rule.
 // :  - Capture the info from a match inside a variable in the current rule.
-# |  - Register an error using the string or expression on the right, and exit parsing.
+// |  - Register an error using the string or expression on the right, and exit parsing.
 
 // Directives:
 // %oom         - Define the action that should be taken when out of memory
