@@ -34,8 +34,7 @@ static inline char UTF8_nextByte(UTF8Decoder *state) {
   char c;
   if (state->idx >= state->len)
     return UTF8_END;
-  c = (state->inp[state->idx] & 0xFF);
-  state->idx += 1;
+  c = state->inp[state->idx++];
   return c;
 }
 

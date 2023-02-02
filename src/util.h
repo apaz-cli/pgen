@@ -208,7 +208,7 @@ codepoint_atoull_nosigns(const codepoint_t *a, size_t len, size_t *read) {
     parsed *= 10;
 
     // Error if adding would overflow
-    unsigned long long toadd = (c - 48);
+    unsigned long long toadd = ((unsigned long long)c - 48ull);
     if (toadd > ULLONG_MAX - parsed) {
       *read = SIZE_MAX;
       return 0;
@@ -227,8 +227,8 @@ codepoint_atoull_nosigns(const codepoint_t *a, size_t len, size_t *read) {
 // Note that 0 is a potential success value, so check *read.
 static inline int codepoint_atoi(const codepoint_t *a, size_t len,
                                  size_t *read) {
-  int neg = a[0] == '-';
-  int sign_parsed = (neg | (a[0] == '+'));
+  size_t neg = a[0] == '-';
+  size_t sign_parsed = (neg | (a[0] == '+'));
   a += sign_parsed;
   len -= sign_parsed;
 

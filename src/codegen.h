@@ -1674,7 +1674,7 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     int has_label = expr->num_children >= 2 &&
                     !strcmp(expr->children[1]->name, "LowerIdent");
     ASTNode *label = has_label ? expr->children[1] : NULL;
-    int has_errhandler = (expr->num_children - has_label) == 2;
+    int has_errhandler = (expr->num_children - (size_t)has_label) == 2;
     ASTNode *errhandler =
         has_errhandler ? expr->children[has_label ? 2 : 1] : NULL;
 

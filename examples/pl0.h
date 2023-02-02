@@ -34,8 +34,7 @@ static inline char UTF8_nextByte(UTF8Decoder *state) {
   char c;
   if (state->idx >= state->len)
     return UTF8_END;
-  c = (state->inp[state->idx] & 0xFF);
-  state->idx += 1;
+  c = state->inp[state->idx++];
   return c;
 }
 
@@ -419,7 +418,7 @@ static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
   }
 
   ret = allocator->arenas[allocator->rew.arena_idx].buf + bufcurrent;
-  allocator->rew.filled = bufnext;
+  allocator->rew.filled = (uint32_t)bufnext;
 
 #if PGEN_ALLOCATOR_DEBUG
   printf("New allocator state: {.arena_idx=%u, .filled=%u, .freelist_len=%u}"
@@ -498,7 +497,7 @@ static inline void pgen_defer(pgen_allocator *allocator, void (*freefn)(void *),
   entry.ptr = ptr;
   entry.rew = rew;
   allocator->freelist.entries[allocator->freelist.len] = entry;
-  allocator->freelist.len = next_len;
+  allocator->freelist.len = (uint32_t)next_len;
 
 #if PGEN_ALLOCATOR_DEBUG
   puts("Deferred.");
@@ -535,7 +534,7 @@ static inline void pgen_allocator_rewind(pgen_allocator *allocator,
     entry.freefn(entry.ptr);
   }
   if (freed_any)
-    allocator->freelist.len = i;
+    allocator->freelist.len = (uint32_t)i;
   allocator->rew = rew;
 
 #if PGEN_ALLOCATOR_DEBUG
@@ -1258,7 +1257,7 @@ static inline void pl0_parser_ctx_init(pl0_parser_ctx* parser,
   size_t to_zero = sizeof(pl0_parse_err) * PL0_MAX_PARSER_ERRORS;
   memset(&parser->errlist, 0, to_zero);
 }
-static void inline freemsg(const char* msg, void* extra) {
+static inline void freemsg(const char* msg, void* extra) {
   (void)extra;
   free((void*)msg);
 }

@@ -220,7 +220,7 @@ static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
   }
 
   ret = allocator->arenas[allocator->rew.arena_idx].buf + bufcurrent;
-  allocator->rew.filled = bufnext;
+  allocator->rew.filled = (uint32_t)bufnext;
 
 #if PGEN_ALLOCATOR_DEBUG
   printf("New allocator state: {.arena_idx=%u, .filled=%u, .freelist_len=%u}"
@@ -299,7 +299,7 @@ static inline void pgen_defer(pgen_allocator *allocator, void (*freefn)(void *),
   entry.ptr = ptr;
   entry.rew = rew;
   allocator->freelist.entries[allocator->freelist.len] = entry;
-  allocator->freelist.len = next_len;
+  allocator->freelist.len = (uint32_t)next_len;
 
 #if PGEN_ALLOCATOR_DEBUG
   puts("Deferred.");
@@ -336,7 +336,7 @@ static inline void pgen_allocator_rewind(pgen_allocator *allocator,
     entry.freefn(entry.ptr);
   }
   if (freed_any)
-    allocator->freelist.len = i;
+    allocator->freelist.len = (uint32_t)i;
   allocator->rew = rew;
 
 #if PGEN_ALLOCATOR_DEBUG

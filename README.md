@@ -259,6 +259,7 @@ free(input_str);                    // The file as UTF8
 * Debug messages for parsing failures
 * Token/Node print functions
 * Segregate out lang-specific generated code from lang-independent
+* Permanent memory allocator and option to leak
 
 ## License
 
