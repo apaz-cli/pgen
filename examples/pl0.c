@@ -16,15 +16,15 @@ static inline void readFile(char *filePath, char **str, size_t *len) {
     fprintf(stderr, "Error: Could not check file length.\n"), exit(1);
   if (fseek(inputFile, 0, SEEK_SET) == -1)
     fprintf(stderr, "Error: Could not rewind the file.\n"), exit(1);
-  if (!(filestr = (char *)malloc(inputFileLen + 1)))
+  if (!(filestr = (char *)malloc((size_t)inputFileLen + 1)))
     fprintf(stderr, "Error: Could not allocate memory.\n"), exit(1);
-  if (!fread(filestr, 1, inputFileLen, inputFile))
+  if (!fread(filestr, 1, (size_t)inputFileLen, inputFile))
     fprintf(stderr, "Error: Could not read from the file.\n"), exit(1);
   filestr[inputFileLen] = '\0';
   fclose(inputFile);
 
   *str = filestr;
-  *len = inputFileLen;
+  *len = (size_t)inputFileLen;
 }
 
 static inline void printtok(pl0_tokenizer tokenizer, pl0_token tok) {

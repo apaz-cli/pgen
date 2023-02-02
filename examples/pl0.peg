@@ -1,6 +1,9 @@
 %oom (fprintf(stderr, "OUT OF MEMORY!\n"), exit(1))
 %define recover(kind) (ERROR("Missing token: " #kind), ret = leaf(kind))
 
+// Implements the example parser from
+// https://en.wikipedia.org/wiki/Recursive_descent_parser#Example_parser
+
 %node PROGRAM
 program    <- {rule=list(PROGRAM)}
               (b:block {add(rule, b)})*
@@ -20,7 +23,7 @@ vdef       <- VAR {rule=list(VARLIST)}
               (COMMA
                i:IDENT|"Expected an identifier"
                e:EQ|"Expected an equal sign"
-               n:NUM|"Expected an number" {add(rule, node(CONST, i, n))})*
+               n:NUM|"Expected a number" {add(rule, node(CONST, i, n))})*
               SEMI|{recover(SEMI)}
 
 %node PROCLIST
@@ -35,7 +38,7 @@ block      <- v:vdef {rule=v}
               SEMI|{recover(SEMI)}
 
 %node STATEMENT
-statement  <- id:IDENT ceq:CEQ e:expression
+statement  <- id:IDENT CEQ e:expression
               {rule=node(CEQ, id, e)}
               /
               CALL id:IDENT|"Expected an identifier"

@@ -615,9 +615,9 @@ static inline void peg_write_footer(codegen_ctx *ctx) {
 }
 
 static const char *known_directives[] = {
-    "oom",        "node",    "include",  "preinclude", "postinclude",
-    "code",       "precode", "postcode", "define",     "predefine",
-    "postdefine", "extra",   "extrainit"};
+    "oom",        "node",    "include",   "preinclude", "postinclude",
+    "code",       "precode", "postcode",  "define",     "predefine",
+    "postdefine", "extra",   "extrainit", "context",    "contextinit"};
 static const size_t num_known_directives =
     sizeof(known_directives) / sizeof(const char *);
 
@@ -787,6 +787,14 @@ static inline void peg_write_parser_ctx(codegen_ctx *ctx) {
   cwrite("  size_t pos;\n");
   cwrite("  int exit;\n");
   cwrite("  pgen_allocator *alloc;\n");
+  ASTNode *pegast = ctx->pegast;
+  for (size_t n = 0; n < pegast->num_children; n++) {
+    ASTNode *context_dir = pegast->children[n];
+    char *dir_name = (char *)context_dir->children[0]->extra;
+    if (strcmp(context_dir->name, "Directive") || strcmp(dir_name, "context"))
+      continue;
+    cwrite("  %s\n", (char *)context_dir->extra);
+  }
   cwrite("  size_t num_errors;\n");
   cwrite("  %s_parse_err errlist[%s_MAX_PARSER_ERRORS];\n", ctx->lower,
          ctx->upper);
@@ -804,6 +812,15 @@ static inline void peg_write_parser_ctx_init(codegen_ctx *ctx) {
   cwrite("  parser->pos = 0;\n");
   cwrite("  parser->exit = 0;\n");
   cwrite("  parser->alloc = allocator;\n");
+  ASTNode *pegast = ctx->pegast;
+  for (size_t n = 0; n < pegast->num_children; n++) {
+    ASTNode *context_dir = pegast->children[n];
+    char *dir_name = (char *)context_dir->children[0]->extra;
+    if (strcmp(context_dir->name, "Directive") ||
+        strcmp(dir_name, "contextinit"))
+      continue;
+    cwrite("  %s\n", (char *)context_dir->extra);
+  }
   cwrite("  parser->num_errors = 0;\n");
   cwrite("  size_t to_zero = sizeof(%s_parse_err) * %s_MAX_PARSER_ERRORS;\n",
          ctx->lower, ctx->upper);
@@ -1039,7 +1056,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   cwrite("  }\n\n");
   cwrite("  node->kind = kind;\n");
   cwrite("  node->parent = NULL;\n");
-  cwrite("  node->max_children = initial_size;\n");
+  cwrite("  node->max_children = (uint16_t)initial_size;\n");
   cwrite("  node->num_children = 0;\n");
   cwrite("  node->children = children;\n");
   cwrite("  node->tok_repr = NULL;\n");
@@ -1294,7 +1311,7 @@ static inline void peg_write_astnode_add(codegen_ctx *ctx) {
   if (!ctx->args.u)
     cwrite("    if (!new_ptr) PGEN_OOM();\n");
   cwrite("    list->children = (%s_astnode_t **)new_ptr;\n", ctx->lower);
-  cwrite("    list->max_children = new_max;\n");
+  cwrite("    list->max_children = (uint16_t)new_max;\n");
   cwrite("    pgen_allocator_realloced(alloc, old_ptr, new_ptr, free);\n");
   cwrite("  }\n");
   cwrite("  node->parent = list;\n");

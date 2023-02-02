@@ -249,10 +249,8 @@ free(input_str);                    // The file as UTF8
 ## TODO
 * Context position and allocator rewind independently
 * Design an algorithm for merging state machines
-* Provide a warning about left recursion
 * Implement support in the syntax for error handling
 * Multiple `%node` declarations in one
-* `%context` and `%contextinit`
 * Make sure that every SM transition is reachable
 * Add regex rules in `.tok` files
 * Add a flag to warn on token/astnode kinds not used in the parser
