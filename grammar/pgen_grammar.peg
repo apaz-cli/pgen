@@ -24,7 +24,9 @@
 ##########
 
 # Rules
-GrammarFile    <- (_ (Directive / Definition))* _ EOF
+GrammarFile    <- (_ (TokenDef / Directive / Definition))* _ EOF
+
+_ <- ([ \t\r\n\v]+ / "/*" (!"*/" .)* "*/" / "//" [^\n]*)*
 
 Directive      <- '%' _ LowerIdent [^\n]*[\n]
 
@@ -50,11 +52,26 @@ BaseExpr       <- ('prev' / 'next')
                 / CodeExpr
                 / '(' _ SlashExpr _ ')'
 
-
 CodeExpr       <- '{' _ (&'{' CodeExpr / !'}' .)* _ '}'
 
 
-# Misc
+TokenDef <- ident _ ':' _ (LitDef / SMDef) _ (';' / [\n])
+
+LitDef <- '"' (!'"' char)* '"'
+
+SMDef <- numset _ '{' ( _ pair _ '->' _ num ' '* (';' / [\n]))+ _'}'
+
+numset <- num /
+          '(' _ num _ "-" _ num _ ')' /
+          '(' _ numset _ ("," _ numset _)* ')'
+charset <- "'" char "'" /
+           '[' '^'? (!']' char ('-' !']' char)?)* ']'
+pair <- '(' _ numset _ ',' _ charset _ ')'
+
+
 UpperIdent     <- [_A-Z]+
 LowerIdent     <- [_a-z]+
 ErrorString    <- '"' (!'"' .)* '"'
+num <- '-'?[0-9]+ # Convertable to int
+ident <- [_A-Z]+
+char <- '\\'? .
