@@ -18,8 +18,7 @@
     fprintf(stderr, "Error: ");                                                \
     fprintf(stderr, __VA_ARGS__);                                              \
     fprintf(stderr, "\n");                                                     \
-    fflush(stderr);                                                            \
-    _exit(1);                                                                  \
+    exit(1);                                                                   \
   } while (0)
 
 /********/
