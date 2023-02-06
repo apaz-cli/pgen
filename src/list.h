@@ -10,17 +10,16 @@
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) < (b) ? (b) : (a))
-#define OOM()                                                                  \
-  do {                                                                         \
-    fprintf(stderr, "pgen has run out of memory.\n");                          \
-    exit(1);                                                                   \
-  } while (0)
+#define OOM() ERROR("Out of memory.")
+
 #define ERROR(...)                                                             \
   do {                                                                         \
+    fflush(stdout);                                                            \
     fprintf(stderr, "Error: ");                                                \
     fprintf(stderr, __VA_ARGS__);                                              \
     fprintf(stderr, "\n");                                                     \
-    exit(1);                                                                   \
+    fflush(stderr);                                                            \
+    _exit(1);                                                                  \
   } while (0)
 
 /********/

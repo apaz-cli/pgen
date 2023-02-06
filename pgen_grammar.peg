@@ -55,23 +55,22 @@ BaseExpr       <- ('prev' / 'next')
 CodeExpr       <- '{' _ (&'{' CodeExpr / !'}' .)* _ '}'
 
 
-TokenDef <- ident _ ':' _ (LitDef / SMDef) _ (';' / [\n])
+TokenDef <- UpperIdent _ ':' _ (LitDef / SMDef) _ (';' / [\n])
 
-LitDef <- '"' (!'"' char)* '"'
+LitDef <- '"' (!'"' Char)* '"'
 
-SMDef <- numset _ '{' ( _ pair _ '->' _ num ' '* (';' / [\n]))+ _'}'
+SMDef <- NumSet _ '{' ( _ Pair _ '->' _ Num ' '* (';' / [\n]))+ _'}'
 
-numset <- num /
-          '(' _ num _ "-" _ num _ ')' /
-          '(' _ numset _ ("," _ numset _)* ')'
-charset <- "'" char "'" /
-           '[' '^'? (!']' char ('-' !']' char)?)* ']'
-pair <- '(' _ numset _ ',' _ charset _ ')'
+NumSet <- Num /
+          '(' _ Num _ "-" _ Num _ ')' /
+          '(' _ NumSet _ ("," _ NumSet _)* ')'
+CharSet <- "'" Char "'" /
+           '[' '^'? (!']' Char ('-' !']' Char)?)* ']'
+Pair <- '(' _ NumSet _ ',' _ CharSet _ ')'
 
 
 UpperIdent     <- [_A-Z]+
 LowerIdent     <- [_a-z]+
 ErrorString    <- '"' (!'"' .)* '"'
-num <- '-'?[0-9]+ # Convertable to int
-ident <- [_A-Z]+
-char <- '\\'? .
+Num <- '-'?[0-9]+ # Convertable to int
+Char <- '\\'? .

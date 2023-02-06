@@ -5,15 +5,14 @@
 #include "codegen.h"
 #include "util.h"
 
-static inline void validateTokast(Args args, ASTNode *tokast) {
-  (void)args;
+static inline void validateTokdefs(list_ASTNodePtr tokdefs) {
 
   // TODO error if two tokenizer rules contain the same content
 
   // Cross compare for duplicate rules.
   // Also make sure that there's no token named STREAMBEGIN or STREAMEND.
-  for (size_t n = 0; n < tokast->num_children; n++) {
-    ASTNode *rule1 = tokast->children[n];
+  for (size_t n = 0; n < tokdefs.len; n++) {
+    ASTNode *rule1 = tokdefs.buf[n];
     ASTNode *def1 = rule1->children[1];
     codepoint_t *cpstr1 = (codepoint_t *)def1->extra;
     char *identstr1 = (char *)rule1->children[0]->extra;
@@ -33,11 +32,11 @@ static inline void validateTokast(Args args, ASTNode *tokast) {
     if (strcmp(def1->name, "LitDef"))
       continue;
 
-    for (size_t j = 0; j < tokast->num_children; j++) {
+    for (size_t j = 0; j < tokdefs.len; j++) {
       if (j == n)
         continue;
 
-      ASTNode *rule2 = tokast->children[j];
+      ASTNode *rule2 = tokdefs.buf[j];
       ASTNode *def2 = rule2->children[1];
       codepoint_t *cpstr2 = (codepoint_t *)def2->extra;
       char *identstr2 = (char *)rule2->children[0]->extra;
@@ -67,56 +66,6 @@ static inline void validateTokast(Args args, ASTNode *tokast) {
   }
 }
 
-static inline void resolveReplace(ASTNode *node, char *prev_name,
-                                  char *next_name) {
-
-  // Replace prev or next with the appropriate
-  if (!strcmp(node->name, "LowerIdent")) {
-    char *id = (char *)node->extra;
-    int prev = !strcmp(id, "prev");
-    int next = !strcmp(id, "next");
-    if (prev | next) {
-      char *buf;
-      char *replace = prev ? prev_name : next_name;
-      if (!replace) {
-        ERROR("Cannot replace %s when there is no %s rule.", id,
-              prev ? "previous" : "next");
-      }
-      size_t cpylen = strlen(replace);
-      node->extra = buf = (char *)realloc(node->extra, cpylen + 1);
-      if (!node->extra)
-        OOM();
-      for (size_t i = 0; i < cpylen; i++)
-        buf[i] = replace[i];
-      buf[cpylen] = '\0';
-    }
-  }
-
-  if (!strcmp(node->name, "ModExpr")) {
-    resolveReplace(node->children[0], prev_name, next_name);
-  } else {
-    for (size_t i = 0; i < node->num_children; i++)
-      resolveReplace(node->children[i], prev_name, next_name);
-  }
-}
-
-// Also pulls out all the names of the rules.
-static inline void resolvePrevNext(list_ASTNodePtr *defs) {
-  // Resolve prev and next by replacing content of LowerIdents.
-  char *prev_name = NULL, *next_name = NULL;
-  for (size_t i = 0; i < defs->len; i++) {
-    int f = !!i;
-    int l = (i != defs->len - 1);
-    prev_name = i ? (char *)defs->buf[i - 1]->children[0]->extra : NULL;
-    next_name = l ? (char *)defs->buf[i + 1]->children[0]->extra : NULL;
-    ASTNode *def = defs->buf[i];
-    char *rulename = (char *)def->children[0]->extra;
-    if ((!strcmp(rulename, "prev")) | (!strcmp(rulename, "next")))
-      ERROR("No rule can be named \"prev\" or \"next\".");
-    resolveReplace(def->children[1], prev_name, next_name);
-  }
-}
-
 static inline void validateVisitLabel(ASTNode *label, list_cstr *names) {
   char *lname = (char *)label->extra;
   if (!strcmp(lname, "ret"))
@@ -127,14 +76,14 @@ static inline void validateVisitLabel(ASTNode *label, list_cstr *names) {
   }
 }
 
-static inline void validatePegVisit(ASTNode *node, ASTNode *tokast,
+static inline void validatePegVisit(ASTNode *node, list_ASTNodePtr* tokdefs,
                                     list_cstr *names) {
   // Pull out all the upperidents from pegast and find them in the tokast.
   if (!strcmp(node->name, "UpperIdent")) {
     char *name = (char *)node->extra;
     int tokfound = 0;
-    for (size_t i = 0; i < tokast->num_children; i++) {
-      char *tokname = (char *)tokast->children[i]->children[0]->extra;
+    for (size_t i = 0; i < tokdefs->len; i++) {
+      char *tokname = (char *)tokdefs->buf[i]->children[0]->extra;
       if (!strcmp(name, tokname)) {
         tokfound = 1;
         break;
@@ -163,7 +112,7 @@ static inline void validatePegVisit(ASTNode *node, ASTNode *tokast,
   for (size_t i = 0; i < node->num_children; i++) {
     if (!strcmp(node->name, "Directive")) {
     } else if (!strcmp(node->name, "ModExpr")) {
-      validatePegVisit(node->children[0], tokast, names);
+      validatePegVisit(node->children[0], tokdefs, names);
       // Also recurse to error handler
       if (node->num_children > 1)
         for (size_t z = 1; z < node->num_children; z++) {
@@ -174,7 +123,7 @@ static inline void validatePegVisit(ASTNode *node, ASTNode *tokast,
         }
     } else {
       for (size_t i = 0; i < node->num_children; i++)
-        validatePegVisit(node->children[i], tokast, names);
+        validatePegVisit(node->children[i], tokdefs, names);
     }
   }
 }
@@ -295,49 +244,32 @@ static inline void validateLeftRecursion(list_ASTNodePtr *definitions,
   }
 }
 
-static inline void validateDefinitions(list_ASTNodePtr *definitions,
-                                       list_cstr *defnames) {
-  for (size_t i = 0; i < defnames->len; i++) {
-    for (size_t j = i + 1; j < defnames->len; j++) {
-      if (!strcmp(defnames->buf[i], defnames->buf[j])) {
-        ERROR("More than one rule is named %s.", defnames->buf[i]);
-      }
-    }
-  }
+static inline void validateDefinitions(list_cstr defnames) {
+  for (size_t i = 0; i < defnames.len; i++)
+    for (size_t j = i + 1; j < defnames.len; j++)
+      if (!strcmp(defnames.buf[i], defnames.buf[j]))
+        ERROR("More than one rule is named %s.", defnames.buf[i]);
 }
 
-static inline void validateRewritePegast(Args args, ASTNode *pegast,
-                                         ASTNode *tokast) {
-  if (!pegast)
+static inline void validateSymtabs(Args args, Symtabs symtabs) {
+
+  if (args.u)
     return;
 
-  // Grab all the directives, and make sure their contents are reasonable.
-  list_ASTNodePtr directives = list_ASTNodePtr_new();
-  list_ASTNodePtr definitions = list_ASTNodePtr_new();
   list_cstr defnames = list_cstr_new();
-  for (size_t i = 0; i < pegast->num_children; i++) {
-    ASTNode *node = pegast->children[i];
-    if (!strcmp(node->name, "Directive")) {
-      if (!args.u)
-        list_ASTNodePtr_add(&directives, node);
-    } else {
-      list_ASTNodePtr_add(&definitions, node);
-      if (!args.u)
-        list_cstr_add(&defnames, (char *)node->children[0]->extra);
-    }
+  for (size_t i = 0; i < symtabs.definitions.len; i++) {
+    cstr defname = (char *)symtabs.definitions.buf[i]->children[0]->extra;
+    list_cstr_add(&defnames, defname);
   }
 
-  // replace prev, next
-  resolvePrevNext(&definitions);
+  validateTokdefs(symtabs.tokendefs);
+  validateDefinitions(defnames);
+  validateDirectives(args, &symtabs.directives);
+  for (size_t i = 0; i < symtabs.tokendefs.len; i++)
+    validatePegVisit(symtabs.tokendefs.buf[i], &symtabs.tokendefs, &defnames);
 
-  if (!args.u) {
-    validateDefinitions(&definitions, &defnames);
-    validatePegVisit(pegast, tokast, &defnames);
-    validateDirectives(args, &directives);
-    validateLeftRecursion(&definitions, &defnames);
-  }
-  list_ASTNodePtr_clear(&directives);
-  list_ASTNodePtr_clear(&definitions);
+  validateLeftRecursion(&symtabs.definitions, &defnames);
+
   list_cstr_clear(&defnames);
 }
 

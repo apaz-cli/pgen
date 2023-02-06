@@ -3,6 +3,16 @@
 %code static char array[ARRSIZE];
 %code static char *ptr;
 
+PLUS: "+";
+MINUS: "-";
+RS: ">";
+LS: "<";
+LBRACK: "[";
+RBRACK: "]";
+PUTC: ".";
+GETC: ",";
+COMMENT: 1 { (0, [^+-\[\]><.,]) -> 1; };
+
 runprogam <- {memset(array, 0, ARRSIZE), ptr = array}
              char*
 

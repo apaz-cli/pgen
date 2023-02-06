@@ -62,34 +62,27 @@ static inline String_View readFile(char *filePath) {
   oom.str = NULL;
   oom.len = 1;
 
-  /* Ask for the length of the file */
-  struct stat st;
-  if (stat(filePath, &st) == -1)
+  long inputFileLen;
+  FILE *inputFile;
+  char *filestr;
+
+  if (!(inputFile = fopen(filePath, "r")))
     return err;
-  size_t fsize = (size_t)st.st_size;
-
-  /* Open the file */
-  int fd = open(filePath, O_RDONLY);
-  if (fd == -1)
+  if (fseek(inputFile, 0, SEEK_END) == -1)
     return err;
-
-  /* Allocate exactly enough memory. */
-  char *buffer = (char *)malloc(fsize + 1);
-  if (!buffer)
-    return close(fd), oom;
-
-  /* Read the file into a buffer and close it. */
-  ssize_t bytes_read = read(fd, buffer, fsize);
-  int close_err = close(fd);
-  if ((bytes_read != (ssize_t)fsize) | close_err)
-    return free(buffer), err;
-
-  /* Write null terminator */
-  buffer[fsize] = '\0';
+  if ((inputFileLen = ftell(inputFile)) == -1)
+    return err;
+  if (fseek(inputFile, 0, SEEK_SET) == -1)
+    return err;
+  if (!(filestr = (char *)malloc((size_t)inputFileLen)))
+    return oom;
+  if (!fread(filestr, 1, (size_t)inputFileLen, inputFile))
+    return err;
+  fclose(inputFile);
 
   String_View ret;
-  ret.str = buffer;
-  ret.len = fsize;
+  ret.str = filestr;
+  ret.len = (size_t)inputFileLen;
   return ret;
 }
 
@@ -108,11 +101,12 @@ static inline bool cpstr_equals(codepoint_t *str1, codepoint_t *str2) {
   return *str1 == *str2;
 }
 
-static inline void printStringView(FILE* f, String_View sv) {
+static inline void printStringView(FILE *f, String_View sv) {
   fwrite(sv.str, sv.len, 1, f);
 }
 
-static inline void printCodepointStringView(FILE* f, Codepoint_String_View cpsv) {
+static inline void printCodepointStringView(FILE *f,
+                                            Codepoint_String_View cpsv) {
   String_View sv = UTF8_encode_view(cpsv);
   printStringView(f, sv);
   free(sv.str);

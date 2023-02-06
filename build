@@ -74,7 +74,7 @@ else
     shift;
 
     # Generate pl0 example
-    ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h $@
+    ./pgen examples/pl0.peg -o examples/pl0.h $@
     if [ ! "$?" -eq 0 ]; then exit 1; fi
 
     # Build and run pl0 example

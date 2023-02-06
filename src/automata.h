@@ -269,7 +269,7 @@ static inline int trieTransition_compare(const void *trans1,
   return 0;
 }
 
-static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
+static inline TrieAutomaton createTrieAutomaton(list_ASTNodePtr tokdefs) {
 
   // Build the trie automaton.
   if (AUT_DEBUG)
@@ -280,9 +280,9 @@ static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
   trie.accepting = list_State_new();
   // For each token literal in the AST, add it as a path to the trie.
   int state_num = 1; // 0 is the trie root.
-  for (size_t n = 0; n < tokast->num_children; n++) {
+  for (size_t n = 0; n < tokdefs.len; n++) {
 
-    ASTNode *rule = tokast->children[n];
+    ASTNode *rule = tokdefs.buf[n];
     ASTNode *ident = rule->children[0];
     ASTNode *def = rule->children[1];
     char *identstr = (char *)ident->extra;
@@ -371,16 +371,16 @@ static inline TrieAutomaton createTrieAutomaton(ASTNode *tokast) {
   return trie;
 }
 
-static inline list_SMAutomaton createSMAutomata(ASTNode *tokast) {
+static inline list_SMAutomaton createSMAutomata(list_ASTNodePtr tokdefs) {
   list_SMAutomaton auts = list_SMAutomaton_new();
 
   // Now, build SFAs for the state machine definitions.
-  for (size_t n = 0; n < tokast->num_children; n++) {
+  for (size_t n = 0; n < tokdefs.len; n++) {
     SMAutomaton aut;
     aut.accepting = list_StateRange_new();
     aut.trans = list_SMTransition_new();
 
-    ASTNode *r = tokast->children[n];
+    ASTNode *r = tokdefs.buf[n];
     ASTNode *ident = r->children[0];
     ASTNode *def = r->children[1];
     char *identstr = (char *)ident->extra;

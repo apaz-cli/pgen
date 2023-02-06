@@ -106,7 +106,7 @@ static inline void print_unconsumed(parser_ctx *ctx) {
   Codepoint_String_View cpsv;
   cpsv.str = ctx->str + ctx->pos;
   cpsv.len = ctx->len - ctx->pos;
-  printCodepointStringView(cpsv);
+  printCodepointStringView(stdout, cpsv);
 #endif
 }
 
@@ -188,56 +188,10 @@ static inline void parse_ws(parser_ctx *ctx) {
   RULE_SUCCESS();
 }
 
-// returns 0 on EOF.
-static inline codepoint_t parse_Char(parser_ctx *ctx) {
-
-  // Escape sequences
-  if (IS_CURRENT("\\")) {
-    NEXT();
-    if (!HAS_CURRENT())
-      return 0;
-    codepoint_t ret = CURRENT();
-    NEXT();
-    if (ret == 'n') // newline
-      return '\n';
-    else if (ret == 'r') // carriage return
-      return '\r';
-    else if (ret == 't') // tab
-      return '\t';
-    else if (ret == '\\') // backslash
-      return '\\';
-    else if (ret == '\'') // single quote
-      return '\'';
-    else if (ret == '\"') // double quote
-      return '\"';
-    else if (ret == 'b') // backspace
-      return '\b';
-    else if (ret == 'v') // vertical tab
-      return '\v';
-    else if (ret == 'a') // alert
-      return '\a';
-    else if (ret == 'f') // form feed
-      return '\f';
-    else if (ret == '?') // question mark
-      return '\?';
-    else
-      return ret;
-  }
-
-  // Normal character
-  else if (HAS_CURRENT()) {
-    codepoint_t ret = CURRENT();
-    NEXT();
-    return ret;
-  }
-
-  // EOF
-  return 0;
-}
-
 // Sets *err = 1 when fails to parse a string, *err = 0 when a string is parsed.
 // Doesn't modify parser state on failure.
-static inline list_codepoint_t parse_string(parser_ctx *ctx, int *err) {
+static inline codepoint_t peg_parse_Char(parser_ctx *ctx);
+static inline list_codepoint_t parse_codepoint_string(parser_ctx *ctx, int *err) {
 
   list_codepoint_t cps = list_codepoint_t_new();
 
@@ -252,7 +206,7 @@ static inline list_codepoint_t parse_string(parser_ctx *ctx, int *err) {
   // Read the contents
   while (HAS_CURRENT() && !IS_CURRENT("\"")) {
 
-    codepoint_t c = parse_Char(ctx);
+    codepoint_t c = peg_parse_Char(ctx);
     if (!c) {
       list_codepoint_t_clear(&cps);
       REWIND(begin);

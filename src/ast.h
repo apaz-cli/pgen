@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "list.h"
+
 /**********************/
 /* AST Implementation */
 /**********************/
@@ -19,6 +21,10 @@ struct ASTNode {
   size_t num_children;
   void *extra;
 };
+
+typedef ASTNode *ASTNodePtr;
+LIST_DECLARE(ASTNodePtr)
+LIST_DEFINE(ASTNodePtr)
 
 #define PGENAST_OOM()                                                           \
   do {                                                                         \
