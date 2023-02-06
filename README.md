@@ -13,13 +13,14 @@ by [Bryan Ford](https://scholar.google.com/citations?hl=en&user=TwyzQP4AAAAJ).
 This specific parser is inspired by [packcc](https://github.com/arithy/packcc)
 by [Arihiro Yoshida](https://github.com/arithy).
 You may see many commonalities. The main difference is that while `packcc`
-does away with the lexer (tokenizer), `pgen` re-introduces it.
+parses at the source level, `pgen` introduces a tokenizer and parses the
+token stream instead.
 
-The job of a parser is to turn a token stream into an abstract syntax tree.
-However, that's not what most parser-generators provide. Instead, what
-they provide is a way to recognize the patterns provided in a grammar.
-The user of the parser-generator is then instructed to build their own
-damn AST if they want one so bad.
+The job of a parser is to turn a source file or token stream into an
+abstract syntax tree. However, that's not what most parser-generators
+provide. Instead, what they provide is a way to recognize the patterns
+provided in a grammar. The user of the parser-generator is then instructed
+to build their own damn AST if they want one so bad.
 
 Originally, I thought that this would be an easy feature to add.
 Shouldn't you be able to build an abstract syntax tree directly from the
@@ -247,17 +248,15 @@ free(input_str);                    // The file as UTF8
 
 
 ## TODO
-* Context position and allocator rewind independently
 * Design an algorithm for merging state machines
-* Implement support in the syntax for error handling
 * Multiple `%node` declarations in one
-* Make sure that every SM transition is reachable
-* Add regex rules in `.tok` files
+* State Machine automaton state reachability analysis
+* Regex tokenizer rules.
 * Add a flag to warn on token/astnode kinds not used in the parser
-* Debug messages for parsing failures
-* Token/Node print functions
-* Segregate out lang-specific generated code from lang-independent
-* Permanent memory allocator and option to leak
+* Rethink Token/Node print functions
+* PGEN_RUNTIME_INCLUDE scope guard
+* Rewrite memory allocator with GC and option to leak.
+* %tokenkind
 
 ## License
 
