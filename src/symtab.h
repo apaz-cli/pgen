@@ -7,6 +7,8 @@ typedef struct {
   list_ASTNodePtr directives;
   list_ASTNodePtr definitions;
   list_ASTNodePtr tokendefs;
+  list_cstr tok_kind_names;
+  list_cstr peg_kind_names;
 } Symtabs;
 
 static inline void resolvePrevNext(list_ASTNodePtr *defs);
@@ -68,17 +70,23 @@ static inline Symtabs gen_symtabs(ASTNode *ast) {
   s.directives = list_ASTNodePtr_new();
   s.definitions = list_ASTNodePtr_new();
   s.tokendefs = list_ASTNodePtr_new();
+  s.tok_kind_names = list_cstr_new();
+  s.peg_kind_names = list_cstr_new();
 
   // Grab all the directives, and make sure their contents are reasonable.
   for (size_t i = 0; i < ast->num_children; i++) {
     ASTNode *node = ast->children[i];
-    if (!strcmp(node->name, "Directive"))
+    if (!strcmp(node->name, "Directive")) {
       list_ASTNodePtr_add(&s.directives, node);
-    else if (!strcmp(node->name, "TokenDef"))
+      if (!strcmp((char *)node->children[0]->extra, "node"))
+        list_cstr_add(&s.peg_kind_names, (char *)node->extra);
+    } else if (!strcmp(node->name, "TokenDef")) {
       list_ASTNodePtr_add(&s.tokendefs, node);
-    else if (!strcmp(node->name, "Definition"))
+      list_cstr_add(&s.tok_kind_names, (char *)node->children[0]->extra);
+    } else if (!strcmp(node->name, "Definition")) {
       list_ASTNodePtr_add(&s.definitions, node);
-    else
+      // list_cstr_add(&s.peg_kind_names, (char *)node->extra);
+    } else
       ERROR("Unknown top level node: %s", node->name);
   }
 

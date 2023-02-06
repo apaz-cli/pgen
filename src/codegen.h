@@ -92,8 +92,8 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args *args, ASTNode *ast,
   ctx->expr_cnt = 0;
   ctx->indent_cnt = 1;
   ctx->line_nbr = 1;
-  ctx->tok_kind_names = list_cstr_new();
-  ctx->peg_kind_names = list_cstr_new();
+  ctx->tok_kind_names = symtabs.tok_kind_names;
+  ctx->peg_kind_names = symtabs.peg_kind_names;
   ctx->directives = symtabs.directives;
   ctx->definitions = symtabs.definitions;
   ctx->tokendefs = symtabs.tokendefs;
@@ -866,29 +866,12 @@ static inline void peg_write_report_parse_error(codegen_ctx *ctx) {
   cwrite("}\n\n");
 }
 
-// TODO move this into symtabs.
 static inline void find_kinds(codegen_ctx *ctx) {
   // Checking that the names of the kinds are
   // valid and unique is done in astvalid.h.
 
   list_cstr *tks = &ctx->tok_kind_names;
   list_cstr *pks = &ctx->peg_kind_names;
-
-  // Add all token names to tok_kind_names
-  for (size_t n = 0; n < ctx->tokendefs.len; n++) {
-    ASTNode *rule = ctx->tokendefs.buf[n];
-    ASTNode *ruleident = rule->children[0];
-    list_cstr_add(tks, (char *)ruleident->extra);
-  }
-
-  // Add all %node directive bodies to peg_kind_names
-  for (size_t n = 0; n < ctx->directives.len; n++) {
-    ASTNode *node_dir = ctx->directives.buf[n];
-    char *dir_name = (char *)node_dir->children[0]->extra;
-    if (strcmp(dir_name, "node"))
-      continue;
-    list_cstr_add(pks, (char *)node_dir->extra);
-  }
 
   if (!ctx->args->u)
     for (size_t j = 0; j < pks->len; j++)
@@ -1883,7 +1866,7 @@ static inline void peg_write_definition(codegen_ctx *ctx, ASTNode *def) {
 
 static inline void peg_write_parser_body(codegen_ctx *ctx) {
   // Write stubs
-  
+
   for (size_t n = 0; n < ctx->definitions.len; n++) {
     ASTNode *def = ctx->definitions.buf[n];
     peg_write_definition_stub(ctx, def);
