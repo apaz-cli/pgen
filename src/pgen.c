@@ -32,11 +32,11 @@ int main(int argc, char **argv) {
   // Validate the symbol tables.
   validateSymtabs(args, symtabs);
 
-  // Create the automata (Tokenizer IR).
+  // Create the tokenizer automata (IR).
   TrieAutomaton trie = createTrieAutomaton(symtabs.tokendefs);
   list_SMAutomaton smauts = createSMAutomata(symtabs.tokendefs);
 
-  // Codegen
+  // Generate the output file.
   codegen_ctx cctx;
   codegen_ctx_init(&cctx, &args, ast, symtabs, trie, smauts);
   codegen_write(&cctx);
