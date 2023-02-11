@@ -3,6 +3,7 @@
 
 #include "ast.h"
 #include "util.h"
+#include "argparse.h"
 
 LIST_DECLARE(codepoint_t)
 LIST_DEFINE(codepoint_t)
@@ -12,14 +13,16 @@ typedef struct {
   size_t len;
   size_t pos;
   size_t line_nbr;
+  bool debug;
 } parser_ctx;
 
 static inline void parser_ctx_init(parser_ctx *ctx,
-                                   Codepoint_String_View cpsv) {
+                                   Args args, Codepoint_String_View cpsv) {
   ctx->str = cpsv.str;
   ctx->len = cpsv.len;
   ctx->pos = 0;
   ctx->line_nbr = 1;
+  ctx->debug = args.g;
 }
 
 /*****************/
@@ -57,8 +60,6 @@ static inline void parser_ctx_init(parser_ctx *ctx,
       RULE_FAIL();                                                             \
     return (ret);                                                              \
   } while (0)
-
-static int ctx_debug = 0;
 
 #ifdef _POSIX_C_SOURCE
 #include <sys/ioctl.h>
@@ -112,7 +113,7 @@ static inline void print_unconsumed(parser_ctx *ctx) {
 
 static inline void ctx_rule_debug(int status, const char *rulename,
                                   parser_ctx *ctx) {
-  if (ctx_debug) {
+  if (ctx->debug) {
     if (strcmp(rulename, "ws") == 0)
       return;
 

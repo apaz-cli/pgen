@@ -256,7 +256,10 @@ free(input_str);                    // The file as UTF8
 * Rethink Token/Node print functions
 * PGEN_RUNTIME_INCLUDE scope guard
 * Rewrite memory allocator with GC and option to leak.
-* %tokenkind
+* `%tokenkind`
+* Compiler option to generate runner C file
+* `%drop` tokens
+* `%main`/`%input`
 
 ## License
 

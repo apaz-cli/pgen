@@ -19,8 +19,7 @@ int main(int argc, char **argv) {
 
   // Parse the grammar's AST
   parser_ctx ppctx;
-  parser_ctx_init(&ppctx, parserFile);
-  ctx_debug = args.g;
+  parser_ctx_init(&ppctx, args, parserFile);
   ASTNode *ast = peg_parse_GrammarFile(&ppctx);
   if (!ast) {
     ERROR("Parser file syntax error.");

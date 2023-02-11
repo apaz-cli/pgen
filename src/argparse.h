@@ -27,7 +27,7 @@ static inline Args argparse(int argc, char **argv) {
   args.m = 0;
   args.l = 0;
 
-  char exitmsg[] =
+  char helpmsg[] =
       "pgen - A tokenizer and parser generator.\n"
       "    pgen [OPTION]... GRAMMAR_FILE [-o OUTPUT_PATH]                    \n"
       "                                                                      \n"
@@ -89,7 +89,7 @@ static inline Args argparse(int argc, char **argv) {
 
   // Help message
   if (args.h || argc == 1) {
-    puts(exitmsg);
+    puts(helpmsg);
     exit(0);
   }
 
