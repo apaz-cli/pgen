@@ -313,12 +313,11 @@ static inline void tok_write_enum(codegen_ctx *ctx) {
          num_defs, num_defs + 2);
   cwrite("#define %s_NUM_TOKENKINDS %zu\n", ctx->upper, num_defs + 2);
   cwrite("static const char* %s_tokenkind_name[%s_NUM_TOKENKINDS] = {\n"
-         "  \"%s_TOK_STREAMBEGIN\",\n"
-         "  \"%s_TOK_STREAMEND\",\n",
-         ctx->lower, ctx->upper, ctx->upper, ctx->upper);
+         "  \"STREAMBEGIN\",\n"
+         "  \"STREAMEND\",\n",
+         ctx->lower, ctx->upper);
   for (size_t i = 0; i < num_defs; i++)
-    cwrite("  \"%s_TOK_%s\",\n", ctx->upper,
-           (char *)(ctx->tokendefs.buf[i]->children[0]->extra));
+    cwrite("  \"%s\",\n", (char *)(ctx->tokendefs.buf[i]->children[0]->extra));
   cwrite("};\n\n");
 }
 
@@ -894,9 +893,9 @@ static inline void peg_write_astnode_kind(codegen_ctx *ctx) {
   cwrite("static const char* %s_nodekind_name[%s_NUM_NODEKINDS] = {\n",
          ctx->lower, ctx->upper);
   for (size_t i = 0; i < ctx->tok_kind_names.len; i++)
-    cwrite("  \"%s_NODE_%s\",\n", ctx->upper, ctx->tok_kind_names.buf[i]);
+    cwrite("  \"%s\",\n", ctx->tok_kind_names.buf[i]);
   for (size_t i = 0; i < ctx->peg_kind_names.len; i++)
-    cwrite("  \"%s_NODE_%s\",\n", ctx->upper, ctx->peg_kind_names.buf[i]);
+    cwrite("  \"%s\",\n", ctx->peg_kind_names.buf[i]);
   cwrite("};\n\n");
 }
 
@@ -1332,8 +1331,8 @@ static inline void peg_write_astnode_print(codegen_ctx *ctx) {
   cwrite("  depth++;\n");
 
   cwrite("  indent(); printf(\"\\\"kind\\\": \"); "
-         "printf(\"\\\"%%s\\\",\\n\", %s_nodekind_name[node->kind] + %zu);\n",
-         ctx->lower, strlen(ctx->lower) + 6);
+         "printf(\"\\\"%%s\\\",\\n\", %s_nodekind_name[node->kind]);\n",
+         ctx->lower);
   cwrite("  indent(); printf(\"\\\"content\\\": \\\"\");\n"
          "  %s_node_print_content(node, tokens); printf(\"\\\",\\n\");\n",
          ctx->lower);
@@ -1521,8 +1520,8 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("  printf(\"\\x1b[0m\"); // Clear Formatting\n\n");
 
     cwrite("  // Write labels and line.\n");
-    cwrite("  for (size_t i = 0; i < width; i++) "
-           "putchar('-');");
+    cwrite("  for (size_t i = 0; i < width; i++)\n");
+    cwrite("    putchar('-');\n\n");
 
     cwrite("  // Write following lines\n");
     cwrite("  for (size_t i = height; i --> 0;) {\n");
@@ -1530,12 +1529,14 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
 
     cwrite("    // Print rule stack\n");
     cwrite("    if (i < intr_stack.size) {\n");
+    cwrite("      int d = intr_stack.size - height;");
+    cwrite("      size_t disp = d > 0 ? i + d : i;");
     cwrite("      printf(\"%%-%zus\", "
-           "intr_stack.rules[i].rule_name);\n",
+           "intr_stack.rules[disp].rule_name);\n",
            max_len);
     cwrite("    } else {\n");
-    cwrite("      for (size_t sp = 0; sp < %zu; sp++) putchar(' ');\n",
-           max_len);
+    cwrite("      for (size_t sp = 0; sp < %zu; sp++)\n", max_len);
+    cwrite("        putchar(' ');\n");
     cwrite("    }\n\n");
 
     cwrite("    printf(\" | \"); // Middle bar\n\n");
@@ -1547,10 +1548,10 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
            "%s_tokenkind_name["
            "ctx->tokens[ctx->pos + i].kind];\n",
            ctx->lower);
-    cwrite("      size_t ns = strlen(name);\n");
-    cwrite("      size_t remaining = rightwidth - ns;\n");
+    cwrite("      size_t remaining = rightwidth - strlen(name);\n");
     cwrite("      printf(\"%%s\", name);\n");
-    cwrite("      for (size_t sp = 0; sp < remaining; sp++) putchar(' ');\n");
+    cwrite("      for (size_t sp = 0; sp < remaining; sp++)\n");
+    cwrite("        putchar(' ');\n");
     cwrite("    }\n\n");
 
     cwrite("    putchar(' ');\n");
