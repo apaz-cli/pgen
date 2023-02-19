@@ -35,8 +35,8 @@ of how to implement grammars efficiently with fixed sized allocations.
 
 A major difference between `pgen` and peg grammars like the ones you would
 write for `packcc` is that normal peg grammars operate on individual
-characters of the input. For `pgen`, you define both a tokenizer and a
-parser. The tokenizer recognizes and groups together sequences of characters
+characters of the input. With `pgen`, you write rules that define a tokenizer
+and a parser. The tokenizer recognizes and groups together sequences of characters
 into tokens. It uses the [maximal munch](https://en.wikipedia.org/wiki/Maximal_munch)
 heuristic and selects the first rule if there are ambiguities. Then the parser
 strings together the token stream coming from the tokenizer into an
@@ -49,23 +49,13 @@ effortlessly generate Abstract Syntax Trees.
 
 
 
-## Tokenizer Syntax
+## Token Syntax
 ```
-/* Single and multiline C style comments */
-
-// Literal tokens:
-// <uppercase unique name> : <string literal> ;
-
+// Keywords
 CLASS: "class";
 PLUS:  "+";
 
-// State machine tokens:
-// <uppercase unique name> : <set of accepting states> {
-//   ( <set of from states> , <on set of characters> ) -> <new state> ;
-//   ...
-// }
-
-// A state machine that parses single line comments.
+// A state machine that tokenizes single line comments.
 SLCOM: (2, 3) {
   (0, '/') -> 1;
   (1, '/') -> 2;
@@ -73,85 +63,32 @@ SLCOM: (2, 3) {
   (2, [\n]) -> 3;
 };
 
-/*
-For more details on the grammar of tokenizer files, see `grammar/tok_grammar.peg`.
-For an example tokenizer, see `examples/pl0.tok`.
-*/
+// A state machine that tokenizes whitespace.
+WS: 1 {
+  ((0, 1), [ \n\r\t]) -> 1;
+};
+
+/* Single and multiline C comments are allowed in `.peg` files. */
+
 ```
 
 ## Parser Syntax
 ```peg
-/* pgen's syntax, written (approximately) in itself. */
+/* pgen's syntax, written in itself. */
 
-// Operators:
-// /  - Try to match the left side, then try to match the right side. Returns the first that matches. Otherwise fail.
-// &  - Try to parse, perform the match, but rewind back to the starting position and return SUCC. Otherwise fail as usual.
-// !  - Try to parse, return SUCC on no match and fail on match.
-// ?  - Optionally match, returning either the result, or SUCC if no match. Does not cause the rule to fail.
-// *  - Match zero or more. Returns SUCC.
-// +  - Match one or more. Returns SUCC, or fails if no matches.
-// () - Matches if all expressions inside match. Returns SUCC or the single match within if there's only one.
-// {} - Code to insert into the parser. Assign to `ret` for the return value of this expression, or `rule` for the rule.
-// :  - Capture the info from a match inside a variable in the current rule.
-// |  - Register an error using the string or expression on the right, and exit parsing.
-
-// Directives:
-// %oom         - Define the action that should be taken when out of memory
-// %node        - Define an ASTNode kind
-// %preinclude  - Include a file before astnode, but after support libs
-// %include     - Include a file after astnode, but before the parser
-// %postinclude - Include a file after the parser
-// %predefine   - #define something before astnode, but after support libs
-// %define      - #define something after astnode, but before the parser
-// %postdefine  - #define something after the parser
-// %precode     - Insert code before astnode, but after support libs
-// %code        - Insert code after astnode, but before the parser
-// %postcode    - Insert code after the parser
-// %extra       - Add fields to the astnode
-// %extrainit   - Add initialization to the astnode
-
-// C Builtins:
-// rec(label)              - Record the parser's state to a label
-// rew(label)              - Rewind the parser's state to a label
-// node(kind, children...) - Create an astnode with a kind name and fixed number of children
-// kind(name)              - Get the enum value of an astnode kind name
-// list(kind)              - Create an astnode with a kind name and a dynamic number of children
-// leaf(kind)              - Create an astnode with no children
-// add(list, node)         - Add an astnode as a child to an astnode created by list()
-// has(node)               - 0 if the node is NULL or SUCC, 1 otherwise.
-// repr(node, ofnode)      - Set the string representation of the current node to another node's
-// srepr(node, string)     - Set the string representation of node to a cstring
-// cprepr(node, cps, len)  - Set the string representation of node to a codepoint string
-// expect(kind, cap)       - Parses a token the same way `TOKEN` does. Returns the astnode if cap(tured).
-
-// INFO(msg)               - Log an error to ctx->errlist with the position and severity 0.
-// WARNING(msg)            - Log an error to ctx->errlist with the position and severity 1.
-// ERROR(msg)              - Log an error to ctx->errlist with the position and severity 2.
-// FATAL(msg)              - Log an error to ctx->errlist with the position and severity 3.
-// INFO_F(msg, freefn)     - INFO(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
-// WARNING_F(msg, freefn)  - WARNING(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
-// ERROR_F(msg, freefn)    - ERROR(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
-// FATAL_F(msg, freefn)    - FATAL(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
-
-
-// Notes:
-// Instead of using an unbalancing { or } inside a codeexpr, use the macros LB or RB.
-// Instead of using "{" or "}" use the macros LBSTR or RBSTR.
-
+PERCENT: "%";
+LESSTHAN "<";
+GREATERTHAN: ">";
+COMMA: "";
+// And so on...
 
 grammar <- (directive / definition)*
 
-directive <- PERCENT LOWERIDENT (&(!EOL) WS)* EOL
+directive <- PERCENT LOWERIDENT (&(!eol) WS)* eol
 
 definition <- LOWERIDENT variables? ARROW slashexpr
 
 variables <- LESSTHAN variable (COMMA variable)* GREATERTHAN
-
-variable <- (!(GREATERTHAN / COMMA) {
-              /* A demonstration of how to make a wildcard to match any token
-                 (except in this case GREATERTHAN or COMMA) by hacking the parser context. */
-              ret = pgen_astnode_leaf(ctx->alloc, ctx->tokens[ctx->pos++].kind);
-            })*
 
 slashexpr <- modexprlist (DIV modexprlist)*
 
@@ -168,14 +105,97 @@ baseexpr <- UPPERIDENT                            // Token to match
           / CODEEXPR                              // Code to execute
           / OPENPAREN slashexpr CLOSEPAREN
 
+
+eol <- {
+    bool iseol = 0;
+    if (ctx->pos >= ctx->len) {
+      iseol = 1;
+    } else if (ctx->tokens[ctx->pos - 1].line < ctx->tokens[ctx->pos].line) {
+      iseol = 1;
+    }
+    ret = iseol ? leaf(SEMI) : NULL;
+}
+
+variable <- (!(GREATERTHAN / COMMA) {
+    // Wildcard match anything but > or ,
+    ret = pgen_astnode_leaf(ctx->alloc, ctx->tokens[ctx->pos++].kind);
+})*
+
+
 ```
 
-There's documentation now, but realistically you're not going to figure everything out on your own. Talk to me, submit an issue, send me an email, or find me on Discord, and I can walk you through how to use it.
+For more a more precise description of the grammar, see `pgen_grammar.peg`.
 
 
-## C API / Example
 
-See `examples/pl0.c` for the full example put together. Your parser will be generated prefixed by the 
+## Operators:
+
+* `/`  - Try to match the left side, then try to match the right side. Returns the first that matches. Otherwise fail.
+* `&`  - Try to parse, perform the match, but rewind back to the starting position and return SUCC. Otherwise fail as usual.
+* `!`  - Try to parse, return SUCC on no match and fail on match.
+* `?`  - Optionally match, returning either the result, or SUCC if no match. Does not cause the rule to fail.
+* `*`  - Match zero or more. Returns SUCC.
+* `+`  - Match one or more. Returns SUCC, or fails if no matches.
+* `()` - Matches if all expressions inside match. Returns SUCC or the single match within if there's only one.
+* `{}` - Code to insert into the parser. Assign to `ret` for the return value of this expression, or `rule` for the rule.
+* `:`  - Capture the info from a match inside a variable in the current rule.
+* `|`  - Register an error using the string or expression on the right, and exit all parsing.
+
+
+## Directives:
+
+* `%oom`         - Define the action that should be taken when out of memory
+* `%node`        - Define an ASTNode kind
+* `%preinclude`  - Include a file before astnode, but after support libs
+* `%include`     - Include a file after astnode, but before the parser
+* `%postinclude` - Include a file after the parser
+* `%predefine`   - #define something before astnode, but after support libs
+* `%define`      - #define something after astnode, but before the parser
+* `%postdefine`  - #define something after the parser
+* `%precode`     - Insert code before astnode, but after support libs
+* `%code`        - Insert code after astnode, but before the parser
+* `%postcode`    - Insert code after the parser
+* `%extra`       - Add fields to the astnode
+* `%extrainit`   - Add initialization to the astnode
+
+## C Builtins:
+* `rec(label)`              - Record the parser's state to a label
+* `rew(label)`              - Rewind the parser's state to a label
+* `node(kind, children...)` - Create an astnode with a kind name and fixed number of children
+* `kind(name)`              - Get the enum value of an astnode kind name
+* `list(kind)`              - Create an astnode with a kind name and a dynamic number of children
+* `leaf(kind)`              - Create an astnode with no children
+* `add(list, node)`         - Add an astnode as a child to an astnode created by list()
+* `has(node)`               - 0 if the node is NULL or SUCC, 1 otherwise.
+* `repr(node, ofnode)`      - Set the string representation of the current node to another node's
+* `srepr(node, string)`     - Set the string representation of node to a cstring
+* `cprepr(node, cps, len)`  - Set the string representation of node to a codepoint string
+* `expect(kind, cap)       - Parses a token the same way `TOKEN` does. Returns the astnode if cap(tured).
+
+
+### Error Logging Builtins
+
+* `INFO(msg)`               - Log an error to ctx->errlist with the position and severity 0.
+* `WARNING(msg)`            - Log an error to ctx->errlist with the position and severity 1.
+* `ERROR(msg)`              - Log an error to ctx->errlist with the position and severity 2.
+* `FATAL(msg)`              - Log an error to ctx->errlist with the position and severity 3, and sets ctx->exit = 1.
+* `INFO_F(msg, freefn)`     - INFO(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
+* `WARNING_F(msg, freefn)`  - WARNING(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
+* `ERROR_F(msg, freefn)`    - ERROR(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
+* `FATAL_F(msg, freefn)`    - FATAL(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
+
+
+### Notes:
+
+There's documentation, but realistically you're not going to figure everything out on your own. Talk to me, submit an issue, send me an email, or find me on Discord, and I can walk you through how to use it.
+
+C code in Code expressions are parsed by matching left and right curly braces. Therefore, it could get confused if you write something like `{ ret = ...; ret->str = "}"; }`. Instead of using `"{"` or `"}"`, you can use the macros `LBSTR`/`RBSTR`.
+
+
+## Generated Parser C API Example:
+
+See `examples/pl0.c` for the full example put together.
+
 
 ### 1. Load your file into a cstring, then decode it with the UTF8 -> UTF32 decoder.
 
@@ -208,13 +228,13 @@ and append your own `LANG_TOK_STREAMBEGIN` token at the beginning, if you wish.
 ```c
 pl0_tokenizer tokenizer;
 pl0_tokenizer_init(&tokenizer, cps, cpslen);
-```
-```c
+
 pl0_token tok;
 do {
   tok = pl0_nextToken(&tokenizer);
 
-  // Discard whitespace and end of stream, add other tokens to the list.
+  // Discard whitespace, comments, and end of stream,
+  // add other tokens to the list.
   if (!(tok.kind == PL0_TOK_SLCOM | tok.kind == PL0_TOK_MLCOM |
         tok.kind == PL0_TOK_WS | tok.kind == PL0_TOK_STREAMEND))
     add_tok(tok);
@@ -232,22 +252,26 @@ pl0_parser_ctx_init(&parser, &allocator, toklist.buf, toklist.size);
 
 ### 4. Call a rule to parse an AST.
 
-Any rule can be an entry point for your parser.
+Any rule can be an entry point for your parser. The function generated for each rule has the signature:
+```c
+lang_astnode_t *lang_parse_rulename(lang_parser_ctx* ctx);
+```
 
+For our, `pl0` example, `program` is the rule we want, and we call it to parse the abstract syntax tree like so:
 ```c
 pl0_astnode_t *ast = pl0_parse_program(&parser);
 ```
 
-### 5. When you're done with your AST, clean up the memory you used.
+### 5. When you're done with your AST, clean up whatever memory you used.
 ```c
 pgen_allocator_destroy(&allocator); // The whole AST is freed with the allocator
-free(toklist.buf);                  // The list of tokens (roll your own)
+free(toklist.buf);                  // The list of tokens (provide your own)
 free(cps);                          // The file as UTF32
 free(input_str);                    // The file as UTF8
 ```
 
-
 ## TODO
+
 * Design an algorithm for merging state machines
 * Multiple `%node` declarations in one
 * State Machine automaton state reachability analysis
@@ -259,11 +283,12 @@ free(input_str);                    // The file as UTF8
 * `%tokenkind`
 * Compiler option to generate runner C file
 * `%drop` tokens
-* `%main`/`%input`
+* `%main` and `%input`, to complement [daisho-explorer](https://github.com/apaz-cli/daisho-explorer).
+
 
 ## License
 
-The license for `pgen` is GPLv3. The license applies only to the files already in this repository. The code that you generate using `pgen` belongs to you (or whoever has the copyright to the `.tok`/`.peg` files it was generated from.
+The license for `pgen` is GPLv3. The license applies only to the files already in this repository. The code that you generate using `pgen` belongs to you (or whoever has the copyright to the `.peg` file it was generated from.
 
 However, if you modify or distribute `pgen` itself then that must still follow the rules of the GPL.
 
