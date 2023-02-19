@@ -93,7 +93,7 @@ int64_t getAnswer(calc_astnode_t *n, int *exception) {
     errno = 0;
     int s = sscanf(utfstr, "%" PRId64, &ret) - 1;
     if (errno) {
-      perror("sscanf");
+      perror("Error");
       *exception = 1;
       ret = 1;
     }
@@ -102,7 +102,7 @@ int64_t getAnswer(calc_astnode_t *n, int *exception) {
   }
 
   else {
-    fprintf(stderr, "Unexpected node type: %s", calc_nodekind_name[n->kind]);
+    fprintf(stderr, "Unexpected node kind: %s", calc_nodekind_name[n->kind]);
     PANIC("");
     return 0;
   }
