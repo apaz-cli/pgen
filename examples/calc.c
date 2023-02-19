@@ -113,6 +113,7 @@ void runCalculator(void) {
   size_t input_len = 0;
   char **lineptr = &input_str;
   while (1) {
+    printf("Expr: ");
     input_len = (size_t)getline(lineptr, &input_len, stdin);
     if (input_len < 2)
       continue;
@@ -156,22 +157,16 @@ void runCalculator(void) {
   calc_parser_ctx_init(&parser, &allocator, toklist.buf, toklist.size);
 
   // Parse AST
+  // No need to check for errors, the grammar will never report any.
   calc_astnode_t *ast = calc_parse_expr(&parser);
 
-  // Check for errors
-  if (parser.num_errors) {
-    for (size_t i = 0; i < parser.num_errors; i++) {
-      calc_parse_err error = parser.errlist[i];
-      fprintf(stderr,
-              "An error was encountered on line %zu during parsing:\n"
-              "%s\n\n",
-              error.line, error.msg);
-    }
-    return;
-  }
-
   // Print AST
-  calc_astnode_print_json(toklist.buf, ast);
+  printf("AST: ");
+  if (ast) {
+    calc_astnode_print_json(toklist.buf, ast);
+  } else {
+    printf("(null)\n");
+  }
 
   // Print the answer
   if (ast) {
@@ -181,7 +176,7 @@ void runCalculator(void) {
       printf("Answer: %" PRId64 "\n\n", ans);
 
   } else if (input_len)
-    printf("(parsing failed)\n\n");
+    printf("Answer: (parsing failed)\n\n");
 
   // Clean up
   pgen_allocator_destroy(&allocator);
