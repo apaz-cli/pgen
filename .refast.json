@@ -1,14 +1,11 @@
 {
   "kind": "PROGRAM",
-  "content": "",
   "children": [
     {
       "kind": "CONSTLIST",
-      "content": "",
       "children": [
         {
           "kind": "CONST",
-          "content": "",
           "children": [
             {
               "kind": "IDENT",
@@ -24,11 +21,9 @@
     },
     {
       "kind": "VARLIST",
-      "content": "",
       "children": [
         {
           "kind": "IDENT",
-          "content": "",
           "children": [
             {
               "kind": "IDENT",
@@ -48,11 +43,9 @@
     },
     {
       "kind": "PROCLIST",
-      "content": "",
       "children": [
         {
           "kind": "PROC",
-          "content": "",
           "children": [
             {
               "kind": "IDENT",
@@ -62,15 +55,12 @@
         },
         {
           "kind": "BEGIN",
-          "content": "",
           "children": [
             {
               "kind": "STATEMENT",
-              "content": "",
               "children": [
                 {
                   "kind": "CEQ",
-                  "content": "",
                   "children": [
                     {
                       "kind": "IDENT",
@@ -78,11 +68,9 @@
                     },
                     {
                       "kind": "EXPRS",
-                      "content": "",
                       "children": [
                         {
                           "kind": "EXPRS",
-                          "content": "",
                           "children": [
                             {
                               "kind": "NUM",
@@ -98,11 +86,9 @@
             },
             {
               "kind": "STATEMENT",
-              "content": "",
               "children": [
                 {
                   "kind": "CEQ",
-                  "content": "",
                   "children": [
                     {
                       "kind": "IDENT",
@@ -110,11 +96,9 @@
                     },
                     {
                       "kind": "EXPRS",
-                      "content": "",
                       "children": [
                         {
                           "kind": "EXPRS",
-                          "content": "",
                           "children": [
                             {
                               "kind": "NUM",
@@ -130,15 +114,12 @@
             },
             {
               "kind": "STATEMENT",
-              "content": "",
               "children": [
                 {
                   "kind": "WHILE",
-                  "content": "",
                   "children": [
                     {
                       "kind": "BINEXPR",
-                      "content": "",
                       "children": [
                         {
                           "kind": "LT",
@@ -146,11 +127,9 @@
                         },
                         {
                           "kind": "EXPRS",
-                          "content": "",
                           "children": [
                             {
                               "kind": "EXPRS",
-                              "content": "",
                               "children": [
                                 {
                                   "kind": "IDENT",
@@ -162,11 +141,9 @@
                         },
                         {
                           "kind": "EXPRS",
-                          "content": "",
                           "children": [
                             {
                               "kind": "EXPRS",
-                              "content": "",
                               "children": [
                                 {
                                   "kind": "IDENT",
@@ -180,19 +157,15 @@
                     },
                     {
                       "kind": "BEGIN",
-                      "content": "",
                       "children": [
                         {
                           "kind": "STATEMENT",
-                          "content": "",
                           "children": [
                             {
                               "kind": "IF",
-                              "content": "",
                               "children": [
                                 {
                                   "kind": "BINEXPR",
-                                  "content": "",
                                   "children": [
                                     {
                                       "kind": "EQ",
@@ -200,11 +173,9 @@
                                     },
                                     {
                                       "kind": "EXPRS",
-                                      "content": "",
                                       "children": [
                                         {
                                           "kind": "EXPRS",
-                                          "content": "",
                                           "children": [
                                             {
                                               "kind": "IDENT",
@@ -212,7 +183,6 @@
                                             },
                                             {
                                               "kind": "TERM",
-                                              "content": "",
                                               "children": [
                                                 {
                                                   "kind": "DIV",
@@ -226,7 +196,6 @@
                                             },
                                             {
                                               "kind": "TERM",
-                                              "content": "",
                                               "children": [
                                                 {
                                                   "kind": "STAR",
@@ -244,11 +213,9 @@
                                     },
                                     {
                                       "kind": "EXPRS",
-                                      "content": "",
                                       "children": [
                                         {
                                           "kind": "EXPRS",
-                                          "content": "",
                                           "children": [
                                             {
                                               "kind": "IDENT",
@@ -262,15 +229,12 @@
                                 },
                                 {
                                   "kind": "BEGIN",
-                                  "content": "",
                                   "children": [
                                     {
                                       "kind": "STATEMENT",
-                                      "content": "",
                                       "children": [
                                         {
                                           "kind": "CEQ",
-                                          "content": "",
                                           "children": [
                                             {
                                               "kind": "IDENT",
@@ -278,11 +242,9 @@
                                             },
                                             {
                                               "kind": "EXPRS",
-                                              "content": "",
                                               "children": [
                                                 {
                                                   "kind": "EXPRS",
-                                                  "content": "",
                                                   "children": [
                                                     {
                                                       "kind": "NUM",
@@ -298,11 +260,9 @@
                                     },
                                     {
                                       "kind": "STATEMENT",
-                                      "content": "",
                                       "children": [
                                         {
                                           "kind": "CEQ",
-                                          "content": "",
                                           "children": [
                                             {
                                               "kind": "IDENT",
@@ -310,11 +270,9 @@
                                             },
                                             {
                                               "kind": "EXPRS",
-                                              "content": "",
                                               "children": [
                                                 {
                                                   "kind": "EXPRS",
-                                                  "content": "",
                                                   "children": [
                                                     {
                                                       "kind": "IDENT",
@@ -336,11 +294,9 @@
                         },
                         {
                           "kind": "STATEMENT",
-                          "content": "",
                           "children": [
                             {
                               "kind": "CEQ",
-                              "content": "",
                               "children": [
                                 {
                                   "kind": "IDENT",
@@ -348,11 +304,9 @@
                                 },
                                 {
                                   "kind": "EXPRS",
-                                  "content": "",
                                   "children": [
                                     {
                                       "kind": "EXPRS",
-                                      "content": "",
                                       "children": [
                                         {
                                           "kind": "IDENT",
@@ -362,7 +316,6 @@
                                     },
                                     {
                                       "kind": "BINEXPR",
-                                      "content": "",
                                       "children": [
                                         {
                                           "kind": "PLUS",
@@ -370,7 +323,6 @@
                                         },
                                         {
                                           "kind": "EXPRS",
-                                          "content": "",
                                           "children": [
                                             {
                                               "kind": "NUM",
@@ -398,11 +350,9 @@
     },
     {
       "kind": "PROCLIST",
-      "content": "",
       "children": [
         {
           "kind": "PROC",
-          "content": "",
           "children": [
             {
               "kind": "IDENT",
@@ -412,15 +362,12 @@
         },
         {
           "kind": "BEGIN",
-          "content": "",
           "children": [
             {
               "kind": "STATEMENT",
-              "content": "",
               "children": [
                 {
                   "kind": "CEQ",
-                  "content": "",
                   "children": [
                     {
                       "kind": "IDENT",
@@ -428,11 +375,9 @@
                     },
                     {
                       "kind": "EXPRS",
-                      "content": "",
                       "children": [
                         {
                           "kind": "EXPRS",
-                          "content": "",
                           "children": [
                             {
                               "kind": "NUM",
@@ -448,15 +393,12 @@
             },
             {
               "kind": "STATEMENT",
-              "content": "",
               "children": [
                 {
                   "kind": "WHILE",
-                  "content": "",
                   "children": [
                     {
                       "kind": "BINEXPR",
-                      "content": "",
                       "children": [
                         {
                           "kind": "LT",
@@ -464,11 +406,9 @@
                         },
                         {
                           "kind": "EXPRS",
-                          "content": "",
                           "children": [
                             {
                               "kind": "EXPRS",
-                              "content": "",
                               "children": [
                                 {
                                   "kind": "IDENT",
@@ -480,11 +420,9 @@
                         },
                         {
                           "kind": "EXPRS",
-                          "content": "",
                           "children": [
                             {
                               "kind": "EXPRS",
-                              "content": "",
                               "children": [
                                 {
                                   "kind": "IDENT",
@@ -498,15 +436,12 @@
                     },
                     {
                       "kind": "BEGIN",
-                      "content": "",
                       "children": [
                         {
                           "kind": "STATEMENT",
-                          "content": "",
                           "children": [
                             {
                               "kind": "CALL",
-                              "content": "",
                               "children": [
                                 {
                                   "kind": "IDENT",
@@ -518,15 +453,12 @@
                         },
                         {
                           "kind": "STATEMENT",
-                          "content": "",
                           "children": [
                             {
                               "kind": "IF",
-                              "content": "",
                               "children": [
                                 {
                                   "kind": "BINEXPR",
-                                  "content": "",
                                   "children": [
                                     {
                                       "kind": "EQ",
@@ -534,11 +466,9 @@
                                     },
                                     {
                                       "kind": "EXPRS",
-                                      "content": "",
                                       "children": [
                                         {
                                           "kind": "EXPRS",
-                                          "content": "",
                                           "children": [
                                             {
                                               "kind": "IDENT",
@@ -550,11 +480,9 @@
                                     },
                                     {
                                       "kind": "EXPRS",
-                                      "content": "",
                                       "children": [
                                         {
                                           "kind": "EXPRS",
-                                          "content": "",
                                           "children": [
                                             {
                                               "kind": "NUM",
@@ -568,7 +496,6 @@
                                 },
                                 {
                                   "kind": "WRITE",
-                                  "content": "",
                                   "children": [
                                     {
                                       "kind": "IDENT",
@@ -582,11 +509,9 @@
                         },
                         {
                           "kind": "STATEMENT",
-                          "content": "",
                           "children": [
                             {
                               "kind": "CEQ",
-                              "content": "",
                               "children": [
                                 {
                                   "kind": "IDENT",
@@ -594,11 +519,9 @@
                                 },
                                 {
                                   "kind": "EXPRS",
-                                  "content": "",
                                   "children": [
                                     {
                                       "kind": "EXPRS",
-                                      "content": "",
                                       "children": [
                                         {
                                           "kind": "IDENT",
@@ -608,7 +531,6 @@
                                     },
                                     {
                                       "kind": "BINEXPR",
-                                      "content": "",
                                       "children": [
                                         {
                                           "kind": "PLUS",
@@ -616,7 +538,6 @@
                                         },
                                         {
                                           "kind": "EXPRS",
-                                          "content": "",
                                           "children": [
                                             {
                                               "kind": "NUM",
@@ -644,11 +565,9 @@
     },
     {
       "kind": "PROCLIST",
-      "content": "",
       "children": [
         {
           "kind": "CALL",
-          "content": "",
           "children": [
             {
               "kind": "IDENT",

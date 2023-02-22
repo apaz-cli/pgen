@@ -9,7 +9,7 @@ tokenizer and parser for that grammar.
 
 ## Usage Example
 
-[usage example](pgen_example.gif)
+![usage example](pgen_example.gif)
 
 
 ## Token Syntax

@@ -1333,8 +1333,12 @@ static inline void peg_write_astnode_print(codegen_ctx *ctx) {
   cwrite("  indent(); printf(\"\\\"kind\\\": \"); "
          "printf(\"\\\"%%s\\\",\\n\", %s_nodekind_name[node->kind]);\n",
          ctx->lower);
-  cwrite("  indent(); printf(\"\\\"content\\\": \\\"\");\n"
-         "  %s_node_print_content(node, tokens); printf(\"\\\",\\n\");\n",
+  cwrite("  if (!(!node->tok_repr & !node->len_or_toknum)) {\n"
+         "    indent();\n"
+         "    printf(\"\\\"content\\\": \\\"\");\n"
+         "    %s_node_print_content(node, tokens);\n"
+         "    printf(\"\\\",\\n\");\n"
+         "  }\n",
          ctx->lower);
   cwrite("  size_t cnum = node->num_children;\n");
   cwrite("  if (cnum) {\n");

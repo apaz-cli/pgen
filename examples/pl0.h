@@ -1670,8 +1670,12 @@ static inline int pl0_astnode_print_h(pl0_token* tokens, pl0_astnode_t *node, si
   indent(); puts("{");
   depth++;
   indent(); printf("\"kind\": "); printf("\"%s\",\n", pl0_nodekind_name[node->kind]);
-  indent(); printf("\"content\": \"");
-  pl0_node_print_content(node, tokens); printf("\",\n");
+  if (!(!node->tok_repr && !node->len_or_toknum)) {
+    indent();
+    printf("\"content\": \"");
+    pl0_node_print_content(node, tokens);
+    printf("\",\n");
+  }
   size_t cnum = node->num_children;
   if (cnum) {
     // indent(); printf("\"num_children\": %zu,\n", cnum);
