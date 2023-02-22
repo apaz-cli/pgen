@@ -48,6 +48,8 @@ programming language. Embracing this fact opens up the ability to
 effortlessly generate Abstract Syntax Trees.
 
 
+[![asciicast](https://asciinema.org/a/561585.svg)](https://asciinema.org/a/561585)
+
 
 ## Token Syntax
 ```
