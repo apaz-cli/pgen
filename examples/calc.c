@@ -121,6 +121,9 @@ void runCalculator(void) {
     break;
   }
 
+  if (!strcmp(input_str, "exit"))
+    exit(0);
+
   codepoint_t *cps = NULL;
   size_t cpslen = 0;
   if (!UTF8_decode(input_str, input_len, &cps, &cpslen))
