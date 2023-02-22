@@ -7,46 +7,7 @@ This is the program that generates the tokenizer and parser for the
 Given the specification of a grammar, `pgen` generates a very fast
 tokenizer and parser for that grammar.
 
-
-The syntax of pgen is based on the paper ["Parsing Expression Grammars: A Recognition-Based Syntactic Foundation"](https://bford.info/pub/lang/peg.pdf)
-by [Bryan Ford](https://scholar.google.com/citations?hl=en&user=TwyzQP4AAAAJ).
-This specific parser is inspired by [packcc](https://github.com/arithy/packcc)
-by [Arihiro Yoshida](https://github.com/arithy).
-You may see many commonalities. The main difference is that while `packcc`
-parses at the source level, `pgen` introduces a tokenizer and parses the
-token stream instead.
-
-The job of a parser is to turn a source file or token stream into an
-abstract syntax tree. However, that's not what most parser-generators
-provide. Instead, what they provide is a way to recognize the patterns
-provided in a grammar. The user of the parser-generator is then instructed
-to build their own damn AST if they want one so bad.
-
-Originally, I thought that this would be an easy feature to add.
-Shouldn't you be able to build an abstract syntax tree directly from the
-grammar? Unfortunately, it's not that simple. For example, it turns out
-that you want to be able to throw away information. I don't care about
-the commas that I match in a list of function arguments. I don't care
-about the parentheses. I only want the info within, and I want it
-structured in the way that I want it structured. The shape of the AST
-that you're expecting at the end usually turns out to be very different
-from the shape of the efficient grammar you wrote. There are also issues
-of how to implement grammars efficiently with fixed sized allocations.
-
-A major difference between `pgen` and peg grammars like the ones you would
-write for `packcc` is that normal peg grammars operate on individual
-characters of the input. With `pgen`, you write rules that define a tokenizer
-and a parser. The tokenizer recognizes and groups together sequences of characters
-into tokens. It uses the [maximal munch](https://en.wikipedia.org/wiki/Maximal_munch)
-heuristic and selects the first rule if there are ambiguities. Then the parser
-strings together the token stream coming from the tokenizer into an
-[abstract syntax tree](https://en.wikipedia.org/wiki/Abstract_syntax_tree).
-
-Unlike other parser-generators such as `yacc` or `packcc`, `pgen` doesn't
-hide the fact that it's a virtual machine, and arguably its own
-programming language. Embracing this fact opens up the ability to
-effortlessly generate Abstract Syntax Trees.
-
+## Usage Example
 
 [![asciicast](https://asciinema.org/a/561585.svg)](https://asciinema.org/a/561585)
 
@@ -74,6 +35,7 @@ WS: 1 {
 
 ```
 
+
 ## Parser Syntax
 ```peg
 /* pgen's syntax, written in itself. */
@@ -92,6 +54,8 @@ definition <- LOWERIDENT variables? ARROW slashexpr
 
 variables <- LESSTHAN variable (COMMA variable)* GREATERTHAN
 
+variable <- (!(GREATERTHAN / COMMA) wildcard)*
+
 slashexpr <- modexprlist (DIV modexprlist)*
 
 modexprlist <- modexpr*
@@ -107,7 +71,7 @@ baseexpr <- UPPERIDENT                            // Token to match
           / CODEEXPR                              // Code to execute
           / OPENPAREN slashexpr CLOSEPAREN
 
-
+%node EOL
 eol <- {
     bool iseol = 0;
     if (ctx->pos >= ctx->len) {
@@ -115,19 +79,21 @@ eol <- {
     } else if (ctx->tokens[ctx->pos - 1].line < ctx->tokens[ctx->pos].line) {
       iseol = 1;
     }
-    ret = iseol ? leaf(SEMI) : NULL;
+    ret = iseol ? leaf(EOL) : NULL;
 }
 
-variable <- (!(GREATERTHAN / COMMA) {
-    // Wildcard match anything but > or ,
-    ret = pgen_astnode_leaf(ctx->alloc, ctx->tokens[ctx->pos++].kind);
-})*
-
+wildcard <- {
+    rule = pgen_astnode_leaf(ctx->alloc, ctx->tokens[ctx->pos++].kind);
+}
 
 ```
 
-For more a more precise description of the grammar, see `pgen_grammar.peg`.
+For more a more precise description of the grammar, see `pgen_grammar.peg`. Or just find me and ask me.
 
+The syntax of pgen is based on the paper ["Parsing Expression Grammars: A Recognition-Based Syntactic Foundation"](https://bford.info/pub/lang/peg.pdf)
+by [Bryan Ford](https://scholar.google.com/citations?hl=en&user=TwyzQP4AAAAJ). This specific parser is inspired by [packcc](https://github.com/arithy/packcc)
+by [Arihiro Yoshida](https://github.com/arithy). You may see many commonalities. The main difference is that while `packcc` parses at the source level,
+`pgen` introduces a tokenizer and parses the token stream instead.
 
 
 ## Operators:
@@ -271,6 +237,9 @@ free(toklist.buf);                  // The list of tokens (provide your own)
 free(cps);                          // The file as UTF32
 free(input_str);                    // The file as UTF8
 ```
+
+More comprehensive documentation on these things will come eventually.
+
 
 ## TODO
 
