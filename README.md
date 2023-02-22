@@ -9,7 +9,7 @@ tokenizer and parser for that grammar.
 
 ## Usage Example
 
-[![asciicast](https://asciinema.org/a/561585.svg)](https://asciinema.org/a/561585)
+[usage example](pgen_example.gif)
 
 
 ## Token Syntax
