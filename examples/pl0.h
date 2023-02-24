@@ -1383,12 +1383,8 @@ struct pl0_astnode_t {
   uint16_t max_children;
   pl0_astnode_kind kind;
 
-  // Store node number or tok repr.
-  // if (tok_repr) then it's a codepoint string of size len_or_toknum.
-  // if (!tok_repr && len_or_toknum) then len_or_toknum is a token offset.
-  // if (!tok_repr && !len_or_toknum) then nothing is stored.
   codepoint_t* tok_repr;
-  size_t len_or_toknum;
+  size_t repr_len;
   // No %extra directives.
   pl0_astnode_t** children;
 };
@@ -1431,7 +1427,7 @@ static inline pl0_astnode_t* pl0_astnode_list(
   node->num_children = 0;
   node->children = children;
   node->tok_repr = NULL;
-  node->len_or_toknum = 0;
+  node->repr_len = 0;
   return node;
 }
 
@@ -1449,7 +1445,7 @@ static inline pl0_astnode_t* pl0_astnode_leaf(
   node->num_children = 0;
   node->children = NULL;
   node->tok_repr = NULL;
-  node->len_or_toknum = 0;
+  node->repr_len = 0;
   return node;
 }
 
@@ -1469,7 +1465,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_1(
   node->num_children = 1;
   node->children = children;
   node->tok_repr = NULL;
-  node->len_or_toknum = 0;
+  node->repr_len = 0;
   children[0] = n0;
   n0->parent = node;
   return node;
@@ -1492,7 +1488,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_2(
   node->num_children = 2;
   node->children = children;
   node->tok_repr = NULL;
-  node->len_or_toknum = 0;
+  node->repr_len = 0;
   children[0] = n0;
   n0->parent = node;
   children[1] = n1;
@@ -1518,7 +1514,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_3(
   node->num_children = 3;
   node->children = children;
   node->tok_repr = NULL;
-  node->len_or_toknum = 0;
+  node->repr_len = 0;
   children[0] = n0;
   n0->parent = node;
   children[1] = n1;
@@ -1547,7 +1543,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_4(
   node->num_children = 4;
   node->children = children;
   node->tok_repr = NULL;
-  node->len_or_toknum = 0;
+  node->repr_len = 0;
   children[0] = n0;
   n0->parent = node;
   children[1] = n1;
@@ -1579,7 +1575,7 @@ static inline pl0_astnode_t* pl0_astnode_fixed_5(
   node->num_children = 5;
   node->children = children;
   node->tok_repr = NULL;
-  node->len_or_toknum = 0;
+  node->repr_len = 0;
   children[0] = n0;
   n0->parent = node;
   children[1] = n1;
@@ -1620,13 +1616,13 @@ static inline void pl0_parser_rewind(pl0_parser_ctx *ctx, pgen_parser_rewind_t r
 
 static inline pl0_astnode_t* pl0_astnode_repr(pl0_astnode_t* node, pl0_astnode_t* t) {
   node->tok_repr = t->tok_repr;
-  node->len_or_toknum = t->len_or_toknum;
+  node->repr_len = t->repr_len;
   return node;
 }
 
-static inline pl0_astnode_t* pl0_astnode_cprepr(pl0_astnode_t* node, codepoint_t* cps, size_t len_or_toknum) {
+static inline pl0_astnode_t* pl0_astnode_cprepr(pl0_astnode_t* node, codepoint_t* cps, size_t repr_len) {
   node->tok_repr = cps;
-  node->len_or_toknum = len_or_toknum;
+  node->repr_len = repr_len;
   return node;
 }
 
@@ -1636,7 +1632,7 @@ static inline pl0_astnode_t* pl0_astnode_srepr(pgen_allocator* allocator, pl0_as
   for (size_t i = 0; i < cpslen; i++) cps[i] = (codepoint_t)s[i];
   cps[cpslen] = 0;
   node->tok_repr = cps;
-  node->len_or_toknum = cpslen;
+  node->repr_len = cpslen;
   return node;
 }
 
@@ -1644,17 +1640,10 @@ static inline int pl0_node_print_content(pl0_astnode_t* node, pl0_token* tokens)
   int found = 0;
   codepoint_t* utf32 = NULL; size_t utf32len = 0;
   char* utf8 = NULL; size_t utf8len = 0;
-  if (node->tok_repr) {
+  if (node->tok_repr && node->repr_len) {
     utf32 = node->tok_repr;
-    utf32len = node->len_or_toknum;
-  } else {
-    if (node->len_or_toknum) {
-      utf32 = tokens[node->len_or_toknum].content;
-      utf32len = tokens[node->len_or_toknum].len;
-    }
-  }
-  if (utf32len) {
-    int success = UTF8_encode(node->tok_repr, node->len_or_toknum, &utf8, &utf8len);
+    utf32len = node->repr_len;
+    int success = UTF8_encode(node->tok_repr, node->repr_len, &utf8, &utf8len);
     if (success) return fwrite(utf8, utf8len, 1, stdout), free(utf8), 1;
   }
   return 0;
@@ -1670,7 +1659,7 @@ static inline int pl0_astnode_print_h(pl0_token* tokens, pl0_astnode_t *node, si
   indent(); puts("{");
   depth++;
   indent(); printf("\"kind\": "); printf("\"%s\",\n", pl0_nodekind_name[node->kind]);
-  if (!(!node->tok_repr && !node->len_or_toknum)) {
+  if (!(!node->tok_repr & !node->repr_len)) {
     indent();
     printf("\"content\": \"");
     pl0_node_print_content(node, tokens);
@@ -1678,7 +1667,7 @@ static inline int pl0_astnode_print_h(pl0_token* tokens, pl0_astnode_t *node, si
   }
   size_t cnum = node->num_children;
   if (cnum) {
-    // indent(); printf("\"num_children\": %zu,\n", cnum);
+    indent(); printf("\"num_children\": %zu,\n", cnum);
     indent(); printf("\"children\": [");
     putchar('\n');
     for (size_t i = 0; i < cnum; i++)
@@ -1791,7 +1780,7 @@ static inline pl0_astnode_t* pl0_parse_program(pl0_parser_ctx* ctx) {
       // Capturing DOT.
       expr_ret_7 = leaf(DOT);
       expr_ret_7->tok_repr = ctx->tokens[ctx->pos].content;
-      expr_ret_7->len_or_toknum = ctx->tokens[ctx->pos].len;
+      expr_ret_7->repr_len = ctx->tokens[ctx->pos].len;
       ctx->pos++;
     } else {
       expr_ret_7 = NULL;
@@ -1851,7 +1840,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
         // Capturing IDENT.
         expr_ret_12 = leaf(IDENT);
         expr_ret_12->tok_repr = ctx->tokens[ctx->pos].content;
-        expr_ret_12->len_or_toknum = ctx->tokens[ctx->pos].len;
+        expr_ret_12->repr_len = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_12 = NULL;
@@ -1899,7 +1888,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
             // Capturing IDENT.
             expr_ret_16 = leaf(IDENT);
             expr_ret_16->tok_repr = ctx->tokens[ctx->pos].content;
-            expr_ret_16->len_or_toknum = ctx->tokens[ctx->pos].len;
+            expr_ret_16->repr_len = ctx->tokens[ctx->pos].len;
             ctx->pos++;
           } else {
             expr_ret_16 = NULL;
@@ -1938,7 +1927,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
         // Capturing SEMI.
         expr_ret_17 = leaf(SEMI);
         expr_ret_17->tok_repr = ctx->tokens[ctx->pos].content;
-        expr_ret_17->len_or_toknum = ctx->tokens[ctx->pos].len;
+        expr_ret_17->repr_len = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_17 = NULL;
@@ -1991,7 +1980,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
         // Capturing IDENT.
         expr_ret_20 = leaf(IDENT);
         expr_ret_20->tok_repr = ctx->tokens[ctx->pos].content;
-        expr_ret_20->len_or_toknum = ctx->tokens[ctx->pos].len;
+        expr_ret_20->repr_len = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_20 = NULL;
@@ -2030,7 +2019,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
         // Capturing NUM.
         expr_ret_22 = leaf(NUM);
         expr_ret_22->tok_repr = ctx->tokens[ctx->pos].content;
-        expr_ret_22->len_or_toknum = ctx->tokens[ctx->pos].len;
+        expr_ret_22->repr_len = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_22 = NULL;
@@ -2078,7 +2067,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
             // Capturing IDENT.
             expr_ret_26 = leaf(IDENT);
             expr_ret_26->tok_repr = ctx->tokens[ctx->pos].content;
-            expr_ret_26->len_or_toknum = ctx->tokens[ctx->pos].len;
+            expr_ret_26->repr_len = ctx->tokens[ctx->pos].len;
             ctx->pos++;
           } else {
             expr_ret_26 = NULL;
@@ -2099,7 +2088,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
             // Capturing EQ.
             expr_ret_27 = leaf(EQ);
             expr_ret_27->tok_repr = ctx->tokens[ctx->pos].content;
-            expr_ret_27->len_or_toknum = ctx->tokens[ctx->pos].len;
+            expr_ret_27->repr_len = ctx->tokens[ctx->pos].len;
             ctx->pos++;
           } else {
             expr_ret_27 = NULL;
@@ -2120,7 +2109,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
             // Capturing NUM.
             expr_ret_28 = leaf(NUM);
             expr_ret_28->tok_repr = ctx->tokens[ctx->pos].content;
-            expr_ret_28->len_or_toknum = ctx->tokens[ctx->pos].len;
+            expr_ret_28->repr_len = ctx->tokens[ctx->pos].len;
             ctx->pos++;
           } else {
             expr_ret_28 = NULL;
@@ -2159,7 +2148,7 @@ static inline pl0_astnode_t* pl0_parse_vdef(pl0_parser_ctx* ctx) {
         // Capturing SEMI.
         expr_ret_29 = leaf(SEMI);
         expr_ret_29->tok_repr = ctx->tokens[ctx->pos].content;
-        expr_ret_29->len_or_toknum = ctx->tokens[ctx->pos].len;
+        expr_ret_29->repr_len = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_29 = NULL;
@@ -2260,7 +2249,7 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
             // Capturing IDENT.
             expr_ret_40 = leaf(IDENT);
             expr_ret_40->tok_repr = ctx->tokens[ctx->pos].content;
-            expr_ret_40->len_or_toknum = ctx->tokens[ctx->pos].len;
+            expr_ret_40->repr_len = ctx->tokens[ctx->pos].len;
             ctx->pos++;
           } else {
             expr_ret_40 = NULL;
@@ -2353,7 +2342,7 @@ static inline pl0_astnode_t* pl0_parse_block(pl0_parser_ctx* ctx) {
         // Capturing SEMI.
         expr_ret_45 = leaf(SEMI);
         expr_ret_45->tok_repr = ctx->tokens[ctx->pos].content;
-        expr_ret_45->len_or_toknum = ctx->tokens[ctx->pos].len;
+        expr_ret_45->repr_len = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_45 = NULL;
@@ -2406,7 +2395,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
       // Capturing IDENT.
       expr_ret_51 = leaf(IDENT);
       expr_ret_51->tok_repr = ctx->tokens[ctx->pos].content;
-      expr_ret_51->len_or_toknum = ctx->tokens[ctx->pos].len;
+      expr_ret_51->repr_len = ctx->tokens[ctx->pos].len;
       ctx->pos++;
     } else {
       expr_ret_51 = NULL;
@@ -2469,7 +2458,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
         // Capturing IDENT.
         expr_ret_54 = leaf(IDENT);
         expr_ret_54->tok_repr = ctx->tokens[ctx->pos].content;
-        expr_ret_54->len_or_toknum = ctx->tokens[ctx->pos].len;
+        expr_ret_54->repr_len = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_54 = NULL;
@@ -2517,7 +2506,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
         // Capturing IDENT.
         expr_ret_56 = leaf(IDENT);
         expr_ret_56->tok_repr = ctx->tokens[ctx->pos].content;
-        expr_ret_56->len_or_toknum = ctx->tokens[ctx->pos].len;
+        expr_ret_56->repr_len = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_56 = NULL;
@@ -2641,7 +2630,7 @@ static inline pl0_astnode_t* pl0_parse_statement(pl0_parser_ctx* ctx) {
         // Capturing END.
         expr_ret_63 = leaf(END);
         expr_ret_63->tok_repr = ctx->tokens[ctx->pos].content;
-        expr_ret_63->len_or_toknum = ctx->tokens[ctx->pos].len;
+        expr_ret_63->repr_len = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_63 = NULL;
@@ -2879,7 +2868,7 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
           // Capturing EQ.
           expr_ret_81 = leaf(EQ);
           expr_ret_81->tok_repr = ctx->tokens[ctx->pos].content;
-          expr_ret_81->len_or_toknum = ctx->tokens[ctx->pos].len;
+          expr_ret_81->repr_len = ctx->tokens[ctx->pos].len;
           ctx->pos++;
         } else {
           expr_ret_81 = NULL;
@@ -2899,7 +2888,7 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
           // Capturing HASH.
           expr_ret_82 = leaf(HASH);
           expr_ret_82->tok_repr = ctx->tokens[ctx->pos].content;
-          expr_ret_82->len_or_toknum = ctx->tokens[ctx->pos].len;
+          expr_ret_82->repr_len = ctx->tokens[ctx->pos].len;
           ctx->pos++;
         } else {
           expr_ret_82 = NULL;
@@ -2919,7 +2908,7 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
           // Capturing LT.
           expr_ret_83 = leaf(LT);
           expr_ret_83->tok_repr = ctx->tokens[ctx->pos].content;
-          expr_ret_83->len_or_toknum = ctx->tokens[ctx->pos].len;
+          expr_ret_83->repr_len = ctx->tokens[ctx->pos].len;
           ctx->pos++;
         } else {
           expr_ret_83 = NULL;
@@ -2939,7 +2928,7 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
           // Capturing LEQ.
           expr_ret_84 = leaf(LEQ);
           expr_ret_84->tok_repr = ctx->tokens[ctx->pos].content;
-          expr_ret_84->len_or_toknum = ctx->tokens[ctx->pos].len;
+          expr_ret_84->repr_len = ctx->tokens[ctx->pos].len;
           ctx->pos++;
         } else {
           expr_ret_84 = NULL;
@@ -2959,7 +2948,7 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
           // Capturing GT.
           expr_ret_85 = leaf(GT);
           expr_ret_85->tok_repr = ctx->tokens[ctx->pos].content;
-          expr_ret_85->len_or_toknum = ctx->tokens[ctx->pos].len;
+          expr_ret_85->repr_len = ctx->tokens[ctx->pos].len;
           ctx->pos++;
         } else {
           expr_ret_85 = NULL;
@@ -2979,7 +2968,7 @@ static inline pl0_astnode_t* pl0_parse_condition(pl0_parser_ctx* ctx) {
           // Capturing GEQ.
           expr_ret_86 = leaf(GEQ);
           expr_ret_86->tok_repr = ctx->tokens[ctx->pos].content;
-          expr_ret_86->len_or_toknum = ctx->tokens[ctx->pos].len;
+          expr_ret_86->repr_len = ctx->tokens[ctx->pos].len;
           ctx->pos++;
         } else {
           expr_ret_86 = NULL;
@@ -3061,7 +3050,7 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
         // Capturing PLUS.
         expr_ret_93 = leaf(PLUS);
         expr_ret_93->tok_repr = ctx->tokens[ctx->pos].content;
-        expr_ret_93->len_or_toknum = ctx->tokens[ctx->pos].len;
+        expr_ret_93->repr_len = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_93 = NULL;
@@ -3081,7 +3070,7 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
         // Capturing MINUS.
         expr_ret_94 = leaf(MINUS);
         expr_ret_94->tok_repr = ctx->tokens[ctx->pos].content;
-        expr_ret_94->len_or_toknum = ctx->tokens[ctx->pos].len;
+        expr_ret_94->repr_len = ctx->tokens[ctx->pos].len;
         ctx->pos++;
       } else {
         expr_ret_94 = NULL;
@@ -3142,7 +3131,7 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
           // Capturing PLUS.
           expr_ret_101 = leaf(PLUS);
           expr_ret_101->tok_repr = ctx->tokens[ctx->pos].content;
-          expr_ret_101->len_or_toknum = ctx->tokens[ctx->pos].len;
+          expr_ret_101->repr_len = ctx->tokens[ctx->pos].len;
           ctx->pos++;
         } else {
           expr_ret_101 = NULL;
@@ -3162,7 +3151,7 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
           // Capturing MINUS.
           expr_ret_102 = leaf(MINUS);
           expr_ret_102->tok_repr = ctx->tokens[ctx->pos].content;
-          expr_ret_102->len_or_toknum = ctx->tokens[ctx->pos].len;
+          expr_ret_102->repr_len = ctx->tokens[ctx->pos].len;
           ctx->pos++;
         } else {
           expr_ret_102 = NULL;
@@ -3272,7 +3261,7 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
           // Capturing STAR.
           expr_ret_113 = leaf(STAR);
           expr_ret_113->tok_repr = ctx->tokens[ctx->pos].content;
-          expr_ret_113->len_or_toknum = ctx->tokens[ctx->pos].len;
+          expr_ret_113->repr_len = ctx->tokens[ctx->pos].len;
           ctx->pos++;
         } else {
           expr_ret_113 = NULL;
@@ -3292,7 +3281,7 @@ static inline pl0_astnode_t* pl0_parse_term(pl0_parser_ctx* ctx) {
           // Capturing DIV.
           expr_ret_114 = leaf(DIV);
           expr_ret_114->tok_repr = ctx->tokens[ctx->pos].content;
-          expr_ret_114->len_or_toknum = ctx->tokens[ctx->pos].len;
+          expr_ret_114->repr_len = ctx->tokens[ctx->pos].len;
           ctx->pos++;
         } else {
           expr_ret_114 = NULL;
@@ -3367,7 +3356,7 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       // Capturing IDENT.
       expr_ret_120 = leaf(IDENT);
       expr_ret_120->tok_repr = ctx->tokens[ctx->pos].content;
-      expr_ret_120->len_or_toknum = ctx->tokens[ctx->pos].len;
+      expr_ret_120->repr_len = ctx->tokens[ctx->pos].len;
       ctx->pos++;
     } else {
       expr_ret_120 = NULL;
@@ -3390,7 +3379,7 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
       // Capturing NUM.
       expr_ret_122 = leaf(NUM);
       expr_ret_122->tok_repr = ctx->tokens[ctx->pos].content;
-      expr_ret_122->len_or_toknum = ctx->tokens[ctx->pos].len;
+      expr_ret_122->repr_len = ctx->tokens[ctx->pos].len;
       ctx->pos++;
     } else {
       expr_ret_122 = NULL;

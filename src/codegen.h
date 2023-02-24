@@ -926,16 +926,8 @@ static inline void peg_write_astnode_def(codegen_ctx *ctx) {
   cwrite("  uint16_t num_children;\n");
   cwrite("  uint16_t max_children;\n");
   cwrite("  %s_astnode_kind kind;\n\n", ctx->lower);
-  if (!ctx->args->u) {
-    cwrite("  // Store node number or tok repr.\n");
-    cwrite("  // if (tok_repr) then it's a codepoint string of size "
-           "len_or_toknum.\n");
-    cwrite("  // if (!tok_repr && len_or_toknum) then len_or_toknum is a token "
-           "offset.\n");
-    cwrite("  // if (!tok_repr && !len_or_toknum) then nothing is stored.\n");
-  }
   cwrite("  codepoint_t* tok_repr;\n");
-  cwrite("  size_t len_or_toknum;\n");
+  cwrite("  size_t repr_len;\n");
 
   // Insert %extra directives.
   int inserted_extra = 0;
@@ -1016,7 +1008,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   cwrite("  node->num_children = 0;\n");
   cwrite("  node->children = children;\n");
   cwrite("  node->tok_repr = NULL;\n");
-  cwrite("  node->len_or_toknum = 0;\n");
+  cwrite("  node->repr_len = 0;\n");
 
   // Insert %extrainit directives.
   int inserted_extrainit = 0;
@@ -1053,7 +1045,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
   cwrite("  node->num_children = 0;\n");
   cwrite("  node->children = NULL;\n");
   cwrite("  node->tok_repr = NULL;\n");
-  cwrite("  node->len_or_toknum = 0;\n");
+  cwrite("  node->repr_len = 0;\n");
   inserted_extrainit = 0;
   for (size_t n = 0; n < ctx->directives.len; n++) {
     ASTNode *dir = ctx->directives.buf[n];
@@ -1115,7 +1107,7 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
     cwrite("  node->num_children = %zu;\n", i);
     cwrite("  node->children = children;\n");
     cwrite("  node->tok_repr = NULL;\n");
-    cwrite("  node->len_or_toknum = 0;\n");
+    cwrite("  node->repr_len = 0;\n");
     for (size_t j = 0; j < i; j++) {
       cwrite("  children[%zu] = n%zu;\n", j, j);
       cwrite("  n%zu->parent = node;\n", j);
@@ -1210,15 +1202,15 @@ static inline void peg_write_repr(codegen_ctx *ctx) {
          "%s_astnode_t* t) {\n",
          ctx->lower, ctx->lower, ctx->lower, ctx->lower);
   cwrite("  node->tok_repr = t->tok_repr;\n");
-  cwrite("  node->len_or_toknum = t->len_or_toknum;\n");
+  cwrite("  node->repr_len = t->repr_len;\n");
   cwrite("  return node;\n");
   cwrite("}\n\n");
 
   cwrite("static inline %s_astnode_t* %s_astnode_cprepr("
-         "%s_astnode_t* node, codepoint_t* cps, size_t len_or_toknum) {\n",
+         "%s_astnode_t* node, codepoint_t* cps, size_t repr_len) {\n",
          ctx->lower, ctx->lower, ctx->lower);
   cwrite("  node->tok_repr = cps;\n");
-  cwrite("  node->len_or_toknum = len_or_toknum;\n");
+  cwrite("  node->repr_len = repr_len;\n");
   cwrite("  return node;\n");
   cwrite("}\n\n");
 
@@ -1235,7 +1227,7 @@ static inline void peg_write_repr(codegen_ctx *ctx) {
   cwrite("  for (size_t i = 0; i < cpslen; i++) cps[i] = (codepoint_t)s[i];\n");
   cwrite("  cps[cpslen] = 0;\n");
   cwrite("  node->tok_repr = cps;\n");
-  cwrite("  node->len_or_toknum = cpslen;\n");
+  cwrite("  node->repr_len = cpslen;\n");
   cwrite("  return node;\n");
   cwrite("}\n\n");
 }
@@ -1289,18 +1281,11 @@ static inline void peg_write_node_print(codegen_ctx *ctx) {
   cwrite("  int found = 0;\n");
   cwrite("  codepoint_t* utf32 = NULL; size_t utf32len = 0;\n");
   cwrite("  char* utf8 = NULL; size_t utf8len = 0;\n");
-  cwrite("  if (node->tok_repr) {\n");
+  cwrite("  if (node->tok_repr && node->repr_len) {\n");
   cwrite("    utf32 = node->tok_repr;\n");
-  cwrite("    utf32len = node->len_or_toknum;\n");
-  cwrite("  } else {\n");
-  cwrite("    if (node->len_or_toknum) {\n");
-  cwrite("      utf32 = tokens[node->len_or_toknum].content;\n");
-  cwrite("      utf32len = tokens[node->len_or_toknum].len;\n");
-  cwrite("    }\n");
-  cwrite("  }\n");
-  cwrite("  if (utf32len) {\n");
+  cwrite("    utf32len = node->repr_len;\n");
   cwrite("    int success = UTF8_encode("
-         "node->tok_repr, node->len_or_toknum, &utf8, &utf8len);\n");
+         "node->tok_repr, node->repr_len, &utf8, &utf8len);\n");
   cwrite("    if (success) return fwrite(utf8, utf8len, 1, stdout), "
          "free(utf8), 1;\n");
   cwrite("  }\n");
@@ -1333,7 +1318,7 @@ static inline void peg_write_astnode_print(codegen_ctx *ctx) {
   cwrite("  indent(); printf(\"\\\"kind\\\": \"); "
          "printf(\"\\\"%%s\\\",\\n\", %s_nodekind_name[node->kind]);\n",
          ctx->lower);
-  cwrite("  if (!(!node->tok_repr & !node->len_or_toknum)) {\n"
+  cwrite("  if (!(!node->tok_repr & !node->repr_len)) {\n"
          "    indent();\n"
          "    printf(\"\\\"content\\\": \\\"\");\n"
          "    %s_node_print_content(node, tokens);\n"
@@ -1342,13 +1327,12 @@ static inline void peg_write_astnode_print(codegen_ctx *ctx) {
          ctx->lower);
   cwrite("  size_t cnum = node->num_children;\n");
   cwrite("  if (cnum) {\n");
-  cwrite(
-      "    // indent(); printf(\"\\\"num_children\\\": %%zu,\\n\", cnum);\n");
+  cwrite("    indent(); printf(\"\\\"num_children\\\": %%zu,\\n\", cnum);\n");
   cwrite("    indent(); printf(\"\\\"children\\\": [\");\n");
   cwrite("    putchar('\\n');\n");
   cwrite("    for (size_t i = 0; i < cnum; i++)\n"
-         "      %s_astnode_print_h(tokens, node->children[i], depth + 1, i == "
-         "cnum - 1);\n",
+         "      %s_astnode_print_h(tokens, node->children[i], depth + 1, "
+         "i == cnum - 1);\n",
          ctx->lower);
   cwrite("    indent();\n");
   cwrite("    printf(\"]\\n\");\n");
@@ -1769,10 +1753,8 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       if (!ctx->args->u)
         comment("Capturing %s.", tokname);
       iwrite("expr_ret_%zu = leaf(%s);\n", ret_to, tokname);
-      iwrite("expr_ret_%zu->tok_repr = ctx->tokens[ctx->pos].content;\n",
-             ret_to);
-      iwrite("expr_ret_%zu->len_or_toknum = ctx->tokens[ctx->pos].len;\n",
-             ret_to);
+      iwrite("expr_ret_%zu->tok_repr = ctx->tokens[ctx->pos].content;\n", ret_to);
+      iwrite("expr_ret_%zu->repr_len = ctx->tokens[ctx->pos].len;\n", ret_to);
       if (!ctx->args->u)
         peg_ensure_kind(ctx, tokname);
     } else {
