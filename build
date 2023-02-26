@@ -1,10 +1,15 @@
 #!/bin/sh
 
 # Generate utf8 include with xxd
-xxd -i src/utf8.h  | sed 's/\([0-9a-f]\)$/\0, 0x00/' > src/strutf8.xxd
-xxd -i src/arena.h | sed 's/\([0-9a-f]\)$/\0, 0x00/' > src/strarena.xxd
+if command -v xxd >/dev/null; then
+  xxd -i src/utf8.h  | sed 's/\([0-9a-f]\)$/\0, 0x00/' > src/strutf8.xxd
+  xxd -i src/arena.h | sed 's/\([0-9a-f]\)$/\0, 0x00/' > src/strarena.xxd
+else
+  echo "xxd is not installed." 1>&2
+  echo "This is fine, until you want to change src/utf8.h or src/arena.h." 1>&2
+  echo "Continuing." 1>&2
+fi
 
-# Clean
 
 if [ "$1" = "install" ]; then
   # Build release
@@ -48,7 +53,7 @@ elif [ "$1" = "macrocheck" ]; then
 
   # Build pgen and examples
   cc src/pgen.c -o pgen
-  ./pgen examples/pl0.tok examples/pl0.peg -o examples/pl0.h
+  ./pgen examples/pl0.peg -o examples/pl0.h
 
   # Check
   echo '#include <limits.h>'   >  .empty.c
@@ -92,5 +97,9 @@ else
       echo "The test AST was different than expected.\nDiff:"
       echo "$DIFF"
     fi
+
+    echo "Built and tested pgen."
+  else
+    echo "Built pgen."
   fi
 fi
