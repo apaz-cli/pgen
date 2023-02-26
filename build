@@ -84,7 +84,7 @@ else
 
     # Build and run pl0 example
     cd examples/
-    clang pl0.c -g -fsanitize=address -Wconversion
+    cc pl0.c -g -fsanitize=address -Wconversion
     if [ ! "$?" -eq 0 ]; then exit 1; fi
 
     ./a.out > ../.testast.json
