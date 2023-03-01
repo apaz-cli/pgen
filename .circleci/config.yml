@@ -15,6 +15,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: "Identify"
+          command: "uname -a"
+      - run:
           name: "Build and Test"
           command: "./build test"
 
