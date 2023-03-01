@@ -1644,7 +1644,12 @@ static inline int pl0_node_print_content(pl0_astnode_t* node, pl0_token* tokens)
     utf32 = node->tok_repr;
     utf32len = node->repr_len;
     int success = UTF8_encode(node->tok_repr, node->repr_len, &utf8, &utf8len);
-    if (success) return fwrite(utf8, utf8len, 1, stdout), free(utf8), 1;
+    if (success) {
+      for (size_t i = 0; i < utf8len; i++)
+        if (utf8[i] == '\n') fputc('\\', stdout), fputc('n', stdout);
+        else fputc(utf8[i], stdout);
+      return free(utf8), 1;
+    }
   }
   return 0;
 }

@@ -1286,8 +1286,12 @@ static inline void peg_write_node_print(codegen_ctx *ctx) {
   cwrite("    utf32len = node->repr_len;\n");
   cwrite("    int success = UTF8_encode("
          "node->tok_repr, node->repr_len, &utf8, &utf8len);\n");
-  cwrite("    if (success) return fwrite(utf8, utf8len, 1, stdout), "
-         "free(utf8), 1;\n");
+  cwrite("    if (success) {\n");
+  cwrite("      for (size_t i = 0; i < utf8len; i++)\n");
+  cwrite("        if (utf8[i] == '\\n') fputc('\\\\', stdout), fputc('n', stdout);\n");
+  cwrite("        else fputc(utf8[i], stdout);\n");
+  cwrite("      return free(utf8), 1;\n");
+  cwrite("    }\n");
   cwrite("  }\n");
   cwrite("  return 0;\n");
   cwrite("}\n\n");
