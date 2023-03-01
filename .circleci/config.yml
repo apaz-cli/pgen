@@ -21,6 +21,9 @@ jobs:
           name: "Identify xxd Version"
           command: "xxd -v"
       - run:
+          name: "Identify cc Version"
+          command: "cc -v"
+      - run:
           name: "Build and Test"
           command: "./build test"
 
