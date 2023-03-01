@@ -127,11 +127,11 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args *args, ASTNode *ast,
 
     // [_a-zA-Z] to [_a-z].
     if ((low >= 'A') & (low <= 'Z'))
-      low -= ('A' - 'a');
+      low -= (char)('A' - 'a');
 
     // [_a-zA-Z] to [_A-Z].
     if ((up >= 'a') & (up <= 'z'))
-      up += ('A' - 'a');
+      up += (char)('A' - 'a');
 
     // Copy up to the first invalid character
     // If it's been hit, copy the null terminator.
