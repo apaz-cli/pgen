@@ -15,8 +15,11 @@ jobs:
     steps:
       - checkout
       - run:
-          name: "Identify"
+          name: "Identify Linux Version"
           command: "uname -a"
+      - run:
+          name: "Identify xxd Version"
+          command: "xxd -v"
       - run:
           name: "Build and Test"
           command: "./build test"
