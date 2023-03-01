@@ -1,8 +1,8 @@
 
 /* START OF UTF8 LIBRARY */
 
-#ifndef PGEN_UTF8_INCLUDED
-#define PGEN_UTF8_INCLUDED
+#ifndef UTF8_INCLUDED
+#define UTF8_INCLUDED
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -184,6 +184,6 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
   return 1;
 }
 
-#endif /* PGEN_UTF8 */
+#endif /* UTF8_INCLUDED */
 
 /* END OF UTF8 LIBRARY */

@@ -66,9 +66,20 @@ elif [ "$1" = "macrocheck" ]; then
 
   cc -dM -E .empty.c       | sort > .predef.c
   cc -dM -E examples/pl0.h | sort > .nowdef.c
-  diff .predef.c .nowdef.c | grep "<" | sed 's/^<\ //g' | cut -d' ' -f2-
-  rm .empty.c .predef.c .nowdef.c
 
+  MACRS="$(diff .predef.c .nowdef.c | grep '>' | sed 's/^<\ //g' | cut -d' ' -f2- \
+                                    | grep -v '#define PGEN_' \
+                                    | grep -v '#define PL0_' \
+                                    | grep -v '#define UTF8_' \
+                                    | grep -v '#define recover' \
+                                    | grep -v '#define PRI_CODEPOINT')"
+
+  rm .empty.c .predef.c .nowdef.c
+  if [ ! "$MACRS" = "" ]; then
+    echo "Forgot to undef the following macros:"
+    printf "%s\n" "$MACRS"
+    exit 1;
+  fi
 else
   # Build debug
   cc src/pgen.c -o pgen --std=c99 -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable -Wconversion -fsanitize=address

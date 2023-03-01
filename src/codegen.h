@@ -1879,6 +1879,7 @@ static inline void peg_write_undef_parsermacros(codegen_ctx *ctx) {
   cwrite("#undef expect\n");
   cwrite("#undef repr\n");
   cwrite("#undef srepr\n");
+  cwrite("#undef cprepr\n");
   cwrite("#undef rret\n");
   cwrite("#undef SUCC\n\n");
 

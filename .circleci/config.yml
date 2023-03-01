@@ -26,6 +26,9 @@ jobs:
       - run:
           name: "Build and Test"
           command: "./build test"
+      - run:
+          name: "Macro Check"
+          command: "./build macrocheck"
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows

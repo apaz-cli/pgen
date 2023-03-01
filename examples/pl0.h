@@ -1,8 +1,8 @@
 
 /* START OF UTF8 LIBRARY */
 
-#ifndef PGEN_UTF8_INCLUDED
-#define PGEN_UTF8_INCLUDED
+#ifndef UTF8_INCLUDED
+#define UTF8_INCLUDED
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -184,7 +184,7 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
   return 1;
 }
 
-#endif /* PGEN_UTF8 */
+#endif /* UTF8_INCLUDED */
 
 /* END OF UTF8 LIBRARY */
 
@@ -210,8 +210,8 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
 
 #define PGEN_ALIGNMENT _Alignof(max_align_t)
 #define PGEN_BUFFER_SIZE (PGEN_PAGESIZE * 1024)
-#define NUM_ARENAS 256
-#define NUM_FREELIST 256
+#define PGEN_NUM_ARENAS 256
+#define PGEN_NUM_FREELIST 256
 
 #ifndef PGEN_PAGESIZE
 #define PGEN_PAGESIZE 4096
@@ -283,7 +283,7 @@ typedef struct {
 
 typedef struct {
   pgen_allocator_rewind_t rew;
-  pgen_arena_t arenas[NUM_ARENAS];
+  pgen_arena_t arenas[PGEN_NUM_ARENAS];
   pgen_freelist_t freelist;
 } pgen_allocator;
 
@@ -293,16 +293,16 @@ static inline pgen_allocator pgen_allocator_new(void) {
   alloc.rew.arena_idx = 0;
   alloc.rew.filled = 0;
 
-  for (size_t i = 0; i < NUM_ARENAS; i++) {
+  for (size_t i = 0; i < PGEN_NUM_ARENAS; i++) {
     alloc.arenas[i].freefn = NULL;
     alloc.arenas[i].buf = NULL;
     alloc.arenas[i].cap = 0;
   }
 
   alloc.freelist.entries = (pgen_freelist_entry_t *)malloc(
-      sizeof(pgen_freelist_entry_t) * NUM_FREELIST);
+      sizeof(pgen_freelist_entry_t) * PGEN_NUM_FREELIST);
   if (alloc.freelist.entries) {
-    alloc.freelist.cap = NUM_FREELIST;
+    alloc.freelist.cap = PGEN_NUM_FREELIST;
     alloc.freelist.len = 0;
   } else {
     alloc.freelist.cap = 0;
@@ -315,7 +315,7 @@ static inline pgen_allocator pgen_allocator_new(void) {
 
 static inline int pgen_allocator_launder(pgen_allocator *allocator,
                                          pgen_arena_t arena) {
-  for (size_t i = 0; i < NUM_ARENAS; i++) {
+  for (size_t i = 0; i < PGEN_NUM_ARENAS; i++) {
     if (!allocator->arenas[i].buf) {
       allocator->arenas[i] = arena;
       return 1;
@@ -326,7 +326,7 @@ static inline int pgen_allocator_launder(pgen_allocator *allocator,
 
 static inline void pgen_allocator_destroy(pgen_allocator *allocator) {
   // Free all the buffers
-  for (size_t i = 0; i < NUM_ARENAS; i++) {
+  for (size_t i = 0; i < PGEN_NUM_ARENAS; i++) {
     pgen_arena_t a = allocator->arenas[i];
     if (a.freefn)
       a.freefn(a.buf);
@@ -396,7 +396,7 @@ static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
       bufnext = n;
 
       // Make sure there's a spot for it
-      if (allocator->rew.arena_idx + 1 >= NUM_ARENAS)
+      if (allocator->rew.arena_idx + 1 >= PGEN_NUM_ARENAS)
         PGEN_OOM();
 
       // Allocate a new arena if necessary
@@ -3469,6 +3469,7 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
 #undef expect
 #undef repr
 #undef srepr
+#undef cprepr
 #undef rret
 #undef SUCC
 
