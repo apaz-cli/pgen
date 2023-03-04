@@ -1288,7 +1288,8 @@ static inline void peg_write_node_print(codegen_ctx *ctx) {
          "node->tok_repr, node->repr_len, &utf8, &utf8len);\n");
   cwrite("    if (success) {\n");
   cwrite("      for (size_t i = 0; i < utf8len; i++)\n");
-  cwrite("        if (utf8[i] == '\\n') fputc('\\\\', stdout), fputc('n', stdout);\n");
+  cwrite("        if (utf8[i] == '\\n') fputc('\\\\', stdout), fputc('n', "
+         "stdout);\n");
   cwrite("        else fputc(utf8[i], stdout);\n");
   cwrite("      return free(utf8), 1;\n");
   cwrite("    }\n");
@@ -1648,7 +1649,7 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     }
 
     size_t ret = ctx->expr_cnt++;
-    int stateless = opts.inverted || opts.rewind;
+    int stateless = opts.inverted | opts.rewind;
     if (stateless)
       iwrite("rec(mexpr_state_%zu)\n", ret);
     iwrite("%s_astnode_t* expr_ret_%zu = NULL;\n", ctx->lower, ret);
@@ -1693,8 +1694,10 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       // In that case, we should tell the expressions below to capture the token
       // or rule.
       // Here's where we determine if there's a capture to forward.
-      peg_visit_write_exprs(ctx, expr->children[0], ret, capture | has_label);
+      int f = (capture | has_label) & (!opts.optional) & (!opts.inverted);
+      peg_visit_write_exprs(ctx, expr->children[0], ret, f);
     }
+
     // Apply optional/inverted to ret
     if (opts.optional) {
       comment("optional");
@@ -1757,7 +1760,8 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       if (!ctx->args->u)
         comment("Capturing %s.", tokname);
       iwrite("expr_ret_%zu = leaf(%s);\n", ret_to, tokname);
-      iwrite("expr_ret_%zu->tok_repr = ctx->tokens[ctx->pos].content;\n", ret_to);
+      iwrite("expr_ret_%zu->tok_repr = ctx->tokens[ctx->pos].content;\n",
+             ret_to);
       iwrite("expr_ret_%zu->repr_len = ctx->tokens[ctx->pos].len;\n", ret_to);
       if (!ctx->args->u)
         peg_ensure_kind(ctx, tokname);

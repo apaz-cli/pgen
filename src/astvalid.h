@@ -113,6 +113,12 @@ static inline void validatePegVisit(ASTNode *node, list_ASTNodePtr* tokdefs,
     if (!strcmp(node->name, "Directive")) {
     } else if (!strcmp(node->name, "ModExpr")) {
       validatePegVisit(node->children[0], tokdefs, names);
+      ModExprOpts opts = *(ModExprOpts *)node->extra;
+      if (opts.optional & opts.inverted)
+        ERROR("For the sake of preventing ambiguities, a rule "
+              "cannot be both optional and inverted. Please "
+              "wrap your rules in parentheses like `!(&rule)` "
+              "to ensure the intended behavior.");
       // Also recurse to error handler
       if (node->num_children > 1)
         for (size_t z = 1; z < node->num_children; z++) {
