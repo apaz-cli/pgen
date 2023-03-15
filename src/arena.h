@@ -19,6 +19,14 @@
 #define PGEN_PAGESIZE 4096
 #endif
 
+#ifndef PGEN_MALLOC
+#define PGEN_MALLOC malloc
+#endif
+
+#ifndef PGEN_FREE
+#define PGEN_FREE free
+#endif
+
 #ifndef PGEN_OOM
 #define PGEN_OOM()                                                             \
   do {                                                                         \
@@ -101,7 +109,7 @@ static inline pgen_allocator pgen_allocator_new(void) {
     alloc.arenas[i].cap = 0;
   }
 
-  alloc.freelist.entries = (pgen_freelist_entry_t *)malloc(
+  alloc.freelist.entries = (pgen_freelist_entry_t *)PGEN_MALLOC(
       sizeof(pgen_freelist_entry_t) * PGEN_NUM_FREELIST);
   if (alloc.freelist.entries) {
     alloc.freelist.cap = PGEN_NUM_FREELIST;
@@ -205,7 +213,7 @@ static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
       if (allocator->arenas[allocator->rew.arena_idx].buf)
         allocator->rew.arena_idx++;
       if (!allocator->arenas[allocator->rew.arena_idx].buf) {
-        char *nb = (char *)malloc(PGEN_BUFFER_SIZE);
+        char *nb = (char *)PGEN_MALLOC(PGEN_BUFFER_SIZE);
         if (!nb)
           PGEN_OOM();
         pgen_arena_t new_arena;

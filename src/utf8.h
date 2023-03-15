@@ -10,6 +10,14 @@
 #define UTF8_END -1 /* 1111 1111 */
 #define UTF8_ERR -2 /* 1111 1110 */
 
+#ifndef UTF8_MALLOC
+#define UTF8_MALLOC malloc
+#endif
+
+#ifndef UTF8_FREE
+#define UTF8_FREE free
+#endif
+
 typedef int32_t codepoint_t;
 #define PRI_CODEPOINT PRIu32
 
@@ -117,7 +125,7 @@ static inline size_t UTF8_encodeNext(codepoint_t codepoint, char *buf4) {
 
 /*
  * Convert UTF32 codepoints to a utf8 string.
- * This will malloc() a buffer large enough, and store it to retstr and its
+ * This will UTF8_MALLOC() a buffer large enough, and store it to retstr and its
  * length to retlen. The result is not null terminated.
  * Returns 1 on success, 0 on failure. Cleans up the buffer and does not store
  * to retstr or retlen on failure.
@@ -130,13 +138,13 @@ static inline int UTF8_encode(codepoint_t *codepoints, size_t len,
 
   if ((!codepoints) | (!len))
     return 0;
-  if (!(out_buf = (char *)malloc(len * sizeof(codepoint_t) + 1)))
+  if (!(out_buf = (char *)UTF8_MALLOC(len * sizeof(codepoint_t) + 1)))
     return 0;
 
   characters_used = 0;
   for (i = 0; i < len; i++) {
     if (!(used = UTF8_encodeNext(codepoints[i], buf4)))
-      return free(out_buf), 0;
+      return UTF8_FREE(out_buf), 0;
     for (j = 0; j < used; j++)
       out_buf[characters_used++] = buf4[j];
   }
@@ -150,7 +158,7 @@ static inline int UTF8_encode(codepoint_t *codepoints, size_t len,
 
 /*
  * Convert a UTF8 string to UTF32 codepoints.
- * This will malloc() a buffer large enough, and store it to retstr and its
+ * This will UTF8_MALLOC() a buffer large enough, and store it to retstr and its
  * length to retcps. The result is not null terminated.
  * Returns 1 on success, 0 on failure. Cleans up the buffer and does not store
  * to retcps or retlen on failure.
@@ -163,7 +171,7 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
 
   if ((!str) | (!len))
     return 0;
-  if (!(cpbuf = (codepoint_t *)malloc(sizeof(codepoint_t) * len)))
+  if (!(cpbuf = (codepoint_t *)UTF8_MALLOC(sizeof(codepoint_t) * len)))
     return 0;
 
   UTF8_decoder_init(&state, str, len);
@@ -175,7 +183,7 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
   }
 
   if (cp == UTF8_ERR) {
-    free(cpbuf);
+    UTF8_FREE(cpbuf);
     return 0;
   }
 

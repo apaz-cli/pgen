@@ -833,7 +833,7 @@ static inline void peg_write_report_parse_error(codegen_ctx *ctx) {
 
   cwrite("static inline void freemsg(const char* msg, void* extra) {\n"
          "  (void)extra;\n"
-         "  free((void*)msg);\n"
+         "  PGEN_FREE((void*)msg);\n"
          "}\n\n");
 
   cwrite(
@@ -993,12 +993,12 @@ static inline void peg_write_astnode_init(codegen_ctx *ctx) {
          ctx->lower);
   cwrite("  %s_astnode_t **children;\n", ctx->lower);
   cwrite("  if (initial_size) {\n");
-  cwrite("    children = (%s_astnode_t**)malloc("
+  cwrite("    children = (%s_astnode_t**)PGEN_MALLOC("
          "sizeof(%s_astnode_t*) * initial_size);\n",
          ctx->lower, ctx->lower);
   if (!ctx->args->u)
     cwrite("    if (!children) PGEN_OOM();\n");
-  cwrite("    pgen_defer(alloc, free, children, alloc->rew);\n");
+  cwrite("    pgen_defer(alloc, PGEN_FREE, children, alloc->rew);\n");
   cwrite("  } else {\n");
   cwrite("    children = NULL;\n");
   cwrite("  }\n\n");
@@ -1291,7 +1291,7 @@ static inline void peg_write_node_print(codegen_ctx *ctx) {
   cwrite("        if (utf8[i] == '\\n') fputc('\\\\', stdout), fputc('n', "
          "stdout);\n");
   cwrite("        else fputc(utf8[i], stdout);\n");
-  cwrite("      return free(utf8), 1;\n");
+  cwrite("      return PGEN_FREE(utf8), 1;\n");
   cwrite("    }\n");
   cwrite("  }\n");
   cwrite("  return 0;\n");

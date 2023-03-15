@@ -10,6 +10,14 @@
 #define UTF8_END -1 /* 1111 1111 */
 #define UTF8_ERR -2 /* 1111 1110 */
 
+#ifndef UTF8_MALLOC
+#define UTF8_MALLOC malloc
+#endif
+
+#ifndef UTF8_FREE
+#define UTF8_FREE free
+#endif
+
 typedef int32_t codepoint_t;
 #define PRI_CODEPOINT PRIu32
 
@@ -117,7 +125,7 @@ static inline size_t UTF8_encodeNext(codepoint_t codepoint, char *buf4) {
 
 /*
  * Convert UTF32 codepoints to a utf8 string.
- * This will malloc() a buffer large enough, and store it to retstr and its
+ * This will UTF8_MALLOC() a buffer large enough, and store it to retstr and its
  * length to retlen. The result is not null terminated.
  * Returns 1 on success, 0 on failure. Cleans up the buffer and does not store
  * to retstr or retlen on failure.
@@ -130,13 +138,13 @@ static inline int UTF8_encode(codepoint_t *codepoints, size_t len,
 
   if ((!codepoints) | (!len))
     return 0;
-  if (!(out_buf = (char *)malloc(len * sizeof(codepoint_t) + 1)))
+  if (!(out_buf = (char *)UTF8_MALLOC(len * sizeof(codepoint_t) + 1)))
     return 0;
 
   characters_used = 0;
   for (i = 0; i < len; i++) {
     if (!(used = UTF8_encodeNext(codepoints[i], buf4)))
-      return free(out_buf), 0;
+      return UTF8_FREE(out_buf), 0;
     for (j = 0; j < used; j++)
       out_buf[characters_used++] = buf4[j];
   }
@@ -150,7 +158,7 @@ static inline int UTF8_encode(codepoint_t *codepoints, size_t len,
 
 /*
  * Convert a UTF8 string to UTF32 codepoints.
- * This will malloc() a buffer large enough, and store it to retstr and its
+ * This will UTF8_MALLOC() a buffer large enough, and store it to retstr and its
  * length to retcps. The result is not null terminated.
  * Returns 1 on success, 0 on failure. Cleans up the buffer and does not store
  * to retcps or retlen on failure.
@@ -163,7 +171,7 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
 
   if ((!str) | (!len))
     return 0;
-  if (!(cpbuf = (codepoint_t *)malloc(sizeof(codepoint_t) * len)))
+  if (!(cpbuf = (codepoint_t *)UTF8_MALLOC(sizeof(codepoint_t) * len)))
     return 0;
 
   UTF8_decoder_init(&state, str, len);
@@ -175,7 +183,7 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
   }
 
   if (cp == UTF8_ERR) {
-    free(cpbuf);
+    UTF8_FREE(cpbuf);
     return 0;
   }
 
@@ -215,6 +223,14 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
 
 #ifndef PGEN_PAGESIZE
 #define PGEN_PAGESIZE 4096
+#endif
+
+#ifndef PGEN_MALLOC
+#define PGEN_MALLOC malloc
+#endif
+
+#ifndef PGEN_FREE
+#define PGEN_FREE free
 #endif
 
 #ifndef PGEN_OOM
@@ -299,7 +315,7 @@ static inline pgen_allocator pgen_allocator_new(void) {
     alloc.arenas[i].cap = 0;
   }
 
-  alloc.freelist.entries = (pgen_freelist_entry_t *)malloc(
+  alloc.freelist.entries = (pgen_freelist_entry_t *)PGEN_MALLOC(
       sizeof(pgen_freelist_entry_t) * PGEN_NUM_FREELIST);
   if (alloc.freelist.entries) {
     alloc.freelist.cap = PGEN_NUM_FREELIST;
@@ -403,7 +419,7 @@ static inline char *pgen_alloc(pgen_allocator *allocator, size_t n,
       if (allocator->arenas[allocator->rew.arena_idx].buf)
         allocator->rew.arena_idx++;
       if (!allocator->arenas[allocator->rew.arena_idx].buf) {
-        char *nb = (char *)malloc(PGEN_BUFFER_SIZE);
+        char *nb = (char *)PGEN_MALLOC(PGEN_BUFFER_SIZE);
         if (!nb)
           PGEN_OOM();
         pgen_arena_t new_arena;
@@ -1259,7 +1275,7 @@ static inline void pl0_parser_ctx_init(pl0_parser_ctx* parser,
 }
 static inline void freemsg(const char* msg, void* extra) {
   (void)extra;
-  free((void*)msg);
+  PGEN_FREE((void*)msg);
 }
 
 static inline pl0_parse_err* pl0_report_parse_error(pl0_parser_ctx* ctx,
@@ -1414,9 +1430,9 @@ static inline pl0_astnode_t* pl0_astnode_list(
 
   pl0_astnode_t **children;
   if (initial_size) {
-    children = (pl0_astnode_t**)malloc(sizeof(pl0_astnode_t*) * initial_size);
+    children = (pl0_astnode_t**)PGEN_MALLOC(sizeof(pl0_astnode_t*) * initial_size);
     if (!children) PGEN_OOM();
-    pgen_defer(alloc, free, children, alloc->rew);
+    pgen_defer(alloc, PGEN_FREE, children, alloc->rew);
   } else {
     children = NULL;
   }
@@ -1648,7 +1664,7 @@ static inline int pl0_node_print_content(pl0_astnode_t* node, pl0_token* tokens)
       for (size_t i = 0; i < utf8len; i++)
         if (utf8[i] == '\n') fputc('\\', stdout), fputc('n', stdout);
         else fputc(utf8[i], stdout);
-      return free(utf8), 1;
+      return PGEN_FREE(utf8), 1;
     }
   }
   return 0;
@@ -3052,10 +3068,8 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
       rec(mod_93);
       // ModExprList Forwarding
       if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == PL0_TOK_PLUS) {
-        // Capturing PLUS.
-        expr_ret_93 = leaf(PLUS);
-        expr_ret_93->tok_repr = ctx->tokens[ctx->pos].content;
-        expr_ret_93->repr_len = ctx->tokens[ctx->pos].len;
+        // Not capturing PLUS.
+        expr_ret_93 = SUCC;
         ctx->pos++;
       } else {
         expr_ret_93 = NULL;
@@ -3072,10 +3086,8 @@ static inline pl0_astnode_t* pl0_parse_expression(pl0_parser_ctx* ctx) {
       rec(mod_94);
       // ModExprList Forwarding
       if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == PL0_TOK_MINUS) {
-        // Capturing MINUS.
-        expr_ret_94 = leaf(MINUS);
-        expr_ret_94->tok_repr = ctx->tokens[ctx->pos].content;
-        expr_ret_94->repr_len = ctx->tokens[ctx->pos].len;
+        // Not capturing MINUS.
+        expr_ret_94 = SUCC;
         ctx->pos++;
       } else {
         expr_ret_94 = NULL;

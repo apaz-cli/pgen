@@ -89,7 +89,7 @@ int64_t getAnswer(calc_astnode_t *n, int *exception) {
     char *utfstr = NULL;
     size_t utflen = 0;
     int64_t ret = 0;
-    UTF8_encode(n->tok_repr, n->len_or_toknum, &utfstr, &utflen);
+    UTF8_encode(n->tok_repr, n->repr_len, &utfstr, &utflen);
     errno = 0;
     int s = sscanf(utfstr, "%" PRId64, &ret) - 1;
     if (errno) {
