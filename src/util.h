@@ -54,6 +54,8 @@ LIST_DEFINE(size_t)
  * error. */
 /* Returns {.str = NULL, .len = 1} on OOM. */
 /* {.str} must be freed. */
+/* Note: Determining the size of a file using ftell() is technically UB,
+ * but it works on every OS and architecture under the sun. */
 static inline String_View readFile(char *filePath) {
   String_View err;
   err.str = NULL;
@@ -69,15 +71,15 @@ static inline String_View readFile(char *filePath) {
   if (!(inputFile = fopen(filePath, "r")))
     return err;
   if (fseek(inputFile, 0, SEEK_END) == -1)
-    return err;
+    return fclose(inputFile), err;
   if ((inputFileLen = ftell(inputFile)) == -1)
-    return err;
+    return fclose(inputFile), err;
   if (fseek(inputFile, 0, SEEK_SET) == -1)
-    return err;
+    return fclose(inputFile), err;
   if (!(filestr = (char *)malloc((size_t)inputFileLen)))
-    return oom;
+    return fclose(inputFile), oom;
   if (!fread(filestr, 1, (size_t)inputFileLen, inputFile))
-    return err;
+    return fclose(inputFile), free(filestr), err;
   fclose(inputFile);
 
   String_View ret;
