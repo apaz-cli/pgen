@@ -296,14 +296,12 @@ static inline void tok_write_header(codegen_ctx *ctx) {
 
 static inline void tok_write_enum(codegen_ctx *ctx) {
   cwrite("typedef enum {\n");
-
-  size_t num_defs = ctx->tokendefs.len;
-  cwrite("  %s_TOK_STREAMBEGIN,\n  %s_TOK_STREAMEND,\n", ctx->upper,
-         ctx->upper);
+  size_t num_defs = ctx->tok_kind_names.len;
+  cwrite("  %s_TOK_STREAMBEGIN,\n"
+         "  %s_TOK_STREAMEND,\n",
+         ctx->upper, ctx->upper);
   for (size_t i = 0; i < num_defs; i++)
-    cwrite("  %s_TOK_%s,\n", ctx->upper,
-           (char *)(ctx->tokendefs.buf[i]->children[0]->extra));
-
+    cwrite("  %s_TOK_%s,\n", ctx->upper, (char *)(ctx->tok_kind_names.buf[i]));
   cwrite("} %s_token_kind;\n\n", ctx->lower);
 
   cwrite("// The 0th token is beginning of stream.\n"
@@ -317,7 +315,7 @@ static inline void tok_write_enum(codegen_ctx *ctx) {
          "  \"STREAMEND\",\n",
          ctx->lower, ctx->upper);
   for (size_t i = 0; i < num_defs; i++)
-    cwrite("  \"%s\",\n", (char *)(ctx->tokendefs.buf[i]->children[0]->extra));
+    cwrite("  \"%s\",\n", (char *)(ctx->tok_kind_names.buf[i]));
   cwrite("};\n\n");
 }
 
@@ -632,9 +630,9 @@ static inline void peg_write_footer(codegen_ctx *ctx) {
 }
 
 static const char *known_directives[] = {
-    "oom",        "node",    "include",   "preinclude", "postinclude",
-    "code",       "precode", "postcode",  "define",     "predefine",
-    "postdefine", "extra",   "extrainit", "context",    "contextinit"};
+    "oom",   "node",      "token",    "include",    "preinclude", "postinclude",
+    "code",  "precode",   "postcode", "define",     "predefine",  "postdefine",
+    "extra", "extrainit", "context",  "contextinit"};
 static const size_t num_known_directives =
     sizeof(known_directives) / sizeof(const char *);
 
@@ -863,20 +861,6 @@ static inline void peg_write_report_parse_error(codegen_ctx *ctx) {
   cwrite("    ctx->exit = 1;\n");
   cwrite("  return err;\n");
   cwrite("}\n\n");
-}
-
-static inline void find_kinds(codegen_ctx *ctx) {
-  // Checking that the names of the kinds are
-  // valid and unique is done in astvalid.h.
-
-  list_cstr *tks = &ctx->tok_kind_names;
-  list_cstr *pks = &ctx->peg_kind_names;
-
-  if (!ctx->args->u)
-    for (size_t j = 0; j < pks->len; j++)
-      for (size_t i = 0; i < tks->len; i++)
-        if (!strcmp(tks->buf[i], pks->buf[j]))
-          ERROR("%%node %s is already declared as a token.\n", tks->buf[i]);
 }
 
 static inline void peg_write_astnode_kind(codegen_ctx *ctx) {
@@ -1942,7 +1926,6 @@ static inline void peg_write_parser(codegen_ctx *ctx) {
 /**************/
 
 static inline void codegen_write(codegen_ctx *ctx) {
-  find_kinds(ctx);
 
   // Write headers
   write_utf8_lib(ctx);

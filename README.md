@@ -251,7 +251,6 @@ More comprehensive documentation on these things will come eventually.
 * Rethink Token/Node print functions
 * PGEN_RUNTIME_INCLUDE scope guard
 * Rewrite memory allocator with GC and option to leak.
-* `%tokenkind`
 * Compiler option to generate runner C file
 * `%drop` tokens
 * `%main` and `%input`, to complement [daisho-explorer](https://github.com/apaz-cli/daisho-explorer).

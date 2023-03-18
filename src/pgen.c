@@ -21,14 +21,11 @@ int main(int argc, char **argv) {
   parser_ctx ppctx;
   parser_ctx_init(&ppctx, args, parserFile);
   ASTNode *ast = peg_parse_GrammarFile(&ppctx);
-  if (!ast) {
+  if (!ast)
     ERROR("Parser file syntax error.");
-  }
 
-  // Generate symbol tables from the AST.
+  // Generate symbol tables from the AST, and validate.
   Symtabs symtabs = gen_symtabs(ast);
-
-  // Validate the symbol tables.
   validateSymtabs(args, symtabs);
 
   // Create the tokenizer automata (IR).

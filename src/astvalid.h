@@ -262,6 +262,14 @@ static inline void validateSymtabs(Args args, Symtabs symtabs) {
   if (args.u)
     return;
 
+  list_cstr *tks = &symtabs.tok_kind_names;
+  list_cstr *pks = &symtabs.peg_kind_names;
+  if (!args.u)
+    for (size_t j = 0; j < pks->len; j++)
+      for (size_t i = 0; i < tks->len; i++)
+        if (!strcmp(tks->buf[i], pks->buf[j]))
+          ERROR("%%node kind %s is already declared as a token.\n", tks->buf[i]);
+
   list_cstr defnames = list_cstr_new();
   for (size_t i = 0; i < symtabs.definitions.len; i++) {
     cstr defname = (char *)symtabs.definitions.buf[i]->children[0]->extra;

@@ -80,6 +80,8 @@ static inline Symtabs gen_symtabs(ASTNode *ast) {
       list_ASTNodePtr_add(&s.directives, node);
       if (!strcmp((char *)node->children[0]->extra, "node"))
         list_cstr_add(&s.peg_kind_names, (char *)node->extra);
+      if (!strcmp((char *)node->children[0]->extra, "token"))
+        list_cstr_add(&s.tok_kind_names, (char *)node->extra);
     } else if (!strcmp(node->name, "TokenDef")) {
       list_ASTNodePtr_add(&s.tokendefs, node);
       list_cstr_add(&s.tok_kind_names, (char *)node->children[0]->extra);
