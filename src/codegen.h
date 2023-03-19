@@ -392,6 +392,7 @@ static inline void tok_write_charcmp(codegen_ctx *ctx, codepoint_t c) {
   WRITE_ESCCMP('\n');
   WRITE_ESCCMP('\'');
   WRITE_ESCCMP('\"');
+  WRITE_ESCCMP('\\');
   if ((c >= 33) & (c <= 126)) {
     // As the letter or symbol
     cwrite("'%c'", (char)c);
