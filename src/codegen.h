@@ -383,22 +383,46 @@ static inline void tok_write_staterangecheck(codegen_ctx *ctx, size_t smaut_num,
   }
 }
 
+static inline void tok_write_charcmp(codegen_ctx *ctx, codepoint_t c) {
+#define WRITE_ESCCMP(esc)                                                      \
+  if (c == esc) {                                                              \
+    cwrite(#esc);                                                              \
+    return;                                                                    \
+  }
+  WRITE_ESCCMP('\n');
+  WRITE_ESCCMP('\'');
+  WRITE_ESCCMP('\"');
+  if ((c >= 33) & (c <= 126)) {
+    // As the letter or symbol
+    cwrite("'%c'", (char)c);
+  } else {
+    // As a number
+    cwrite("%" PRI_CODEPOINT "", c);
+  }
+}
+
 static inline void tok_write_charrange(codegen_ctx *ctx, CharRange range) {
   if (range.f == range.s) {
-    cwrite("c == %" PRI_CODEPOINT "", range.f);
+    cwrite("c == ");
+    tok_write_charcmp(ctx, range.f);
   } else if (range.f + 1 == range.s) {
-    cwrite("(c == %" PRI_CODEPOINT ") | (c == %" PRI_CODEPOINT ")", range.f,
-           range.s);
+    cwrite("(c == ");
+    tok_write_charcmp(ctx, range.f);
+    cwrite(") | (c == ");
+    tok_write_charcmp(ctx, range.s);
+    cwrite(")");
   } else {
-    cwrite("(c >= %" PRI_CODEPOINT ") & (c <= %" PRI_CODEPOINT ")", range.f,
-           range.s);
+    cwrite("(c >= ");
+    tok_write_charcmp(ctx, range.f);
+    cwrite(") & (c <= ");
+    tok_write_charcmp(ctx, range.s);
+    cwrite(")");
   }
 }
 
 static inline void tok_write_charrangecheck(codegen_ctx *ctx,
                                             list_CharRange states,
                                             bool inverted) {
-
   if (!states.len) {
     cwrite(inverted ? "1" : "0");
   } else if (states.len == 1) {
@@ -418,7 +442,6 @@ static inline void tok_write_charrangecheck(codegen_ctx *ctx,
     cwrite(")");
     if (inverted)
       cwrite(")");
-    // cwrite("/* unimplemented */");
   }
 }
 

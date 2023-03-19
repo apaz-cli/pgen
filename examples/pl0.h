@@ -1052,11 +1052,11 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       all_dead = 0;
 
       if ((smaut_state_0 == 0) &
-         ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)))) {
+         ((c == '_') | ((c >= 'a') & (c <= 'z')) | ((c >= 'A') & (c <= 'Z')))) {
           smaut_state_0 = 1;
       }
       else if (((smaut_state_0 == 1) | (smaut_state_0 == 2)) &
-         ((c == 95) | ((c >= 97) & (c <= 122)) | ((c >= 65) & (c <= 90)) | ((c >= 48) & (c <= 57)))) {
+         ((c == '_') | ((c >= 'a') & (c <= 'z')) | ((c >= 'A') & (c <= 'Z')) | ((c >= '0') & (c <= '9')))) {
           smaut_state_0 = 2;
       }
       else {
@@ -1074,11 +1074,11 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       all_dead = 0;
 
       if ((smaut_state_1 == 0) &
-         ((c == 45) | (c == 43))) {
+         ((c == '-') | (c == '+'))) {
           smaut_state_1 = 1;
       }
       else if (((smaut_state_1 >= 0) & (smaut_state_1 <= 2)) &
-         ((c >= 48) & (c <= 57))) {
+         ((c >= '0') & (c <= '9'))) {
           smaut_state_1 = 2;
       }
       else {
@@ -1096,7 +1096,7 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       all_dead = 0;
 
       if (((smaut_state_2 == 0) | (smaut_state_2 == 1)) &
-         ((c == 32) | (c == 10) | (c == 13) | (c == 9))) {
+         ((c == 32) | (c == '\n') | (c == 13) | (c == 9))) {
           smaut_state_2 = 1;
       }
       else {
@@ -1114,15 +1114,15 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       all_dead = 0;
 
       if ((smaut_state_3 == 0) &
-         (c == 47)) {
+         (c == '/')) {
           smaut_state_3 = 1;
       }
       else if ((smaut_state_3 == 1) &
-         (c == 42)) {
+         (c == '*')) {
           smaut_state_3 = 2;
       }
       else if ((smaut_state_3 == 2) &
-         (c == 42)) {
+         (c == '*')) {
           smaut_state_3 = 3;
       }
       else if ((smaut_state_3 == 2) &
@@ -1130,11 +1130,11 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
           smaut_state_3 = 2;
       }
       else if ((smaut_state_3 == 3) &
-         (c == 42)) {
+         (c == '*')) {
           smaut_state_3 = 3;
       }
       else if ((smaut_state_3 == 3) &
-         (c == 47)) {
+         (c == '/')) {
           smaut_state_3 = 4;
       }
       else if ((smaut_state_3 == 3) &
@@ -1156,19 +1156,19 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
       all_dead = 0;
 
       if ((smaut_state_4 == 0) &
-         (c == 47)) {
+         (c == '/')) {
           smaut_state_4 = 1;
       }
       else if ((smaut_state_4 == 1) &
-         (c == 47)) {
+         (c == '/')) {
           smaut_state_4 = 2;
       }
       else if ((smaut_state_4 == 2) &
-         (!(c == 10))) {
+         (!(c == '\n'))) {
           smaut_state_4 = 2;
       }
       else if ((smaut_state_4 == 2) &
-         (c == 10)) {
+         (c == '\n')) {
           smaut_state_4 = 3;
       }
       else {
