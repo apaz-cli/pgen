@@ -22,27 +22,23 @@ typedef int32_t codepoint_t;
 #define PRI_CODEPOINT PRIu32
 
 typedef struct {
-  size_t idx;
+  char *start;
+  size_t pos;
   size_t len;
-  size_t chr;
-  size_t byte;
-  char *inp;
 } UTF8Decoder;
 
 static inline void UTF8_decoder_init(UTF8Decoder *state, char *str,
                                      size_t len) {
-  state->idx = 0;
+  state->start = str;
+  state->pos = 0;
   state->len = len;
-  state->chr = 0;
-  state->byte = 0;
-  state->inp = str;
 }
 
 static inline char UTF8_nextByte(UTF8Decoder *state) {
   char c;
-  if (state->idx >= state->len)
+  if (state->pos >= state->len)
     return UTF8_END;
-  c = state->inp[state->idx++];
+  c = state->start[state->pos++];
   return c;
 }
 
@@ -58,11 +54,9 @@ static inline codepoint_t UTF8_decodeNext(UTF8Decoder *state) {
   codepoint_t c;
   char c0, c1, c2, c3;
 
-  if (state->idx >= state->len)
-    return state->idx == state->len ? UTF8_END : UTF8_ERR;
+  if (state->pos >= state->len)
+    return state->pos == state->len ? UTF8_END : UTF8_ERR;
 
-  state->byte = state->idx;
-  state->chr += 1;
   c0 = UTF8_nextByte(state);
 
   if ((c0 & 0x80) == 0) {
@@ -150,9 +144,54 @@ static inline int UTF8_encode(codepoint_t *codepoints, size_t len,
   }
 
   out_buf[characters_used] = '\0';
-  new_obuf = (char *)realloc(out_buf, characters_used + 1);
-  *retstr = new_obuf ? new_obuf : out_buf;
+  *retstr = out_buf;
   *retlen = characters_used;
+  return 1;
+}
+
+static inline int UTF8_decode_positions(char *str, size_t len,
+                                        codepoint_t **retcps, size_t *retlen,
+                                        size_t **map) {
+
+  UTF8Decoder state;
+  codepoint_t *cpbuf, cp;
+  size_t cps_read = 0;
+
+  if ((!str) | (!len))
+    return 0;
+  if (!(cpbuf = (codepoint_t *)UTF8_MALLOC(sizeof(codepoint_t) * len)))
+    return 0;
+
+  size_t *mapbuf = NULL;
+  if (map) {
+    mapbuf = (size_t *)UTF8_MALLOC(sizeof(size_t) * len);
+    if (!mapbuf) {
+      free(cpbuf);
+      return 0;
+    }
+  }
+
+  UTF8_decoder_init(&state, str, len);
+  for (;;) {
+    size_t prepos = state.pos;
+    cp = UTF8_decodeNext(&state);
+    if ((cp == UTF8_ERR) | (cp == UTF8_END))
+      break;
+    if (map)
+      mapbuf[cps_read] = prepos;
+    cpbuf[cps_read] = cp;
+    cps_read++;
+  }
+
+  if (cp == UTF8_ERR) {
+    UTF8_FREE(cpbuf);
+    return 0;
+  }
+
+  if (map)
+    *map = mapbuf;
+  *retcps = cpbuf;
+  *retlen = cps_read;
   return 1;
 }
 
@@ -165,31 +204,7 @@ static inline int UTF8_encode(codepoint_t *codepoints, size_t len,
  */
 static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
                               size_t *retlen) {
-  UTF8Decoder state;
-  codepoint_t *cpbuf, cp;
-  size_t cps_read = 0;
-
-  if ((!str) | (!len))
-    return 0;
-  if (!(cpbuf = (codepoint_t *)UTF8_MALLOC(sizeof(codepoint_t) * len)))
-    return 0;
-
-  UTF8_decoder_init(&state, str, len);
-  for (;;) {
-    cp = UTF8_decodeNext(&state);
-    if ((cp == UTF8_ERR) | (cp == UTF8_END))
-      break;
-    cpbuf[cps_read++] = cp;
-  }
-
-  if (cp == UTF8_ERR) {
-    UTF8_FREE(cpbuf);
-    return 0;
-  }
-
-  *retcps = cpbuf;
-  *retlen = cps_read;
-  return 1;
+  return UTF8_decode_positions(str, len, retcps, retlen, NULL);
 }
 
 #endif /* UTF8_INCLUDED */
