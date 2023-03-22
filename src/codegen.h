@@ -326,12 +326,23 @@ static inline void tok_write_tokenstruct(codegen_ctx *ctx) {
          "tokenizer->start[token->start].\n"
          "  size_t len;\n"
          "  size_t line;\n"
-         "  size_t col;\n"
-         "#ifdef %s_TOKEN_EXTRA\n"
-         "  %s_TOKEN_EXTRA\n"
-         "#endif\n"
-         "} %s_token;\n\n",
-         ctx->lower, ctx->upper, ctx->upper, ctx->lower);
+         "  size_t col;\n",
+         ctx->lower);
+
+  int has_tokenextra = 0;
+  for (size_t i = 0; i < ctx->directives.len; i++) {
+    ASTNode *dir = ctx->directives.buf[i];
+    char *dir_name = (char *)dir->children[0]->extra;
+    if (!strcmp(dir_name, "tokenextra")) {
+      if (!has_tokenextra) {
+        has_tokenextra = 1;
+        cwrite("  // Extra fields from %%tokenextra directives:\n");
+      }
+      cwrite("  %s\n", (char *)dir->extra);
+    }
+  }
+
+  cwrite("} %s_token;\n\n", ctx->lower);
 }
 
 static inline void tok_write_ctxstruct(codegen_ctx *ctx) {
@@ -599,15 +610,27 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   }
   cwrite("\n");
 
-  cwrite("  %s_token ret;\n", ctx->lower);
-  cwrite("  ret.kind = kind;\n");
-  cwrite("  ret.content = tokenizer->start + tokenizer->pos;\n");
-  cwrite("  ret.len = max_munch;\n\n");
+  cwrite("  %s_token tok;\n", ctx->lower);
+  cwrite("  tok.kind = kind;\n");
+  cwrite("  tok.content = tokenizer->start + tokenizer->pos;\n");
+  cwrite("  tok.len = max_munch;\n\n");
 
-  cwrite("  ret.line = tokenizer->pos_line;\n");
-  cwrite("  ret.col = tokenizer->pos_col;\n");
+  cwrite("  tok.line = tokenizer->pos_line;\n");
+  cwrite("  tok.col = tokenizer->pos_col;\n");
+  int inserted_tokenextra = 0;
+  for (size_t i = 0; i < ctx->directives.len; i++) {
+    ASTNode *dir = ctx->directives.buf[i];
+    char *dir_name = (char *)dir->children[0]->extra;
+    if (!strcmp(dir_name, "tokenextrainit")) {
+      if (!inserted_tokenextra) {
+        inserted_tokenextra = 1;
+        cwrite("  // Extra fields from %%tokenextra directives:\n");
+      }
+      cwrite("  %s\n", (char *)dir->extra);
+    }
+  }
   cwrite("\n");
-  cwrite("  for (size_t i = 0; i < ret.len; i++) {\n");
+  cwrite("  for (size_t i = 0; i < tok.len; i++) {\n");
   cwrite("    if (current[i] == '\\n') {\n");
   cwrite("      tokenizer->pos_line++;\n");
   cwrite("      tokenizer->pos_col = 0;\n");
@@ -617,7 +640,7 @@ static inline void tok_write_nexttoken(codegen_ctx *ctx) {
   cwrite("  }\n\n");
 
   cwrite("  tokenizer->pos += max_munch;\n");
-  cwrite("  return ret;\n");
+  cwrite("  return tok;\n");
   cwrite("}\n\n");
 }
 
@@ -654,9 +677,11 @@ static inline void peg_write_footer(codegen_ctx *ctx) {
 }
 
 static const char *known_directives[] = {
-    "oom",   "node",      "token",    "include",    "preinclude", "postinclude",
-    "code",  "precode",   "postcode", "define",     "predefine",  "postdefine",
-    "extra", "extrainit", "context",  "contextinit"};
+    "oom",        "node",        "token",      "include",
+    "preinclude", "postinclude", "code",       "precode",
+    "postcode",   "define",      "predefine",  "postdefine",
+    "extra",      "extrainit",   "tokenextra", "tokenextrainit",
+    "context",    "contextinit"};
 static const size_t num_known_directives =
     sizeof(known_directives) / sizeof(const char *);
 

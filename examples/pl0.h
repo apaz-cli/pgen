@@ -697,9 +697,6 @@ typedef struct {
   size_t len;
   size_t line;
   size_t col;
-#ifdef PL0_TOKEN_EXTRA
-  PL0_TOKEN_EXTRA
-#endif
 } pl0_token;
 
 typedef struct {
@@ -1213,15 +1210,15 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
     max_munch = trie_munch_size;
   }
 
-  pl0_token ret;
-  ret.kind = kind;
-  ret.content = tokenizer->start + tokenizer->pos;
-  ret.len = max_munch;
+  pl0_token tok;
+  tok.kind = kind;
+  tok.content = tokenizer->start + tokenizer->pos;
+  tok.len = max_munch;
 
-  ret.line = tokenizer->pos_line;
-  ret.col = tokenizer->pos_col;
+  tok.line = tokenizer->pos_line;
+  tok.col = tokenizer->pos_col;
 
-  for (size_t i = 0; i < ret.len; i++) {
+  for (size_t i = 0; i < tok.len; i++) {
     if (current[i] == '\n') {
       tokenizer->pos_line++;
       tokenizer->pos_col = 0;
@@ -1231,7 +1228,7 @@ static inline pl0_token pl0_nextToken(pl0_tokenizer* tokenizer) {
   }
 
   tokenizer->pos += max_munch;
-  return ret;
+  return tok;
 }
 
 #endif /* PL0_TOKENIZER_INCLUDE */
