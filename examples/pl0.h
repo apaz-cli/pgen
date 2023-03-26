@@ -149,9 +149,18 @@ static inline int UTF8_encode(codepoint_t *codepoints, size_t len,
   return 1;
 }
 
-static inline int UTF8_decode_positions(char *str, size_t len,
-                                        codepoint_t **retcps, size_t *retlen,
-                                        size_t **map) {
+/*
+ * Convert a UTF8 string to UTF32 codepoints.
+ * This will UTF8_MALLOC() a buffer large enough, and store it to retstr and its
+ * length to retcps. The result is not null terminated.
+ * Returns 1 on success, 0 on failure. Cleans up the buffer and does not store
+ * to retcps or retlen on failure.
+ * Also, if map is not null, UTF8_MALLOC()s and a pointer to a list of the
+ * position of the beginning of each utf8 codepoint in str to map. There are
+ * retlen many of them. Cleans up and does not store the list to map on failure.
+ */
+static inline int UTF8_decode_map(char *str, size_t len, codepoint_t **retcps,
+                                  size_t *retlen, size_t **map) {
 
   UTF8Decoder state;
   codepoint_t *cpbuf, cp;
@@ -177,7 +186,7 @@ static inline int UTF8_decode_positions(char *str, size_t len,
     cp = UTF8_decodeNext(&state);
     if ((cp == UTF8_ERR) | (cp == UTF8_END))
       break;
-    if (map)
+    if (mapbuf)
       mapbuf[cps_read] = prepos;
     cpbuf[cps_read] = cp;
     cps_read++;
@@ -185,10 +194,12 @@ static inline int UTF8_decode_positions(char *str, size_t len,
 
   if (cp == UTF8_ERR) {
     UTF8_FREE(cpbuf);
+    if (mapbuf)
+      UTF8_FREE(mapbuf);
     return 0;
   }
 
-  if (map)
+  if (mapbuf)
     *map = mapbuf;
   *retcps = cpbuf;
   *retlen = cps_read;
@@ -204,7 +215,7 @@ static inline int UTF8_decode_positions(char *str, size_t len,
  */
 static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
                               size_t *retlen) {
-  return UTF8_decode_positions(str, len, retcps, retlen, NULL);
+  return UTF8_decode_map(str, len, retcps, retlen, NULL);
 }
 
 #endif /* UTF8_INCLUDED */
