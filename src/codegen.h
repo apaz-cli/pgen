@@ -1386,7 +1386,10 @@ static inline void peg_write_astnode_print(codegen_ctx *ctx) {
   cwrite("static inline void %s_astnode_print_json(%s_token* tokens, "
          "%s_astnode_t *node) {\n",
          ctx->lower, ctx->lower, ctx->lower);
-  cwrite("  %s_astnode_print_h(tokens, node, 0, 1);\n", ctx->lower);
+  cwrite("  if (node)");
+  cwrite("    %s_astnode_print_h(tokens, node, 0, 1);\n", ctx->lower);
+  cwrite("  else");
+  cwrite("    puts(\"The AST is null.\");");
   cwrite("}\n\n");
 }
 
