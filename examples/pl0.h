@@ -1726,8 +1726,8 @@ static inline int pl0_astnode_print_h(pl0_token* tokens, pl0_astnode_t *node, si
 }
 
 static inline void pl0_astnode_print_json(pl0_token* tokens, pl0_astnode_t *node) {
-  pl0_astnode_print_h(tokens, node, 0, 1);
-}
+  if (node)    pl0_astnode_print_h(tokens, node, 0, 1);
+  else    puts("The AST is null.");}
 
 #define SUCC                     (pl0_astnode_t*)(void*)(uintptr_t)_Alignof(pl0_astnode_t)
 

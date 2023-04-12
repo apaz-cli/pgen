@@ -121,7 +121,7 @@ void runCalculator(void) {
     break;
   }
 
-  if (!strcmp(input_str, "exit"))
+  if (!input_str[0] || !strcmp(input_str, "exit"))
     exit(0);
 
   codepoint_t *cps = NULL;
