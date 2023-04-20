@@ -112,19 +112,21 @@ by [Arihiro Yoshida](https://github.com/arithy). You may see many commonalities.
 
 ## Directives:
 
-* `%oom`         - Define the action that should be taken when out of memory
-* `%node`        - Define an ASTNode kind
-* `%preinclude`  - Include a file before astnode, but after support libs
-* `%include`     - Include a file after astnode, but before the parser
-* `%postinclude` - Include a file after the parser
-* `%predefine`   - #define something before astnode, but after support libs
-* `%define`      - #define something after astnode, but before the parser
-* `%postdefine`  - #define something after the parser
-* `%precode`     - Insert code before astnode, but after support libs
-* `%code`        - Insert code after astnode, but before the parser
-* `%postcode`    - Insert code after the parser
-* `%extra`       - Add fields to the astnode
-* `%extrainit`   - Add initialization to the astnode
+* `%oom`          - Define the action that should be taken when out of memory
+* `%node`         - Define an ASTNode kind
+* `%preinclude`   - Include a file before astnode, but after support libs
+* `%include`      - Include a file after astnode, but before the parser
+* `%postinclude`  - Include a file after the parser
+* `%predefine`    - #define something before astnode, but after support libs
+* `%define`       - #define something after astnode, but before the parser
+* `%postdefine`   - #define something after the parser
+* `%precode`      - Insert code before astnode, but after support libs
+* `%code`         - Insert code after astnode, but before the parser
+* `%postcode`     - Insert code after the parser
+* `%extra`        - Add fields to the astnode
+* `%extrainit`    - Add initialization to the astnode
+* `%errextra`     - Add fields to errors
+* `%errextrainit` - Add initialization to errors
 
 ## C Builtins:
 * `rec(label)`              - Record the parser's state to a label
