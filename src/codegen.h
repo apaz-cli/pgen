@@ -681,7 +681,7 @@ static const char *known_directives[] = {
     "preinclude", "postinclude", "code",       "precode",
     "postcode",   "define",      "predefine",  "postdefine",
     "extra",      "extrainit",   "tokenextra", "tokenextrainit",
-    "context",    "contextinit"};
+    "context",    "contextinit", "errextra",   "errextrainit"};
 static const size_t num_known_directives =
     sizeof(known_directives) / sizeof(const char *);
 
@@ -821,6 +821,13 @@ static inline void peg_write_parser_errdef(codegen_ctx *ctx) {
   cwrite("struct %s_parse_err {\n", ctx->lower);
   cwrite("  const char* msg;\n");
   // cwrite("  void (*msgfree)(const char* msg, void* extra);\n");
+  for (size_t n = 0; n < ctx->directives.len; n++) {
+    ASTNode *dir = ctx->directives.buf[n];
+    char *dir_name = (char *)dir->children[0]->extra;
+    if (!strcmp(dir_name, "errextra")) {
+      cwrite("  %s\n", (char *)dir->extra);
+    }
+  }
   cwrite("  int severity;\n");
   cwrite("  size_t line;\n");
   cwrite("  size_t col;\n");
@@ -896,15 +903,18 @@ static inline void peg_write_report_parse_error(codegen_ctx *ctx) {
          ctx->lower, ctx->lower);
   cwrite("  err->msg = (const char*)msg;\n");
   cwrite("  err->severity = severity;\n");
-  cwrite("  if (ctx->pos < ctx->len) {\n");
-  cwrite("    size_t toknum = ctx->pos + (ctx->pos != ctx->len - 1);\n");
-  cwrite("    %s_token tok = ctx->tokens[toknum];\n", ctx->lower);
-  cwrite("    err->line = tok.line;\n");
-  cwrite("    err->col = tok.col;\n");
-  cwrite("  } else {\n");
-  cwrite("    err->line = 0;\n");
-  cwrite("    err->col = 0;\n");
-  cwrite("  }\n\n");
+  cwrite("  size_t toknum = ctx->pos + (ctx->pos != ctx->len - 1);\n");
+  cwrite("  %s_token tok = ctx->tokens[toknum];\n", ctx->lower);
+  cwrite("  err->line = tok.line;\n");
+  cwrite("  err->col = tok.col;\n\n");
+
+  // Insert errextrainit directives
+  for (size_t n = 0; n < ctx->directives.len; n++) {
+    ASTNode *dir = ctx->directives.buf[n];
+    char *dir_name = (char *)dir->children[0]->extra;
+    if (!strcmp(dir_name, "errextrainit"))
+      cwrite("  %s\n", (char *)dir->extra);
+  }
 
   cwrite("  if (severity == 3)\n");
   cwrite("    ctx->exit = 1;\n");
