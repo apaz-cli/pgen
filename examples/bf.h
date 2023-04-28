@@ -1,5 +1,5 @@
-#ifndef PGEN_CALC_PARSER_H
-#define PGEN_CALC_PARSER_H
+#ifndef PGEN_BF_PARSER_H
+#define PGEN_BF_PARSER_H
 
 
 /* START OF UTF8 LIBRARY */
@@ -593,8 +593,8 @@ static inline void pgen_allocator_rewind(pgen_allocator *allocator,
 #endif /* PGEN_ARENA_INCLUDED */
 
 
-struct calc_astnode_t;
-typedef struct calc_astnode_t calc_astnode_t;
+struct bf_astnode_t;
+typedef struct bf_astnode_t bf_astnode_t;
 
 
 #ifndef PGEN_PARSER_MACROS_INCLUDED
@@ -636,47 +636,49 @@ typedef struct calc_astnode_t calc_astnode_t;
       6, 5, 4, 3, 2, 1, 0
 #endif /* PGEN_PARSER_MACROS_INCLUDED */
 
-#ifndef CALC_TOKENIZER_INCLUDE
-#define CALC_TOKENIZER_INCLUDE
+#ifndef BF_TOKENIZER_INCLUDE
+#define BF_TOKENIZER_INCLUDE
 
 typedef enum {
-  CALC_TOK_STREAMBEGIN,
-  CALC_TOK_STREAMEND,
-  CALC_TOK_PLUS,
-  CALC_TOK_MINUS,
-  CALC_TOK_MULT,
-  CALC_TOK_DIV,
-  CALC_TOK_OPEN,
-  CALC_TOK_CLOSE,
-  CALC_TOK_NUMBER,
-  CALC_TOK_WS,
-} calc_token_kind;
+  BF_TOK_STREAMBEGIN,
+  BF_TOK_STREAMEND,
+  BF_TOK_PLUS,
+  BF_TOK_MINUS,
+  BF_TOK_RS,
+  BF_TOK_LS,
+  BF_TOK_LBRACK,
+  BF_TOK_RBRACK,
+  BF_TOK_PUTC,
+  BF_TOK_GETC,
+  BF_TOK_COMMENT,
+} bf_token_kind;
 
 // The 0th token is beginning of stream.
 // The 1st token isend of stream.
-// Tokens 1 through 8 are the ones you defined.
-// This totals 10 kinds of tokens.
-#define CALC_NUM_TOKENKINDS 10
-static const char* calc_tokenkind_name[CALC_NUM_TOKENKINDS] = {
+// Tokens 1 through 9 are the ones you defined.
+// This totals 11 kinds of tokens.
+#define BF_NUM_TOKENKINDS 11
+static const char* bf_tokenkind_name[BF_NUM_TOKENKINDS] = {
   "STREAMBEGIN",
   "STREAMEND",
   "PLUS",
   "MINUS",
-  "MULT",
-  "DIV",
-  "OPEN",
-  "CLOSE",
-  "NUMBER",
-  "WS",
+  "RS",
+  "LS",
+  "LBRACK",
+  "RBRACK",
+  "PUTC",
+  "GETC",
+  "COMMENT",
 };
 
 typedef struct {
-  calc_token_kind kind;
+  bf_token_kind kind;
   codepoint_t* content; // The token begins at tokenizer->start[token->start].
   size_t len;
   size_t line;
   size_t col;
-} calc_token;
+} bf_token;
 
 typedef struct {
   codepoint_t* start;
@@ -684,9 +686,9 @@ typedef struct {
   size_t pos;
   size_t pos_line;
   size_t pos_col;
-} calc_tokenizer;
+} bf_tokenizer;
 
-static inline void calc_tokenizer_init(calc_tokenizer* tokenizer, codepoint_t* start, size_t len) {
+static inline void bf_tokenizer_init(bf_tokenizer* tokenizer, codepoint_t* start, size_t len) {
   tokenizer->start = start;
   tokenizer->len = len;
   tokenizer->pos = 0;
@@ -694,17 +696,15 @@ static inline void calc_tokenizer_init(calc_tokenizer* tokenizer, codepoint_t* s
   tokenizer->pos_col = 0;
 }
 
-static inline calc_token calc_nextToken(calc_tokenizer* tokenizer) {
+static inline bf_token bf_nextToken(bf_tokenizer* tokenizer) {
   codepoint_t* current = tokenizer->start + tokenizer->pos;
   size_t remaining = tokenizer->len - tokenizer->pos;
 
   int trie_state = 0;
   int smaut_state_0 = 0;
-  int smaut_state_1 = 0;
   size_t trie_munch_size = 0;
   size_t smaut_munch_size_0 = 0;
-  size_t smaut_munch_size_1 = 0;
-  calc_token_kind trie_tokenkind = CALC_TOK_STREAMEND;
+  bf_token_kind trie_tokenkind = BF_TOK_STREAMEND;
 
   for (size_t iidx = 0; iidx < remaining; iidx++) {
     codepoint_t c = current[iidx];
@@ -714,12 +714,14 @@ static inline calc_token calc_nextToken(calc_tokenizer* tokenizer) {
     if (trie_state != -1) {
       all_dead = 0;
       if (trie_state == 0) {
-        if (c == 40 /*'('*/) trie_state = 5;
-        else if (c == 41 /*')'*/) trie_state = 6;
-        else if (c == 42 /*'*'*/) trie_state = 3;
-        else if (c == 43 /*'+'*/) trie_state = 1;
+        if (c == 43 /*'+'*/) trie_state = 1;
+        else if (c == 44 /*','*/) trie_state = 8;
         else if (c == 45 /*'-'*/) trie_state = 2;
-        else if (c == 47 /*'/'*/) trie_state = 4;
+        else if (c == 46 /*'.'*/) trie_state = 7;
+        else if (c == 60 /*'<'*/) trie_state = 4;
+        else if (c == 62 /*'>'*/) trie_state = 3;
+        else if (c == 91 /*'['*/) trie_state = 5;
+        else if (c == 93 /*']'*/) trie_state = 6;
         else trie_state = -1;
       }
       else {
@@ -728,68 +730,54 @@ static inline calc_token calc_nextToken(calc_tokenizer* tokenizer) {
 
       // Check accept
       if (trie_state == 1) {
-        trie_tokenkind =  CALC_TOK_PLUS;
+        trie_tokenkind =  BF_TOK_PLUS;
         trie_munch_size = iidx + 1;
       }
       else if (trie_state == 2) {
-        trie_tokenkind =  CALC_TOK_MINUS;
+        trie_tokenkind =  BF_TOK_MINUS;
         trie_munch_size = iidx + 1;
       }
       else if (trie_state == 3) {
-        trie_tokenkind =  CALC_TOK_MULT;
+        trie_tokenkind =  BF_TOK_RS;
         trie_munch_size = iidx + 1;
       }
       else if (trie_state == 4) {
-        trie_tokenkind =  CALC_TOK_DIV;
+        trie_tokenkind =  BF_TOK_LS;
         trie_munch_size = iidx + 1;
       }
       else if (trie_state == 5) {
-        trie_tokenkind =  CALC_TOK_OPEN;
+        trie_tokenkind =  BF_TOK_LBRACK;
         trie_munch_size = iidx + 1;
       }
       else if (trie_state == 6) {
-        trie_tokenkind =  CALC_TOK_CLOSE;
+        trie_tokenkind =  BF_TOK_RBRACK;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 7) {
+        trie_tokenkind =  BF_TOK_PUTC;
+        trie_munch_size = iidx + 1;
+      }
+      else if (trie_state == 8) {
+        trie_tokenkind =  BF_TOK_GETC;
         trie_munch_size = iidx + 1;
       }
     }
 
-    // Transition NUMBER State Machine
+    // Transition COMMENT State Machine
     if (smaut_state_0 != -1) {
       all_dead = 0;
 
       if ((smaut_state_0 == 0) &
-         ((c == '-') | (c == '+'))) {
+         (!(((c >= '+') & (c <= '[')) | (c == ']') | (c == '>') | (c == '<') | (c == '.') | (c == ',')))) {
           smaut_state_0 = 1;
-      }
-      else if (((smaut_state_0 >= 0) & (smaut_state_0 <= 2)) &
-         ((c >= '0') & (c <= '9'))) {
-          smaut_state_0 = 2;
       }
       else {
         smaut_state_0 = -1;
       }
 
       // Check accept
-      if (smaut_state_0 == 2) {
+      if (smaut_state_0 == 1) {
         smaut_munch_size_0 = iidx + 1;
-      }
-    }
-
-    // Transition WS State Machine
-    if (smaut_state_1 != -1) {
-      all_dead = 0;
-
-      if (((smaut_state_1 == 0) | (smaut_state_1 == 1)) &
-         ((c == 32) | (c == '\n') | (c == 13) | (c == 9))) {
-          smaut_state_1 = 1;
-      }
-      else {
-        smaut_state_1 = -1;
-      }
-
-      // Check accept
-      if (smaut_state_1 == 1) {
-        smaut_munch_size_1 = iidx + 1;
       }
     }
 
@@ -798,14 +786,10 @@ static inline calc_token calc_nextToken(calc_tokenizer* tokenizer) {
   }
 
   // Determine what token was accepted, if any.
-  calc_token_kind kind = CALC_TOK_STREAMEND;
+  bf_token_kind kind = BF_TOK_STREAMEND;
   size_t max_munch = 0;
-  if (smaut_munch_size_1 >= max_munch) {
-    kind = CALC_TOK_WS;
-    max_munch = smaut_munch_size_1;
-  }
   if (smaut_munch_size_0 >= max_munch) {
-    kind = CALC_TOK_NUMBER;
+    kind = BF_TOK_COMMENT;
     max_munch = smaut_munch_size_0;
   }
   if (trie_munch_size >= max_munch) {
@@ -813,7 +797,7 @@ static inline calc_token calc_nextToken(calc_tokenizer* tokenizer) {
     max_munch = trie_munch_size;
   }
 
-  calc_token tok;
+  bf_token tok;
   tok.kind = kind;
   tok.content = tokenizer->start + tokenizer->pos;
   tok.len = max_munch;
@@ -834,43 +818,43 @@ static inline calc_token calc_nextToken(calc_tokenizer* tokenizer) {
   return tok;
 }
 
-#endif /* CALC_TOKENIZER_INCLUDE */
+#endif /* BF_TOKENIZER_INCLUDE */
 
-#ifndef PGEN_CALC_ASTNODE_INCLUDE
-#define PGEN_CALC_ASTNODE_INCLUDE
+#ifndef PGEN_BF_ASTNODE_INCLUDE
+#define PGEN_BF_ASTNODE_INCLUDE
 
-struct calc_parse_err;
-typedef struct calc_parse_err calc_parse_err;
-struct calc_parse_err {
+struct bf_parse_err;
+typedef struct bf_parse_err bf_parse_err;
+struct bf_parse_err {
   const char* msg;
   int severity;
   size_t line;
   size_t col;
 };
 
-#ifndef CALC_MAX_PARSER_ERRORS
-#define CALC_MAX_PARSER_ERRORS 20
+#ifndef BF_MAX_PARSER_ERRORS
+#define BF_MAX_PARSER_ERRORS 20
 #endif
 typedef struct {
-  calc_token* tokens;
+  bf_token* tokens;
   size_t len;
   size_t pos;
   int exit;
   pgen_allocator *alloc;
   size_t num_errors;
-  calc_parse_err errlist[CALC_MAX_PARSER_ERRORS];
-} calc_parser_ctx;
+  bf_parse_err errlist[BF_MAX_PARSER_ERRORS];
+} bf_parser_ctx;
 
-static inline void calc_parser_ctx_init(calc_parser_ctx* parser,
+static inline void bf_parser_ctx_init(bf_parser_ctx* parser,
                                        pgen_allocator* allocator,
-                                       calc_token* tokens, size_t num_tokens) {
+                                       bf_token* tokens, size_t num_tokens) {
   parser->tokens = tokens;
   parser->len = num_tokens;
   parser->pos = 0;
   parser->exit = 0;
   parser->alloc = allocator;
   parser->num_errors = 0;
-  size_t to_zero = sizeof(calc_parse_err) * CALC_MAX_PARSER_ERRORS;
+  size_t to_zero = sizeof(bf_parse_err) * BF_MAX_PARSER_ERRORS;
   memset(&parser->errlist, 0, to_zero);
 }
 static inline void freemsg(const char* msg, void* extra) {
@@ -878,17 +862,17 @@ static inline void freemsg(const char* msg, void* extra) {
   PGEN_FREE((void*)msg);
 }
 
-static inline calc_parse_err* calc_report_parse_error(calc_parser_ctx* ctx,
+static inline bf_parse_err* bf_report_parse_error(bf_parser_ctx* ctx,
               const char* msg, void (*msgfree)(const char* msg, void* extra), int severity) {
-  if (ctx->num_errors >= CALC_MAX_PARSER_ERRORS) {
+  if (ctx->num_errors >= BF_MAX_PARSER_ERRORS) {
     ctx->exit = 1;
     return NULL;
   }
-  calc_parse_err* err = &ctx->errlist[ctx->num_errors++];
+  bf_parse_err* err = &ctx->errlist[ctx->num_errors++];
   err->msg = (const char*)msg;
   err->severity = severity;
   size_t toknum = ctx->pos + (ctx->pos != ctx->len - 1);
-  calc_token tok = ctx->tokens[toknum];
+  bf_token tok = ctx->tokens[toknum];
   err->line = tok.line;
   err->col = tok.col;
 
@@ -898,38 +882,40 @@ static inline calc_parse_err* calc_report_parse_error(calc_parser_ctx* ctx,
 }
 
 typedef enum {
-  CALC_NODE_PLUS,
-  CALC_NODE_MINUS,
-  CALC_NODE_MULT,
-  CALC_NODE_DIV,
-  CALC_NODE_OPEN,
-  CALC_NODE_CLOSE,
-  CALC_NODE_NUMBER,
-  CALC_NODE_WS,
-} calc_astnode_kind;
+  BF_NODE_PLUS,
+  BF_NODE_MINUS,
+  BF_NODE_RS,
+  BF_NODE_LS,
+  BF_NODE_LBRACK,
+  BF_NODE_RBRACK,
+  BF_NODE_PUTC,
+  BF_NODE_GETC,
+  BF_NODE_COMMENT,
+} bf_astnode_kind;
 
-#define CALC_NUM_NODEKINDS 8
-static const char* calc_nodekind_name[CALC_NUM_NODEKINDS] = {
+#define BF_NUM_NODEKINDS 9
+static const char* bf_nodekind_name[BF_NUM_NODEKINDS] = {
   "PLUS",
   "MINUS",
-  "MULT",
-  "DIV",
-  "OPEN",
-  "CLOSE",
-  "NUMBER",
-  "WS",
+  "RS",
+  "LS",
+  "LBRACK",
+  "RBRACK",
+  "PUTC",
+  "GETC",
+  "COMMENT",
 };
 
-struct calc_astnode_t {
-  calc_astnode_t* parent;
+struct bf_astnode_t {
+  bf_astnode_t* parent;
   uint16_t num_children;
   uint16_t max_children;
-  calc_astnode_kind kind;
+  bf_astnode_kind kind;
 
   codepoint_t* tok_repr;
   size_t repr_len;
   // No %extra directives.
-  calc_astnode_t** children;
+  bf_astnode_t** children;
 };
 
 #define PGEN_MIN1(a) a
@@ -946,18 +932,18 @@ struct calc_astnode_t {
 #define PGEN_MIN(a, b) ((a) ? ((a) > (b) ? (b) : (a)) : (b))
 
 
-static inline calc_astnode_t* calc_astnode_list(
+static inline bf_astnode_t* bf_astnode_list(
                              pgen_allocator* alloc,
-                             calc_astnode_kind kind,
+                             bf_astnode_kind kind,
                              size_t initial_size) {
   char* ret = pgen_alloc(alloc,
-                         sizeof(calc_astnode_t),
-                         _Alignof(calc_astnode_t));
-  calc_astnode_t *node = (calc_astnode_t*)ret;
+                         sizeof(bf_astnode_t),
+                         _Alignof(bf_astnode_t));
+  bf_astnode_t *node = (bf_astnode_t*)ret;
 
-  calc_astnode_t **children;
+  bf_astnode_t **children;
   if (initial_size) {
-    children = (calc_astnode_t**)PGEN_MALLOC(sizeof(calc_astnode_t*) * initial_size);
+    children = (bf_astnode_t**)PGEN_MALLOC(sizeof(bf_astnode_t*) * initial_size);
     if (!children) PGEN_OOM();
     pgen_defer(alloc, PGEN_FREE, children, alloc->rew);
   } else {
@@ -974,14 +960,14 @@ static inline calc_astnode_t* calc_astnode_list(
   return node;
 }
 
-static inline calc_astnode_t* calc_astnode_leaf(
+static inline bf_astnode_t* bf_astnode_leaf(
                              pgen_allocator* alloc,
-                             calc_astnode_kind kind) {
+                             bf_astnode_kind kind) {
   char* ret = pgen_alloc(alloc,
-                         sizeof(calc_astnode_t),
-                         _Alignof(calc_astnode_t));
-  calc_astnode_t *node = (calc_astnode_t *)ret;
-  calc_astnode_t *children = NULL;
+                         sizeof(bf_astnode_t),
+                         _Alignof(bf_astnode_t));
+  bf_astnode_t *node = (bf_astnode_t *)ret;
+  bf_astnode_t *children = NULL;
   node->kind = kind;
   node->parent = NULL;
   node->max_children = 0;
@@ -992,16 +978,16 @@ static inline calc_astnode_t* calc_astnode_leaf(
   return node;
 }
 
-static inline calc_astnode_t* calc_astnode_fixed_1(
+static inline bf_astnode_t* bf_astnode_fixed_1(
                              pgen_allocator* alloc,
-                             calc_astnode_kind kind,
-                             calc_astnode_t* PGEN_RESTRICT n0) {
+                             bf_astnode_kind kind,
+                             bf_astnode_t* PGEN_RESTRICT n0) {
   char* ret = pgen_alloc(alloc,
-                         sizeof(calc_astnode_t) +
-                         sizeof(calc_astnode_t *) * 1,
-                         _Alignof(calc_astnode_t));
-  calc_astnode_t *node = (calc_astnode_t *)ret;
-  calc_astnode_t **children = (calc_astnode_t **)(node + 1);
+                         sizeof(bf_astnode_t) +
+                         sizeof(bf_astnode_t *) * 1,
+                         _Alignof(bf_astnode_t));
+  bf_astnode_t *node = (bf_astnode_t *)ret;
+  bf_astnode_t **children = (bf_astnode_t **)(node + 1);
   node->kind = kind;
   node->parent = NULL;
   node->max_children = 0;
@@ -1014,17 +1000,17 @@ static inline calc_astnode_t* calc_astnode_fixed_1(
   return node;
 }
 
-static inline calc_astnode_t* calc_astnode_fixed_2(
+static inline bf_astnode_t* bf_astnode_fixed_2(
                              pgen_allocator* alloc,
-                             calc_astnode_kind kind,
-                             calc_astnode_t* PGEN_RESTRICT n0,
-                             calc_astnode_t* PGEN_RESTRICT n1) {
+                             bf_astnode_kind kind,
+                             bf_astnode_t* PGEN_RESTRICT n0,
+                             bf_astnode_t* PGEN_RESTRICT n1) {
   char* ret = pgen_alloc(alloc,
-                         sizeof(calc_astnode_t) +
-                         sizeof(calc_astnode_t *) * 2,
-                         _Alignof(calc_astnode_t));
-  calc_astnode_t *node = (calc_astnode_t *)ret;
-  calc_astnode_t **children = (calc_astnode_t **)(node + 1);
+                         sizeof(bf_astnode_t) +
+                         sizeof(bf_astnode_t *) * 2,
+                         _Alignof(bf_astnode_t));
+  bf_astnode_t *node = (bf_astnode_t *)ret;
+  bf_astnode_t **children = (bf_astnode_t **)(node + 1);
   node->kind = kind;
   node->parent = NULL;
   node->max_children = 0;
@@ -1039,18 +1025,18 @@ static inline calc_astnode_t* calc_astnode_fixed_2(
   return node;
 }
 
-static inline calc_astnode_t* calc_astnode_fixed_3(
+static inline bf_astnode_t* bf_astnode_fixed_3(
                              pgen_allocator* alloc,
-                             calc_astnode_kind kind,
-                             calc_astnode_t* PGEN_RESTRICT n0,
-                             calc_astnode_t* PGEN_RESTRICT n1,
-                             calc_astnode_t* PGEN_RESTRICT n2) {
+                             bf_astnode_kind kind,
+                             bf_astnode_t* PGEN_RESTRICT n0,
+                             bf_astnode_t* PGEN_RESTRICT n1,
+                             bf_astnode_t* PGEN_RESTRICT n2) {
   char* ret = pgen_alloc(alloc,
-                         sizeof(calc_astnode_t) +
-                         sizeof(calc_astnode_t *) * 3,
-                         _Alignof(calc_astnode_t));
-  calc_astnode_t *node = (calc_astnode_t *)ret;
-  calc_astnode_t **children = (calc_astnode_t **)(node + 1);
+                         sizeof(bf_astnode_t) +
+                         sizeof(bf_astnode_t *) * 3,
+                         _Alignof(bf_astnode_t));
+  bf_astnode_t *node = (bf_astnode_t *)ret;
+  bf_astnode_t **children = (bf_astnode_t **)(node + 1);
   node->kind = kind;
   node->parent = NULL;
   node->max_children = 0;
@@ -1067,19 +1053,19 @@ static inline calc_astnode_t* calc_astnode_fixed_3(
   return node;
 }
 
-static inline calc_astnode_t* calc_astnode_fixed_4(
+static inline bf_astnode_t* bf_astnode_fixed_4(
                              pgen_allocator* alloc,
-                             calc_astnode_kind kind,
-                             calc_astnode_t* PGEN_RESTRICT n0,
-                             calc_astnode_t* PGEN_RESTRICT n1,
-                             calc_astnode_t* PGEN_RESTRICT n2,
-                             calc_astnode_t* PGEN_RESTRICT n3) {
+                             bf_astnode_kind kind,
+                             bf_astnode_t* PGEN_RESTRICT n0,
+                             bf_astnode_t* PGEN_RESTRICT n1,
+                             bf_astnode_t* PGEN_RESTRICT n2,
+                             bf_astnode_t* PGEN_RESTRICT n3) {
   char* ret = pgen_alloc(alloc,
-                         sizeof(calc_astnode_t) +
-                         sizeof(calc_astnode_t *) * 4,
-                         _Alignof(calc_astnode_t));
-  calc_astnode_t *node = (calc_astnode_t *)ret;
-  calc_astnode_t **children = (calc_astnode_t **)(node + 1);
+                         sizeof(bf_astnode_t) +
+                         sizeof(bf_astnode_t *) * 4,
+                         _Alignof(bf_astnode_t));
+  bf_astnode_t *node = (bf_astnode_t *)ret;
+  bf_astnode_t **children = (bf_astnode_t **)(node + 1);
   node->kind = kind;
   node->parent = NULL;
   node->max_children = 0;
@@ -1098,20 +1084,20 @@ static inline calc_astnode_t* calc_astnode_fixed_4(
   return node;
 }
 
-static inline calc_astnode_t* calc_astnode_fixed_5(
+static inline bf_astnode_t* bf_astnode_fixed_5(
                              pgen_allocator* alloc,
-                             calc_astnode_kind kind,
-                             calc_astnode_t* PGEN_RESTRICT n0,
-                             calc_astnode_t* PGEN_RESTRICT n1,
-                             calc_astnode_t* PGEN_RESTRICT n2,
-                             calc_astnode_t* PGEN_RESTRICT n3,
-                             calc_astnode_t* PGEN_RESTRICT n4) {
+                             bf_astnode_kind kind,
+                             bf_astnode_t* PGEN_RESTRICT n0,
+                             bf_astnode_t* PGEN_RESTRICT n1,
+                             bf_astnode_t* PGEN_RESTRICT n2,
+                             bf_astnode_t* PGEN_RESTRICT n3,
+                             bf_astnode_t* PGEN_RESTRICT n4) {
   char* ret = pgen_alloc(alloc,
-                         sizeof(calc_astnode_t) +
-                         sizeof(calc_astnode_t *) * 5,
-                         _Alignof(calc_astnode_t));
-  calc_astnode_t *node = (calc_astnode_t *)ret;
-  calc_astnode_t **children = (calc_astnode_t **)(node + 1);
+                         sizeof(bf_astnode_t) +
+                         sizeof(bf_astnode_t *) * 5,
+                         _Alignof(bf_astnode_t));
+  bf_astnode_t *node = (bf_astnode_t *)ret;
+  bf_astnode_t **children = (bf_astnode_t **)(node + 1);
   node->kind = kind;
   node->parent = NULL;
   node->max_children = 0;
@@ -1132,19 +1118,19 @@ static inline calc_astnode_t* calc_astnode_fixed_5(
   return node;
 }
 
-static inline void calc_astnode_add(pgen_allocator* alloc, calc_astnode_t *list, calc_astnode_t *node) {
+static inline void bf_astnode_add(pgen_allocator* alloc, bf_astnode_t *list, bf_astnode_t *node) {
   if (list->max_children == list->num_children) {
     // Figure out the new size. Check for overflow where applicable.
     uint64_t new_max = (uint64_t)list->max_children * 2;
     if (new_max > UINT16_MAX || new_max > SIZE_MAX) PGEN_OOM();
-    if (SIZE_MAX < UINT16_MAX && (size_t)new_max > SIZE_MAX / sizeof(calc_astnode_t)) PGEN_OOM();
-    size_t new_bytes = (size_t)new_max * sizeof(calc_astnode_t);
+    if (SIZE_MAX < UINT16_MAX && (size_t)new_max > SIZE_MAX / sizeof(bf_astnode_t)) PGEN_OOM();
+    size_t new_bytes = (size_t)new_max * sizeof(bf_astnode_t);
 
     // Reallocate the list, and inform the allocator.
     void* old_ptr = list->children;
     void* new_ptr = realloc(list->children, new_bytes);
     if (!new_ptr) PGEN_OOM();
-    list->children = (calc_astnode_t **)new_ptr;
+    list->children = (bf_astnode_t **)new_ptr;
     list->max_children = (uint16_t)new_max;
     pgen_allocator_realloced(alloc, old_ptr, new_ptr, free);
   }
@@ -1152,24 +1138,24 @@ static inline void calc_astnode_add(pgen_allocator* alloc, calc_astnode_t *list,
   list->children[list->num_children++] = node;
 }
 
-static inline void calc_parser_rewind(calc_parser_ctx *ctx, pgen_parser_rewind_t rew) {
+static inline void bf_parser_rewind(bf_parser_ctx *ctx, pgen_parser_rewind_t rew) {
   pgen_allocator_rewind(ctx->alloc, rew.arew);
   ctx->pos = rew.prew;
 }
 
-static inline calc_astnode_t* calc_astnode_repr(calc_astnode_t* node, calc_astnode_t* t) {
+static inline bf_astnode_t* bf_astnode_repr(bf_astnode_t* node, bf_astnode_t* t) {
   node->tok_repr = t->tok_repr;
   node->repr_len = t->repr_len;
   return node;
 }
 
-static inline calc_astnode_t* calc_astnode_cprepr(calc_astnode_t* node, codepoint_t* cps, size_t repr_len) {
+static inline bf_astnode_t* bf_astnode_cprepr(bf_astnode_t* node, codepoint_t* cps, size_t repr_len) {
   node->tok_repr = cps;
   node->repr_len = repr_len;
   return node;
 }
 
-static inline calc_astnode_t* calc_astnode_srepr(pgen_allocator* allocator, calc_astnode_t* node, char* s) {
+static inline bf_astnode_t* bf_astnode_srepr(pgen_allocator* allocator, bf_astnode_t* node, char* s) {
   size_t cpslen = strlen(s);
   codepoint_t* cps = (codepoint_t*)pgen_alloc(allocator, (cpslen + 1) * sizeof(codepoint_t), _Alignof(codepoint_t));
   for (size_t i = 0; i < cpslen; i++) cps[i] = (codepoint_t)s[i];
@@ -1179,7 +1165,7 @@ static inline calc_astnode_t* calc_astnode_srepr(pgen_allocator* allocator, calc
   return node;
 }
 
-static inline int calc_node_print_content(calc_astnode_t* node, calc_token* tokens) {
+static inline int bf_node_print_content(bf_astnode_t* node, bf_token* tokens) {
   int found = 0;
   codepoint_t* utf32 = NULL; size_t utf32len = 0;
   char* utf8 = NULL; size_t utf8len = 0;
@@ -1197,20 +1183,20 @@ static inline int calc_node_print_content(calc_astnode_t* node, calc_token* toke
   return 0;
 }
 
-static inline int calc_astnode_print_h(calc_token* tokens, calc_astnode_t *node, size_t depth, int fl) {
+static inline int bf_astnode_print_h(bf_token* tokens, bf_astnode_t *node, size_t depth, int fl) {
   #define indent() for (size_t i = 0; i < depth; i++) printf("  ")
   if (!node)
     return 0;
-  else if (node == (calc_astnode_t*)(void*)(uintptr_t)_Alignof(calc_astnode_t))
+  else if (node == (bf_astnode_t*)(void*)(uintptr_t)_Alignof(bf_astnode_t))
     puts("ERROR, CAPTURED SUCC."), exit(1);
 
   indent(); puts("{");
   depth++;
-  indent(); printf("\"kind\": "); printf("\"%s\",\n", calc_nodekind_name[node->kind]);
+  indent(); printf("\"kind\": "); printf("\"%s\",\n", bf_nodekind_name[node->kind]);
   if (!(!node->tok_repr & !node->repr_len)) {
     indent();
     printf("\"content\": \"");
-    calc_node_print_content(node, tokens);
+    bf_node_print_content(node, tokens);
     printf("\",\n");
   }
   size_t cnum = node->num_children;
@@ -1219,7 +1205,7 @@ static inline int calc_astnode_print_h(calc_token* tokens, calc_astnode_t *node,
     indent(); printf("\"children\": [");
     putchar('\n');
     for (size_t i = 0; i < cnum; i++)
-      calc_astnode_print_h(tokens, node->children[i], depth + 1, i == cnum - 1);
+      bf_astnode_print_h(tokens, node->children[i], depth + 1, i == cnum - 1);
     indent();
     printf("]\n");
   }
@@ -1229,53 +1215,76 @@ static inline int calc_astnode_print_h(calc_token* tokens, calc_astnode_t *node,
 #undef indent
 }
 
-static inline void calc_astnode_print_json(calc_token* tokens, calc_astnode_t *node) {
-  if (node)    calc_astnode_print_h(tokens, node, 0, 1);
+static inline void bf_astnode_print_json(bf_token* tokens, bf_astnode_t *node) {
+  if (node)    bf_astnode_print_h(tokens, node, 0, 1);
   else    puts("The AST is null.");}
 
-#define SUCC                     (calc_astnode_t*)(void*)(uintptr_t)_Alignof(calc_astnode_t)
+#define SUCC                     (bf_astnode_t*)(void*)(uintptr_t)_Alignof(bf_astnode_t)
 
 #define rec(label)               pgen_parser_rewind_t _rew_##label = (pgen_parser_rewind_t){ctx->alloc->rew, ctx->pos};
-#define rew(label)               calc_parser_rewind(ctx, _rew_##label)
-#define node(kindname, ...)      PGEN_CAT(calc_astnode_fixed_, PGEN_NARG(__VA_ARGS__))(ctx->alloc, kind(kindname), __VA_ARGS__)
-#define kind(name)               CALC_NODE_##name
-#define list(kind)               calc_astnode_list(ctx->alloc, CALC_NODE_##kind, 16)
-#define leaf(kind)               calc_astnode_leaf(ctx->alloc, CALC_NODE_##kind)
-#define add(list, node)          calc_astnode_add(ctx->alloc, list, node)
+#define rew(label)               bf_parser_rewind(ctx, _rew_##label)
+#define node(kindname, ...)      PGEN_CAT(bf_astnode_fixed_, PGEN_NARG(__VA_ARGS__))(ctx->alloc, kind(kindname), __VA_ARGS__)
+#define kind(name)               BF_NODE_##name
+#define list(kind)               bf_astnode_list(ctx->alloc, BF_NODE_##kind, 16)
+#define leaf(kind)               bf_astnode_leaf(ctx->alloc, BF_NODE_##kind)
+#define add(list, node)          bf_astnode_add(ctx->alloc, list, node)
 #define has(node)                (((uintptr_t)node <= (uintptr_t)SUCC) ? 0 : 1)
-#define repr(node, t)            calc_astnode_repr(node, t)
-#define srepr(node, s)           calc_astnode_srepr(ctx->alloc, node, (char*)s)
-#define cprepr(node, cps, len)   calc_astnode_cprepr(node, cps, len)
-#define expect(kind, cap)        ((ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == calc_TOK_##kind) ? ctx->pos++, (cap ? cprepr(leaf(kind), NULL, ctx->pos-1) : SUCC) : NULL)
+#define repr(node, t)            bf_astnode_repr(node, t)
+#define srepr(node, s)           bf_astnode_srepr(ctx->alloc, node, (char*)s)
+#define cprepr(node, cps, len)   bf_astnode_cprepr(node, cps, len)
+#define expect(kind, cap)        ((ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == bf_TOK_##kind) ? ctx->pos++, (cap ? cprepr(leaf(kind), NULL, ctx->pos-1) : SUCC) : NULL)
 
 #define LB {
 #define RB }
 
-#define INFO(msg)                calc_report_parse_error(ctx, (const char*)msg, NULL,   0)
-#define WARNING(msg)             calc_report_parse_error(ctx, (const char*)msg, NULL,   1)
-#define ERROR(msg)               calc_report_parse_error(ctx, (const char*)msg, NULL,   2)
-#define FATAL(msg)               calc_report_parse_error(ctx, (const char*)msg, NULL,   3)
-#define INFO_F(msg, freefn)      calc_report_parse_error(ctx, (const char*)msg, freefn, 0)
-#define WARNING_F(msg, freefn)   calc_report_parse_error(ctx, (const char*)msg, freefn, 1)
-#define ERROR_F(msg, freefn)     calc_report_parse_error(ctx, (const char*)msg, freefn, 2)
-#define FATAL_F(msg, freefn)     calc_report_parse_error(ctx, (const char*)msg, freefn, 3)
+#define INFO(msg)                bf_report_parse_error(ctx, (const char*)msg, NULL,   0)
+#define WARNING(msg)             bf_report_parse_error(ctx, (const char*)msg, NULL,   1)
+#define ERROR(msg)               bf_report_parse_error(ctx, (const char*)msg, NULL,   2)
+#define FATAL(msg)               bf_report_parse_error(ctx, (const char*)msg, NULL,   3)
+#define INFO_F(msg, freefn)      bf_report_parse_error(ctx, (const char*)msg, freefn, 0)
+#define WARNING_F(msg, freefn)   bf_report_parse_error(ctx, (const char*)msg, freefn, 1)
+#define ERROR_F(msg, freefn)     bf_report_parse_error(ctx, (const char*)msg, freefn, 2)
+#define FATAL_F(msg, freefn)     bf_report_parse_error(ctx, (const char*)msg, freefn, 3)
+
+/******************/
+/* Mid Directives */
+/******************/
+#include <string.h>
+#define ARRSIZE 30000
+static char array[ARRSIZE];
+static char *ptr;
+
+static inline bf_astnode_t* bf_parse_runprogam(bf_parser_ctx* ctx);
+static inline bf_astnode_t* bf_parse_char(bf_parser_ctx* ctx);
 
 
-static inline calc_astnode_t* calc_parse_expr(calc_parser_ctx* ctx);
-static inline calc_astnode_t* calc_parse_sumexpr(calc_parser_ctx* ctx);
-static inline calc_astnode_t* calc_parse_multexpr(calc_parser_ctx* ctx);
-static inline calc_astnode_t* calc_parse_baseexpr(calc_parser_ctx* ctx);
-
-
-static inline calc_astnode_t* calc_parse_expr(calc_parser_ctx* ctx) {
+static inline bf_astnode_t* bf_parse_runprogam(bf_parser_ctx* ctx) {
   #define rule expr_ret_0
-  calc_astnode_t* expr_ret_0 = NULL;
-  calc_astnode_t* expr_ret_1 = NULL;
-  calc_astnode_t* expr_ret_2 = NULL;
+  bf_astnode_t* expr_ret_0 = NULL;
+  bf_astnode_t* expr_ret_1 = NULL;
+  bf_astnode_t* expr_ret_2 = NULL;
   rec(mod_2);
-  // ModExprList Forwarding
-  expr_ret_2 = calc_parse_sumexpr(ctx);
-  if (ctx->exit) return NULL;
+  // ModExprList 0
+  // CodeExpr
+  #define ret expr_ret_2
+  ret = SUCC;
+  memset(array, 0, ARRSIZE), ptr = array;
+  #undef ret
+  // ModExprList 1
+  if (expr_ret_2) {
+    bf_astnode_t* expr_ret_3 = NULL;
+    bf_astnode_t* expr_ret_4 = SUCC;
+    while (expr_ret_4)
+    {
+      rec(kleene_rew_3);
+      expr_ret_4 = bf_parse_char(ctx);
+      if (ctx->exit) return NULL;
+    }
+
+    expr_ret_3 = SUCC;
+    expr_ret_2 = expr_ret_3;
+  }
+
   // ModExprList end
   if (!expr_ret_2) rew(mod_2);
   expr_ret_1 = expr_ret_2;
@@ -1285,305 +1294,280 @@ static inline calc_astnode_t* calc_parse_expr(calc_parser_ctx* ctx) {
   #undef rule
 }
 
-static inline calc_astnode_t* calc_parse_sumexpr(calc_parser_ctx* ctx) {
-  calc_astnode_t* rule = NULL;
-  calc_astnode_t* n = NULL;
-  #define rule expr_ret_3
-  calc_astnode_t* expr_ret_3 = NULL;
-  calc_astnode_t* expr_ret_4 = NULL;
-  calc_astnode_t* expr_ret_5 = NULL;
-  rec(mod_5);
-  // ModExprList 0
-  calc_astnode_t* expr_ret_6 = NULL;
-  expr_ret_6 = calc_parse_multexpr(ctx);
-  if (ctx->exit) return NULL;
-  expr_ret_5 = expr_ret_6;
-  rule = expr_ret_6;
-  // ModExprList 1
-  if (expr_ret_5) {
-    calc_astnode_t* expr_ret_7 = NULL;
-    calc_astnode_t* expr_ret_8 = SUCC;
-    while (expr_ret_8)
-    {
-      rec(kleene_rew_7);
-      calc_astnode_t* expr_ret_9 = NULL;
-
-      // SlashExpr 0
-      if (!expr_ret_9) {
-        calc_astnode_t* expr_ret_10 = NULL;
-        rec(mod_10);
-        // ModExprList 0
-        if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == CALC_TOK_PLUS) {
-          // Not capturing PLUS.
-          expr_ret_10 = SUCC;
-          ctx->pos++;
-        } else {
-          expr_ret_10 = NULL;
-        }
-
-        // ModExprList 1
-        if (expr_ret_10) {
-          calc_astnode_t* expr_ret_11 = NULL;
-          expr_ret_11 = calc_parse_multexpr(ctx);
-          if (ctx->exit) return NULL;
-          expr_ret_10 = expr_ret_11;
-          n = expr_ret_11;
-        }
-
-        // ModExprList 2
-        if (expr_ret_10) {
-          // CodeExpr
-          #define ret expr_ret_10
-          ret = SUCC;
-          rule=node(PLUS, rule, n);
-          #undef ret
-        }
-
-        // ModExprList end
-        if (!expr_ret_10) rew(mod_10);
-        expr_ret_9 = expr_ret_10;
-      }
-
-      // SlashExpr 1
-      if (!expr_ret_9) {
-        calc_astnode_t* expr_ret_12 = NULL;
-        rec(mod_12);
-        // ModExprList 0
-        if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == CALC_TOK_MINUS) {
-          // Not capturing MINUS.
-          expr_ret_12 = SUCC;
-          ctx->pos++;
-        } else {
-          expr_ret_12 = NULL;
-        }
-
-        // ModExprList 1
-        if (expr_ret_12) {
-          calc_astnode_t* expr_ret_13 = NULL;
-          expr_ret_13 = calc_parse_multexpr(ctx);
-          if (ctx->exit) return NULL;
-          expr_ret_12 = expr_ret_13;
-          n = expr_ret_13;
-        }
-
-        // ModExprList 2
-        if (expr_ret_12) {
-          // CodeExpr
-          #define ret expr_ret_12
-          ret = SUCC;
-          rule=node(MINUS, rule, n);
-          #undef ret
-        }
-
-        // ModExprList end
-        if (!expr_ret_12) rew(mod_12);
-        expr_ret_9 = expr_ret_12;
-      }
-
-      // SlashExpr end
-      expr_ret_8 = expr_ret_9;
-
-    }
-
-    expr_ret_7 = SUCC;
-    expr_ret_5 = expr_ret_7;
-  }
-
-  // ModExprList end
-  if (!expr_ret_5) rew(mod_5);
-  expr_ret_4 = expr_ret_5;
-  if (!rule) rule = expr_ret_4;
-  if (!expr_ret_4) rule = NULL;
-  return rule;
-  #undef rule
-}
-
-static inline calc_astnode_t* calc_parse_multexpr(calc_parser_ctx* ctx) {
-  calc_astnode_t* rule = NULL;
-  calc_astnode_t* n = NULL;
-  #define rule expr_ret_14
-  calc_astnode_t* expr_ret_14 = NULL;
-  calc_astnode_t* expr_ret_15 = NULL;
-  calc_astnode_t* expr_ret_16 = NULL;
-  rec(mod_16);
-  // ModExprList 0
-  calc_astnode_t* expr_ret_17 = NULL;
-  expr_ret_17 = calc_parse_baseexpr(ctx);
-  if (ctx->exit) return NULL;
-  expr_ret_16 = expr_ret_17;
-  rule = expr_ret_17;
-  // ModExprList 1
-  if (expr_ret_16) {
-    calc_astnode_t* expr_ret_18 = NULL;
-    calc_astnode_t* expr_ret_19 = SUCC;
-    while (expr_ret_19)
-    {
-      rec(kleene_rew_18);
-      calc_astnode_t* expr_ret_20 = NULL;
-
-      // SlashExpr 0
-      if (!expr_ret_20) {
-        calc_astnode_t* expr_ret_21 = NULL;
-        rec(mod_21);
-        // ModExprList 0
-        if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == CALC_TOK_MULT) {
-          // Not capturing MULT.
-          expr_ret_21 = SUCC;
-          ctx->pos++;
-        } else {
-          expr_ret_21 = NULL;
-        }
-
-        // ModExprList 1
-        if (expr_ret_21) {
-          calc_astnode_t* expr_ret_22 = NULL;
-          expr_ret_22 = calc_parse_baseexpr(ctx);
-          if (ctx->exit) return NULL;
-          expr_ret_21 = expr_ret_22;
-          n = expr_ret_22;
-        }
-
-        // ModExprList 2
-        if (expr_ret_21) {
-          // CodeExpr
-          #define ret expr_ret_21
-          ret = SUCC;
-          rule=node(MULT, rule, n);
-          #undef ret
-        }
-
-        // ModExprList end
-        if (!expr_ret_21) rew(mod_21);
-        expr_ret_20 = expr_ret_21;
-      }
-
-      // SlashExpr 1
-      if (!expr_ret_20) {
-        calc_astnode_t* expr_ret_23 = NULL;
-        rec(mod_23);
-        // ModExprList 0
-        if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == CALC_TOK_DIV) {
-          // Not capturing DIV.
-          expr_ret_23 = SUCC;
-          ctx->pos++;
-        } else {
-          expr_ret_23 = NULL;
-        }
-
-        // ModExprList 1
-        if (expr_ret_23) {
-          calc_astnode_t* expr_ret_24 = NULL;
-          expr_ret_24 = calc_parse_baseexpr(ctx);
-          if (ctx->exit) return NULL;
-          expr_ret_23 = expr_ret_24;
-          n = expr_ret_24;
-        }
-
-        // ModExprList 2
-        if (expr_ret_23) {
-          // CodeExpr
-          #define ret expr_ret_23
-          ret = SUCC;
-          rule=node(DIV,  rule, n);
-          #undef ret
-        }
-
-        // ModExprList end
-        if (!expr_ret_23) rew(mod_23);
-        expr_ret_20 = expr_ret_23;
-      }
-
-      // SlashExpr end
-      expr_ret_19 = expr_ret_20;
-
-    }
-
-    expr_ret_18 = SUCC;
-    expr_ret_16 = expr_ret_18;
-  }
-
-  // ModExprList end
-  if (!expr_ret_16) rew(mod_16);
-  expr_ret_15 = expr_ret_16;
-  if (!rule) rule = expr_ret_15;
-  if (!expr_ret_15) rule = NULL;
-  return rule;
-  #undef rule
-}
-
-static inline calc_astnode_t* calc_parse_baseexpr(calc_parser_ctx* ctx) {
-  calc_astnode_t* rule = NULL;
-  #define rule expr_ret_25
-  calc_astnode_t* expr_ret_25 = NULL;
-  calc_astnode_t* expr_ret_26 = NULL;
-  calc_astnode_t* expr_ret_27 = NULL;
+static inline bf_astnode_t* bf_parse_char(bf_parser_ctx* ctx) {
+  #define rule expr_ret_5
+  bf_astnode_t* expr_ret_5 = NULL;
+  bf_astnode_t* expr_ret_6 = NULL;
+  bf_astnode_t* expr_ret_7 = NULL;
 
   // SlashExpr 0
-  if (!expr_ret_27) {
-    calc_astnode_t* expr_ret_28 = NULL;
-    rec(mod_28);
+  if (!expr_ret_7) {
+    bf_astnode_t* expr_ret_8 = NULL;
+    rec(mod_8);
     // ModExprList 0
-    if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == CALC_TOK_OPEN) {
-      // Not capturing OPEN.
-      expr_ret_28 = SUCC;
+    if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == BF_TOK_PLUS) {
+      // Not capturing PLUS.
+      expr_ret_8 = SUCC;
       ctx->pos++;
     } else {
-      expr_ret_28 = NULL;
+      expr_ret_8 = NULL;
     }
 
     // ModExprList 1
-    if (expr_ret_28) {
-      calc_astnode_t* expr_ret_29 = NULL;
-      expr_ret_29 = calc_parse_expr(ctx);
-      if (ctx->exit) return NULL;
-      expr_ret_28 = expr_ret_29;
-      rule = expr_ret_29;
-    }
-
-    // ModExprList 2
-    if (expr_ret_28) {
-      if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == CALC_TOK_CLOSE) {
-        // Capturing CLOSE.
-        expr_ret_28 = leaf(CLOSE);
-        expr_ret_28->tok_repr = ctx->tokens[ctx->pos].content;
-        expr_ret_28->repr_len = ctx->tokens[ctx->pos].len;
-        ctx->pos++;
-      } else {
-        expr_ret_28 = NULL;
-      }
-
+    if (expr_ret_8) {
+      // CodeExpr
+      #define ret expr_ret_8
+      ret = SUCC;
+      ++*ptr;
+      #undef ret
     }
 
     // ModExprList end
-    if (!expr_ret_28) rew(mod_28);
-    expr_ret_27 = expr_ret_28;
+    if (!expr_ret_8) rew(mod_8);
+    expr_ret_7 = expr_ret_8;
   }
 
   // SlashExpr 1
-  if (!expr_ret_27) {
-    calc_astnode_t* expr_ret_30 = NULL;
-    rec(mod_30);
-    // ModExprList Forwarding
-    if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == CALC_TOK_NUMBER) {
-      // Capturing NUMBER.
-      expr_ret_30 = leaf(NUMBER);
-      expr_ret_30->tok_repr = ctx->tokens[ctx->pos].content;
-      expr_ret_30->repr_len = ctx->tokens[ctx->pos].len;
+  if (!expr_ret_7) {
+    bf_astnode_t* expr_ret_9 = NULL;
+    rec(mod_9);
+    // ModExprList 0
+    if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == BF_TOK_MINUS) {
+      // Not capturing MINUS.
+      expr_ret_9 = SUCC;
       ctx->pos++;
     } else {
-      expr_ret_30 = NULL;
+      expr_ret_9 = NULL;
+    }
+
+    // ModExprList 1
+    if (expr_ret_9) {
+      // CodeExpr
+      #define ret expr_ret_9
+      ret = SUCC;
+      --*ptr;
+      #undef ret
     }
 
     // ModExprList end
-    if (!expr_ret_30) rew(mod_30);
-    expr_ret_27 = expr_ret_30;
+    if (!expr_ret_9) rew(mod_9);
+    expr_ret_7 = expr_ret_9;
+  }
+
+  // SlashExpr 2
+  if (!expr_ret_7) {
+    bf_astnode_t* expr_ret_10 = NULL;
+    rec(mod_10);
+    // ModExprList 0
+    if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == BF_TOK_RS) {
+      // Not capturing RS.
+      expr_ret_10 = SUCC;
+      ctx->pos++;
+    } else {
+      expr_ret_10 = NULL;
+    }
+
+    // ModExprList 1
+    if (expr_ret_10) {
+      // CodeExpr
+      #define ret expr_ret_10
+      ret = SUCC;
+      ++ptr;
+      #undef ret
+    }
+
+    // ModExprList end
+    if (!expr_ret_10) rew(mod_10);
+    expr_ret_7 = expr_ret_10;
+  }
+
+  // SlashExpr 3
+  if (!expr_ret_7) {
+    bf_astnode_t* expr_ret_11 = NULL;
+    rec(mod_11);
+    // ModExprList 0
+    if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == BF_TOK_LS) {
+      // Not capturing LS.
+      expr_ret_11 = SUCC;
+      ctx->pos++;
+    } else {
+      expr_ret_11 = NULL;
+    }
+
+    // ModExprList 1
+    if (expr_ret_11) {
+      // CodeExpr
+      #define ret expr_ret_11
+      ret = SUCC;
+      --ptr;
+      #undef ret
+    }
+
+    // ModExprList end
+    if (!expr_ret_11) rew(mod_11);
+    expr_ret_7 = expr_ret_11;
+  }
+
+  // SlashExpr 4
+  if (!expr_ret_7) {
+    bf_astnode_t* expr_ret_12 = NULL;
+    rec(mod_12);
+    // ModExprList 0
+    if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == BF_TOK_LBRACK) {
+      // Not capturing LBRACK.
+      expr_ret_12 = SUCC;
+      ctx->pos++;
+    } else {
+      expr_ret_12 = NULL;
+    }
+
+    // ModExprList 1
+    if (expr_ret_12) {
+      // CodeExpr
+      #define ret expr_ret_12
+      ret = SUCC;
+      
+        if (*ptr == 0) {
+          int m = 1;
+          while(m) {
+            ctx->pos++;
+            if (ctx->tokens[ctx->pos].kind == BF_TOK_LBRACK) m++;
+            if (ctx->tokens[ctx->pos].kind == BF_TOK_RBRACK) m--;
+          }
+          ctx->pos++;
+        }
+      ;
+      #undef ret
+    }
+
+    // ModExprList end
+    if (!expr_ret_12) rew(mod_12);
+    expr_ret_7 = expr_ret_12;
+  }
+
+  // SlashExpr 5
+  if (!expr_ret_7) {
+    bf_astnode_t* expr_ret_13 = NULL;
+    rec(mod_13);
+    // ModExprList 0
+    if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == BF_TOK_RBRACK) {
+      // Not capturing RBRACK.
+      expr_ret_13 = SUCC;
+      ctx->pos++;
+    } else {
+      expr_ret_13 = NULL;
+    }
+
+    // ModExprList 1
+    if (expr_ret_13) {
+      // CodeExpr
+      #define ret expr_ret_13
+      ret = SUCC;
+      
+        if (*ptr) {
+          int m = 1;
+          while (m) {
+            ctx->pos--;
+            if (ctx->tokens[ctx->pos].kind == BF_TOK_LBRACK) m--;
+            if (ctx->tokens[ctx->pos].kind == BF_TOK_RBRACK) m++;
+          }
+          ctx->pos++;
+        }
+      ;
+      #undef ret
+    }
+
+    // ModExprList end
+    if (!expr_ret_13) rew(mod_13);
+    expr_ret_7 = expr_ret_13;
+  }
+
+  // SlashExpr 6
+  if (!expr_ret_7) {
+    bf_astnode_t* expr_ret_14 = NULL;
+    rec(mod_14);
+    // ModExprList 0
+    if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == BF_TOK_PUTC) {
+      // Not capturing PUTC.
+      expr_ret_14 = SUCC;
+      ctx->pos++;
+    } else {
+      expr_ret_14 = NULL;
+    }
+
+    // ModExprList 1
+    if (expr_ret_14) {
+      // CodeExpr
+      #define ret expr_ret_14
+      ret = SUCC;
+      putchar(*ptr);
+      #undef ret
+    }
+
+    // ModExprList end
+    if (!expr_ret_14) rew(mod_14);
+    expr_ret_7 = expr_ret_14;
+  }
+
+  // SlashExpr 7
+  if (!expr_ret_7) {
+    bf_astnode_t* expr_ret_15 = NULL;
+    rec(mod_15);
+    // ModExprList 0
+    if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == BF_TOK_GETC) {
+      // Not capturing GETC.
+      expr_ret_15 = SUCC;
+      ctx->pos++;
+    } else {
+      expr_ret_15 = NULL;
+    }
+
+    // ModExprList 1
+    if (expr_ret_15) {
+      // CodeExpr
+      #define ret expr_ret_15
+      ret = SUCC;
+      *ptr=getchar();
+      #undef ret
+    }
+
+    // ModExprList end
+    if (!expr_ret_15) rew(mod_15);
+    expr_ret_7 = expr_ret_15;
+  }
+
+  // SlashExpr 8
+  if (!expr_ret_7) {
+    bf_astnode_t* expr_ret_16 = NULL;
+    rec(mod_16);
+    // ModExprList 0
+    if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == BF_TOK_COMMENT) {
+      // Not capturing COMMENT.
+      expr_ret_16 = SUCC;
+      ctx->pos++;
+    } else {
+      expr_ret_16 = NULL;
+    }
+
+    // ModExprList 1
+    if (expr_ret_16) {
+      // CodeExpr
+      #define ret expr_ret_16
+      ret = SUCC;
+      ;
+      #undef ret
+    }
+
+    // ModExprList end
+    if (!expr_ret_16) rew(mod_16);
+    expr_ret_7 = expr_ret_16;
   }
 
   // SlashExpr end
-  expr_ret_26 = expr_ret_27;
+  expr_ret_6 = expr_ret_7;
 
-  if (!rule) rule = expr_ret_26;
-  if (!expr_ret_26) rule = NULL;
+  if (!rule) rule = expr_ret_6;
+  if (!expr_ret_6) rule = NULL;
   return rule;
   #undef rule
 }
@@ -1630,6 +1614,6 @@ static inline calc_astnode_t* calc_parse_baseexpr(calc_parser_ctx* ctx) {
 #undef ERROR_F
 #undef FATAL
 #undef FATAL_F
-#endif /* PGEN_CALC_ASTNODE_INCLUDE */
+#endif /* PGEN_BF_ASTNODE_INCLUDE */
 
-#endif /* PGEN_CALC_PARSER_H */
+#endif /* PGEN_BF_PARSER_H */

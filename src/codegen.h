@@ -1921,6 +1921,14 @@ static inline void peg_write_parser_body(codegen_ctx *ctx) {
   cwrite("\n\n");
 }
 
+static inline void peg_write_include_header(codegen_ctx *ctx) {
+  cwrite("#ifndef PGEN_%s_PARSER_H\n", ctx->upper);
+  cwrite("#define PGEN_%s_PARSER_H\n\n", ctx->upper);
+}
+static inline void peg_write_include_footer(codegen_ctx *ctx) {
+  cwrite("#endif /* PGEN_%s_PARSER_H */\n", ctx->upper);
+}
+
 static inline void peg_write_undef_parsermacros(codegen_ctx *ctx) {
   cwrite("#undef rec\n");
   cwrite("#undef rew\n");
@@ -1959,7 +1967,7 @@ static inline void peg_write_undef_parsermacros(codegen_ctx *ctx) {
   cwrite("#undef FATAL_F\n");
 }
 
-static inline void peg_write_parser(codegen_ctx *ctx) {
+static inline void codegen_write_parser(codegen_ctx *ctx) {
   peg_write_header(ctx);
   peg_write_parser_errdef(ctx);
   peg_write_parser_ctx(ctx);
@@ -1990,6 +1998,7 @@ static inline void peg_write_parser(codegen_ctx *ctx) {
 static inline void codegen_write(codegen_ctx *ctx) {
 
   // Write headers
+  peg_write_include_header(ctx);
   write_utf8_lib(ctx);
 
   peg_write_interactive_macro(ctx);
@@ -1999,7 +2008,8 @@ static inline void codegen_write(codegen_ctx *ctx) {
 
   // Write bodies
   codegen_write_tokenizer(ctx);
-  peg_write_parser(ctx);
+  codegen_write_parser(ctx);
+  peg_write_include_footer(ctx);
 }
 
 #endif /* TOKCODEGEN_INCLUDE */

@@ -1,3 +1,6 @@
+#ifndef PGEN_PL0_PARSER_H
+#define PGEN_PL0_PARSER_H
+
 
 /* START OF UTF8 LIBRARY */
 
@@ -1310,15 +1313,10 @@ static inline pl0_parse_err* pl0_report_parse_error(pl0_parser_ctx* ctx,
   pl0_parse_err* err = &ctx->errlist[ctx->num_errors++];
   err->msg = (const char*)msg;
   err->severity = severity;
-  if (ctx->pos < ctx->len) {
-    size_t toknum = ctx->pos + (ctx->pos != ctx->len - 1);
-    pl0_token tok = ctx->tokens[toknum];
-    err->line = tok.line;
-    err->col = tok.col;
-  } else {
-    err->line = 0;
-    err->col = 0;
-  }
+  size_t toknum = ctx->pos + (ctx->pos != ctx->len - 1);
+  pl0_token tok = ctx->tokens[toknum];
+  err->line = tok.line;
+  err->col = tok.col;
 
   if (severity == 3)
     ctx->exit = 1;
@@ -3539,3 +3537,4 @@ static inline pl0_astnode_t* pl0_parse_factor(pl0_parser_ctx* ctx) {
 #undef FATAL_F
 #endif /* PGEN_PL0_ASTNODE_INCLUDE */
 
+#endif /* PGEN_PL0_PARSER_H */
