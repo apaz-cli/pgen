@@ -1333,6 +1333,8 @@ static inline void peg_write_node_print(codegen_ctx *ctx) {
   cwrite("      for (size_t i = 0; i < utf8len; i++)\n");
   cwrite("        if (utf8[i] == '\\n') fputc('\\\\', stdout), fputc('n', "
          "stdout);\n");
+  cwrite("        else if (utf8[i] == '\"') fputc('\\\\', stdout), "
+         "fputc(utf8[i], stdout);\n");
   cwrite("        else fputc(utf8[i], stdout);\n");
   cwrite("      return PGEN_FREE(utf8), 1;\n");
   cwrite("    }\n");
