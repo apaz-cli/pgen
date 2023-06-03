@@ -242,4 +242,23 @@ static inline int codepoint_atoi(const codepoint_t *a, size_t len,
   return *read = ullread + sign_parsed, (int)(neg ? -ull : ull);
 }
 
+// Merge lines ending with '\'. Remove both the '\' and the newline.
+// If the \ is at end of file, remove that too.
+static inline void mergeLines(Codepoint_String_View *cpsv) {
+  size_t newlen = 0;
+  for (size_t i = 0; i < cpsv->len;) {
+    int foundone = (cpsv->str[i] == '\\');
+    int peektwo = (foundone & (int)(i < cpsv->len - 1));
+    int foundtwo = peektwo && (cpsv->str[i + 1] == '\n');
+    int endslash = foundone && !peektwo;
+    int remove = foundtwo + endslash;
+    if (!remove)
+      cpsv->str[newlen++] = cpsv->str[i++];
+    else
+      i += (size_t)(2 - endslash);
+  }
+  cpsv->str[newlen] = '\0';
+  cpsv->len = newlen;
+}
+
 #endif /* PGEN_INCLUDE_UTIL */

@@ -1684,6 +1684,7 @@ static inline int pl0_node_print_content(pl0_astnode_t* node, pl0_token* tokens)
     if (success) {
       for (size_t i = 0; i < utf8len; i++)
         if (utf8[i] == '\n') fputc('\\', stdout), fputc('n', stdout);
+        else if (utf8[i] == '"') fputc('\\', stdout), fputc(utf8[i], stdout);
         else fputc(utf8[i], stdout);
       return PGEN_FREE(utf8), 1;
     }

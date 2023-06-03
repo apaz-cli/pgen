@@ -4,6 +4,9 @@
 // Implements the example parser from
 // https://en.wikipedia.org/wiki/Recursive_descent_parser#Example_parser
 
+// Newlines ending in \
+are merged.
+
 // Syntax
 EQ: "=";
 CEQ: ":=";
