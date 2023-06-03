@@ -17,9 +17,6 @@ int main(int argc, char **argv) {
   if (!parserFile.str)
     ERROR("Could not read the parser file.");
 
-  // Merge lines ending in "\"
-  mergeLines(&parserFile);
-
   // Parse the grammar's AST
   parser_ctx ppctx;
   parser_ctx_init(&ppctx, args, parserFile);

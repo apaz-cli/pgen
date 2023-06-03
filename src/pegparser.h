@@ -106,10 +106,16 @@ static inline ASTNode *peg_parse_Directive(parser_ctx *ctx) {
 
     codepoint_t *cap_start = ctx->str + ctx->pos;
     size_t capture_size = 0;
-    while (HAS_CURRENT() && CURRENT() != '\n') {
+    while (HAS_CURRENT() &&
+           (CURRENT() != '\n' ||
+            (CURRENT() == '\n' && ctx->str[ctx->pos - 1] == '\\'))) {
+
+      if (CURRENT() == '\n')
+        ctx->line_nbr++;
       capture_size++;
       NEXT();
     }
+
     if (HAS_CURRENT() && CURRENT() == '\n') {
       NEXT();
       ctx->line_nbr++;
@@ -126,7 +132,17 @@ static inline ASTNode *peg_parse_Directive(parser_ctx *ctx) {
     }
     for (size_t i = 0; i < capture_size; i++)
       cpbuf[i] = (char)cap_start[i];
-    cpbuf[capture_size] = '\0';
+
+    size_t newlen = 0;
+    for (size_t i = 0; i < capture_size - 1;) {
+      if ((cpbuf[i] != '\\') | (cpbuf[i + 1] != '\n'))
+        cpbuf[newlen++] = cpbuf[i++];
+      else
+        i += 2;
+    }
+    if (cpbuf[capture_size - 1] != '\\')
+      cpbuf[newlen++] = cpbuf[capture_size - 1];
+    cpbuf[newlen] = '\0';
 
     ASTNode *dir = ASTNode_new("Directive");
     dir->extra = cpbuf;
@@ -1095,53 +1111,6 @@ static inline int peg_parse_Num(parser_ctx *ctx, size_t *advance_by) {
     RULE_FAIL();
 
   return i;
-}
-
-// returns 0 on EOF.
-static inline codepoint_t peg_parse_Char(parser_ctx *ctx) {
-
-  // Escape sequences
-  if (IS_CURRENT("\\")) {
-    NEXT();
-    if (!HAS_CURRENT())
-      return 0;
-    codepoint_t ret = CURRENT();
-    NEXT();
-    if (ret == 'n') // newline
-      return '\n';
-    else if (ret == 'r') // carriage return
-      return '\r';
-    else if (ret == 't') // tab
-      return '\t';
-    else if (ret == '\\') // backslash
-      return '\\';
-    else if (ret == '\'') // single quote
-      return '\'';
-    else if (ret == '\"') // double quote
-      return '\"';
-    else if (ret == 'b') // backspace
-      return '\b';
-    else if (ret == 'v') // vertical tab
-      return '\v';
-    else if (ret == 'a') // alert
-      return '\a';
-    else if (ret == 'f') // form feed
-      return '\f';
-    else if (ret == '?') // question mark
-      return '\?';
-    else
-      return ret;
-  }
-
-  // Normal character
-  else if (HAS_CURRENT()) {
-    codepoint_t ret = CURRENT();
-    NEXT();
-    return ret;
-  }
-
-  // EOF
-  return 0;
 }
 
 #endif /* PGEN_INCLUDE_PEGPARSER */

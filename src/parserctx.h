@@ -29,6 +29,7 @@ static inline void parser_ctx_init(parser_ctx *ctx,
 /* Helper Macros */
 /*****************/
 
+
 #define CURRENT() (ctx->str[ctx->pos])
 #define NEXT() (ctx->pos++)
 #define REMAINING() (ctx->len - ctx->pos) // Includes CURRENT()
@@ -152,6 +153,7 @@ static inline void parse_ws(parser_ctx *ctx) {
   const char dslsh[3] = {'/', '/', '\0'};
   const char fcom[3] = {'/', '*', '\0'};
   const char ecom[3] = {'*', '/', '\0'};
+  const char bsnl[3] = {'\\', '\n', '\0'};
 
   RULE_BEGIN("ws");
 
@@ -166,6 +168,10 @@ static inline void parse_ws(parser_ctx *ctx) {
       NEXT();
     } else if (c == '\n') {
       ctx->line_nbr++;
+      NEXT();
+    } else if (IS_CURRENT(bsnl)) {
+      ctx->line_nbr++;
+      NEXT();
       NEXT();
     } else if (IS_CURRENT(dslsh)) { // Single line comment
       while (HAS_CURRENT() && CURRENT() != '\n')
@@ -189,9 +195,56 @@ static inline void parse_ws(parser_ctx *ctx) {
   RULE_SUCCESS();
 }
 
+// returns 0 on EOF.
+// In the context of this parser, it should never be 0 otherwise.
+static inline codepoint_t peg_parse_Char(parser_ctx *ctx) {
+
+  // Escape sequences
+  if (IS_CURRENT("\\")) {
+    NEXT();
+    if (!HAS_CURRENT())
+      return 0;
+    codepoint_t ret = CURRENT();
+    NEXT();
+    if (ret == 'n') // newline
+      return '\n';
+    else if (ret == 'r') // carriage return
+      return '\r';
+    else if (ret == 't') // tab
+      return '\t';
+    else if (ret == '\\') // backslash
+      return '\\';
+    else if (ret == '\'') // single quote
+      return '\'';
+    else if (ret == '\"') // double quote
+      return '\"';
+    else if (ret == 'b') // backspace
+      return '\b';
+    else if (ret == 'v') // vertical tab
+      return '\v';
+    else if (ret == 'a') // alert
+      return '\a';
+    else if (ret == 'f') // form feed
+      return '\f';
+    else if (ret == '?') // question mark
+      return '\?';
+    else
+      return ret;
+  }
+
+  // Normal character
+  else if (HAS_CURRENT()) {
+    codepoint_t ret = CURRENT();
+    NEXT();
+    return ret;
+  }
+
+  // EOF
+  return 0;
+}
+
 // Sets *err = 1 when fails to parse a string, *err = 0 when a string is parsed.
 // Doesn't modify parser state on failure.
-static inline codepoint_t peg_parse_Char(parser_ctx *ctx);
 static inline list_codepoint_t parse_codepoint_string(parser_ctx *ctx, int *err) {
 
   list_codepoint_t cps = list_codepoint_t_new();

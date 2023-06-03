@@ -242,6 +242,83 @@ static inline int codepoint_atoi(const codepoint_t *a, size_t len,
   return *read = ullread + sign_parsed, (int)(neg ? -ull : ull);
 }
 
+// Aspi is a beautiful SIMD sorceress.
+
+#if defined(__has_include)
+#  if __has_include (<emmintrin.h>) && defined(__x86_64__)
+#    include <emmintrin.h>
+#    define SIMD_MERGE 1
+#    ifdef __GNUC__
+#     define LIKELY(x) __builtin_expect(!!(x), 1)
+#    else
+#     define LIKELY(x) (x)
+#    endif
+#  else
+#    define SIMD_MERGE 0
+#  endif
+#endif
+
+#if SIMD_MERGE
+// Merge lines ending with '\'. Remove both the '\' and the newline.
+// If the \ is at end of file, remove that too.
+static inline void mergeLines(Codepoint_String_View *__restrict cpsv) {
+  size_t newpos = 0;
+  size_t pos = 0;
+  if (cpsv->len >= 16) {
+    const __m128i backslash = _mm_set1_epi8('\\');
+    const __m128i newline = _mm_set1_epi8('\n');
+    while (pos <= cpsv->len - 16) {
+      // Load and pack 4 vectors
+      __m128i a = _mm_loadu_si128((__m128i *)(cpsv->str + pos + 0));
+      __m128i b = _mm_loadu_si128((__m128i *)(cpsv->str + pos + 4));
+      __m128i c = _mm_loadu_si128((__m128i *)(cpsv->str + pos + 8));
+      __m128i d = _mm_loadu_si128((__m128i *)(cpsv->str + pos + 12));
+      __m128i packed_ab = _mm_packs_epi32(a, b);
+      __m128i packed_cd = _mm_packs_epi32(c, d);
+      __m128i packed = _mm_packs_epi16(packed_ab, packed_cd);
+
+      // Test
+      __m128i cmp_backslash = _mm_cmpeq_epi8(packed, backslash);
+      __m128i cmp_newline = _mm_cmpeq_epi8(packed, newline);
+      __m128i cmp = _mm_and_si128(cmp_backslash, _mm_bsrli_si128(cmp_newline, 1));
+      int mask = _mm_movemask_epi8(cmp);
+      if (LIKELY(mask == 0)) {
+        _mm_storeu_si128((__m128i *)(cpsv->str + newpos + 0), a);
+        _mm_storeu_si128((__m128i *)(cpsv->str + newpos + 4), b);
+        _mm_storeu_si128((__m128i *)(cpsv->str + newpos + 8), c);
+        _mm_storeu_si128((__m128i *)(cpsv->str + newpos + 12), d);
+        // We can only advance 15. The 16th might be a backslash.
+        newpos += 15;
+        pos += 15;
+      } else {
+        // Either we got a match or a false positive from non-ASCII.
+        size_t end = pos + 15;
+        while (pos < end) {
+          if (cpsv->str[pos] != '\\' || cpsv->str[pos + 1] != '\n') {
+            cpsv->str[newpos++] = cpsv->str[pos++];
+          } else {
+            pos += 2;
+          }
+        }
+      }
+    }
+  }
+  while (pos < cpsv->len - 1) {
+    if (cpsv->str[pos] != '\\' || cpsv->str[pos + 1] != '\n') {
+      cpsv->str[newpos++] = cpsv->str[pos++];
+    } else {
+      pos += 2;
+    }
+  }
+  if (cpsv->str[cpsv->len - 1] != '\\') {
+    cpsv->str[newpos++] = cpsv->str[cpsv->len - 1];
+  }
+
+  cpsv->len = newpos;
+}
+
+#else
+
 // Merge lines ending with '\'. Remove both the '\' and the newline.
 // If the \ is at end of file, remove that too.
 static inline void mergeLines(Codepoint_String_View *cpsv) {
@@ -257,8 +334,8 @@ static inline void mergeLines(Codepoint_String_View *cpsv) {
   if (cpsv->str[cpsv->len - 1] != '\\')
     cpsv->str[newlen++] = cpsv->str[cpsv->len - 1];
 
-  cpsv->str[newlen] = '\0';
   cpsv->len = newlen;
 }
+#endif
 
 #endif /* PGEN_INCLUDE_UTIL */
