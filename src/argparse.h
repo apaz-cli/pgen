@@ -10,7 +10,8 @@ typedef struct {
   bool i : 1;          // Interactive
   bool d : 1;          // Debug runtime errors
   bool u : 1;          // Generate Unsafe (but fast) code
-  bool g : 1;          // Grammar debug prompt
+  bool g : 1;          // Grammar debug
+  bool s : 1;          // Grammar debug automatically
   bool m : 1;          // Memory allocator debugging
   bool l : 1;          // Line directives
 } Args;
@@ -24,6 +25,7 @@ static inline Args argparse(int argc, char **argv) {
   args.d = 0;
   args.u = 0;
   args.g = 0;
+  args.s = 0;
   args.m = 0;
   args.l = 0;
 
@@ -36,7 +38,8 @@ static inline Args argparse(int argc, char **argv) {
       "    -i, --interactive        Generate an interactive parser.          \n"
       "    -d, --debug              Generate checks for runtime errors.      \n"
       "    -u, --unsafe             Don't check for errors in generated code.\n"
-      "    -g, --grammar-debug      Troubleshoot .peg syntax errors.         \n"
+      "    -g, --grammar-debug      Show .peg syntax errors.                 \n"
+      "    -s, --grammar-step       Step through your .peg file as it parses.\n"
       "    -m, --memdebug           Debug the generated memory allocator.    \n"
       "    -l, --lines              Generate #line directives.               "
       "\n";
@@ -58,6 +61,8 @@ static inline Args argparse(int argc, char **argv) {
       args.u = 1;
     } else if (!strcmp(a, "-g") || !strcmp(a, "--grammar-debug")) {
       args.g = 1;
+    } else if (!strcmp(a, "-s") || !strcmp(a, "--grammar-show")) {
+      args.s = 1;
     } else if (!strcmp(a, "-m") || !strcmp(a, "--memdebug")) {
       args.m = 1;
     } else if (!strcmp(a, "-l") || !strcmp(a, "--lines")) {

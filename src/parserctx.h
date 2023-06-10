@@ -1,9 +1,9 @@
 #ifndef PARSERCTX_INCLUDE
 #define PARSERCTX_INCLUDE
 
+#include "argparse.h"
 #include "ast.h"
 #include "util.h"
-#include "argparse.h"
 
 LIST_DECLARE(codepoint_t)
 LIST_DEFINE(codepoint_t)
@@ -13,22 +13,21 @@ typedef struct {
   size_t len;
   size_t pos;
   size_t line_nbr;
-  bool debug;
+  int debug;
 } parser_ctx;
 
-static inline void parser_ctx_init(parser_ctx *ctx,
-                                   Args args, Codepoint_String_View cpsv) {
+static inline void parser_ctx_init(parser_ctx *ctx, Args args,
+                                   Codepoint_String_View cpsv) {
   ctx->str = cpsv.str;
   ctx->len = cpsv.len;
   ctx->pos = 0;
   ctx->line_nbr = 1;
-  ctx->debug = args.g;
+  ctx->debug = args.g ? 'g' : (args.s ? 's' : 0);
 }
 
 /*****************/
 /* Helper Macros */
 /*****************/
-
 
 #define CURRENT() (ctx->str[ctx->pos])
 #define NEXT() (ctx->pos++)
@@ -129,9 +128,9 @@ static inline void ctx_rule_debug(int status, const char *rulename,
       printf("\x1b[31m"); // Red
     }
     printf("%s\x1b[0m\n", rulename); // Rule name, clear coloring.
-
     print_unconsumed(ctx);
-    getchar();
+    if (ctx->debug == 's')
+      getchar();
   }
 }
 
@@ -245,7 +244,8 @@ static inline codepoint_t peg_parse_Char(parser_ctx *ctx) {
 
 // Sets *err = 1 when fails to parse a string, *err = 0 when a string is parsed.
 // Doesn't modify parser state on failure.
-static inline list_codepoint_t parse_codepoint_string(parser_ctx *ctx, int *err) {
+static inline list_codepoint_t parse_codepoint_string(parser_ctx *ctx,
+                                                      int *err) {
 
   list_codepoint_t cps = list_codepoint_t_new();
 
