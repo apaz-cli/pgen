@@ -1491,7 +1491,7 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
 
   if (ctx->args->i) {
     // Find max name length
-    size_t max_len = 0;
+    size_t max_len = strlen("STREAMBEGIN");
     for (size_t n = 0; n < ctx->definitions.len; n++) {
       ASTNode *def = ctx->definitions.buf[n];
       if (strcmp(def->name, "Definition"))
@@ -1570,8 +1570,8 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
 
     cwrite("    // Print rule stack\n");
     cwrite("    if (i < intr_stack.size) {\n");
-    cwrite("      int d = intr_stack.size - height;");
-    cwrite("      size_t disp = d > 0 ? i + d : i;");
+    cwrite("      ssize_t d = (ssize_t)intr_stack.size - (ssize_t)height;\n");
+    cwrite("      size_t disp = d > 0 ? i + (size_t)d : i;\n");
     cwrite("      printf(\"%%-%zus\", "
            "intr_stack.rules[disp].rule_name);\n",
            max_len);
@@ -1585,15 +1585,33 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("    // Print tokens\n");
     cwrite("    size_t remaining_tokens = ctx->len - ctx->pos;\n");
     cwrite("    if (i < remaining_tokens) {\n");
-    cwrite("      const char* name = "
-           "%s_tokenkind_name["
-           "ctx->tokens[ctx->pos + i].kind];\n",
-           ctx->lower);
-    cwrite("      size_t remaining = rightwidth - strlen(name);\n");
+    cwrite("      %s_token tok = ctx->tokens[ctx->pos + i];\n", ctx->lower);
+    cwrite("      const char *name = %s_tokenkind_name[tok.kind];\n", ctx->lower);
     cwrite("      printf(\"%%s\", name);\n");
-    cwrite("      for (size_t sp = 0; sp < remaining; sp++)\n");
+    cwrite("      for (size_t j = strlen(name); j < %zu; j++)\n", max_len);
     cwrite("        putchar(' ');\n");
-    cwrite("    }\n\n");
+    cwrite("    } else {\n");
+    cwrite("      for (size_t j = 0; j < %zu; j++)\n", max_len);
+    cwrite("        putchar(' ');\n");
+    cwrite("    }\n");
+
+    cwrite("    putchar(' '); putchar(' '); putchar('|'); putchar(' ');\n");
+
+    cwrite("    // Print token content\n");
+    cwrite("    if (i < remaining_tokens) {\n");
+    cwrite("      %s_token tok = ctx->tokens[ctx->pos + i];\n", ctx->lower);
+    cwrite("      if (tok.content && tok.len) {");
+    cwrite("        size_t tok_content_len = 0;\n");
+    cwrite("        char *tok_content = NULL;\n");
+    cwrite("        size_t trunc_to = 17;\n");
+    cwrite("        int truncd = tok.len > trunc_to;\n");
+    cwrite("        size_t trunc_len = tok.len > trunc_to ? trunc_to : tok.len;\n");
+    cwrite("        UTF8_encode(tok.content, trunc_len, &tok_content, &tok_content_len);\n");
+    cwrite("        printf(\"%%s%%s\", tok_content, truncd ? \"...\" : \"\");\n");
+    cwrite("        UTF8_FREE(tok_content);\n");
+    cwrite("      }\n");
+    cwrite("    }\n");
+    
 
     cwrite("    putchar(' ');\n");
     cwrite("    putchar('\\n');\n");

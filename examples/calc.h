@@ -227,7 +227,7 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
 
 
 #ifndef PGEN_INTERACTIVE
-#define PGEN_INTERACTIVE 0
+#define PGEN_INTERACTIVE 1
 
 #define PGEN_ALLOCATOR_DEBUG 0
 
@@ -1190,6 +1190,7 @@ static inline int calc_node_print_content(calc_astnode_t* node, calc_token* toke
     if (success) {
       for (size_t i = 0; i < utf8len; i++)
         if (utf8[i] == '\n') fputc('\\', stdout), fputc('n', stdout);
+        else if (utf8[i] == '"') fputc('\\', stdout), fputc(utf8[i], stdout);
         else fputc(utf8[i], stdout);
       return PGEN_FREE(utf8), 1;
     }
@@ -1261,6 +1262,125 @@ static inline void calc_astnode_print_json(calc_token* tokens, calc_astnode_t *n
 #define FATAL_F(msg, freefn)     calc_report_parse_error(ctx, (const char*)msg, freefn, 3)
 
 
+#define PGEN_INTERACTIVE_WIDTH 11
+typedef struct {
+  const char* rule_name;
+  size_t pos;
+} intr_entry;
+
+static struct {
+  intr_entry rules[500];
+  size_t size;
+  int status;
+  int first;
+} intr_stack;
+
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <string.h>
+static inline void intr_display(calc_parser_ctx* ctx, const char* last) {
+  if (!intr_stack.first) intr_stack.first = 1;
+  else getchar();
+
+  struct winsize w;
+  ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+  size_t width = w.ws_col;
+  size_t leftwidth = (width - (1 + 3 + 1)) / 2;
+  size_t rightwidth = leftwidth + (leftwidth % 2);
+  size_t height = w.ws_row - 4;
+
+// Clear screen, cursor to top left
+  printf("\x1b[2J\x1b[H");
+
+  // Write first line in color.
+  if (intr_stack.status == -1) {
+    printf("\x1b[31m"); // Red
+    printf("Failed: %s\n", last);
+  } else if (intr_stack.status == 0) {
+    printf("\x1b[34m"); // Blue
+    printf("Entering: %s\n", last);
+  } else if (intr_stack.status == 1) {
+    printf("\x1b[32m"); // Green
+    printf("Accepted: %s\n", last);
+  } else {
+    printf("\x1b[33m"); // Green
+    printf("SUCCED: %s\n", last), exit(1);
+  }
+  printf("\x1b[0m"); // Clear Formatting
+
+  // Write labels and line.
+  for (size_t i = 0; i < width; i++)
+    putchar('-');
+
+  // Write following lines
+  for (size_t i = height; i --> 0;) {
+    putchar(' ');
+
+    // Print rule stack
+    if (i < intr_stack.size) {
+      int d = intr_stack.size - height;
+      size_t disp = d > 0 ? i + d : i;
+      printf("%-11s", intr_stack.rules[disp].rule_name);
+    } else {
+      for (size_t sp = 0; sp < 11; sp++)
+        putchar(' ');
+    }
+
+    printf(" | "); // Middle bar
+
+    // Print tokens
+    size_t remaining_tokens = ctx->len - ctx->pos;
+    if (i < remaining_tokens) {
+      calc_token tok = ctx->tokens[ctx->pos + i];
+      const char *name = calc_tokenkind_name[tok.kind];
+      printf("%s", name);
+      for (size_t j = strlen(name); j < 11; j++)
+        putchar(' ');
+    } else {
+      for (size_t j = 0; j < 11; j++)
+        putchar(' ');
+    }
+    putchar(' '); putchar(' '); putchar('|'); putchar(' ');
+    // Print token content
+    if (i < remaining_tokens) {
+      calc_token tok = ctx->tokens[ctx->pos + i];
+      if (tok.content && tok.len) {        size_t tok_content_len = 0;
+        char *tok_content = NULL;
+        size_t trunc_to = 17;
+        int truncd = tok.len > trunc_to;
+        size_t trunc_len = tok.len > trunc_to ? trunc_to : tok.len;
+        UTF8_encode(tok.content, trunc_len, &tok_content, &tok_content_len);
+        printf("%s%s", tok_content, truncd ? "..." : "");
+        UTF8_FREE(tok_content);
+      }
+    }
+    putchar(' ');
+    putchar('\n');
+  }
+}
+
+static inline void intr_enter(calc_parser_ctx* ctx, const char* name, size_t pos) {
+  intr_stack.rules[intr_stack.size++] = (intr_entry){name, pos};
+  intr_stack.status = 0;
+  intr_display(ctx, name);
+}
+
+static inline void intr_accept(calc_parser_ctx* ctx, const char* accpeting) {
+  intr_stack.size--;
+  intr_stack.status = 1;
+  intr_display(ctx, accpeting);
+}
+
+static inline void intr_reject(calc_parser_ctx* ctx, const char* rejecting) {
+  intr_stack.size--;
+  intr_stack.status = -1;
+  intr_display(ctx, rejecting);
+}
+static inline void intr_succ(calc_parser_ctx* ctx, const char* succing) {
+  intr_stack.size--;
+  intr_stack.status = 2;
+  intr_display(ctx, succing);
+}
 static inline calc_astnode_t* calc_parse_expr(calc_parser_ctx* ctx);
 static inline calc_astnode_t* calc_parse_sumexpr(calc_parser_ctx* ctx);
 static inline calc_astnode_t* calc_parse_multexpr(calc_parser_ctx* ctx);
@@ -1271,6 +1391,7 @@ static inline calc_astnode_t* calc_parse_expr(calc_parser_ctx* ctx) {
   #define rule expr_ret_0
   calc_astnode_t* expr_ret_0 = NULL;
   calc_astnode_t* expr_ret_1 = NULL;
+  intr_enter(ctx, "expr", ctx->pos);
   calc_astnode_t* expr_ret_2 = NULL;
   rec(mod_2);
   // ModExprList Forwarding
@@ -1281,6 +1402,9 @@ static inline calc_astnode_t* calc_parse_expr(calc_parser_ctx* ctx) {
   expr_ret_1 = expr_ret_2;
   if (!rule) rule = expr_ret_1;
   if (!expr_ret_1) rule = NULL;
+  if (rule==SUCC) intr_succ(ctx, "expr");
+  else if (rule) intr_accept(ctx, "expr");
+  else intr_reject(ctx, "expr");
   return rule;
   #undef rule
 }
@@ -1291,6 +1415,7 @@ static inline calc_astnode_t* calc_parse_sumexpr(calc_parser_ctx* ctx) {
   #define rule expr_ret_3
   calc_astnode_t* expr_ret_3 = NULL;
   calc_astnode_t* expr_ret_4 = NULL;
+  intr_enter(ctx, "sumexpr", ctx->pos);
   calc_astnode_t* expr_ret_5 = NULL;
   rec(mod_5);
   // ModExprList 0
@@ -1313,6 +1438,7 @@ static inline calc_astnode_t* calc_parse_sumexpr(calc_parser_ctx* ctx) {
         calc_astnode_t* expr_ret_10 = NULL;
         rec(mod_10);
         // ModExprList 0
+        intr_enter(ctx, "PLUS", ctx->pos);
         if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == CALC_TOK_PLUS) {
           // Not capturing PLUS.
           expr_ret_10 = SUCC;
@@ -1321,6 +1447,7 @@ static inline calc_astnode_t* calc_parse_sumexpr(calc_parser_ctx* ctx) {
           expr_ret_10 = NULL;
         }
 
+        if (expr_ret_10) intr_accept(ctx, "PLUS"); else intr_reject(ctx, "PLUS");
         // ModExprList 1
         if (expr_ret_10) {
           calc_astnode_t* expr_ret_11 = NULL;
@@ -1333,9 +1460,11 @@ static inline calc_astnode_t* calc_parse_sumexpr(calc_parser_ctx* ctx) {
         // ModExprList 2
         if (expr_ret_10) {
           // CodeExpr
+          intr_enter(ctx, "CodeExpr", ctx->pos);
           #define ret expr_ret_10
           ret = SUCC;
           rule=node(PLUS, rule, n);
+          if (ret) intr_accept(ctx, "CodeExpr"); else intr_reject(ctx, "CodeExpr");
           #undef ret
         }
 
@@ -1349,6 +1478,7 @@ static inline calc_astnode_t* calc_parse_sumexpr(calc_parser_ctx* ctx) {
         calc_astnode_t* expr_ret_12 = NULL;
         rec(mod_12);
         // ModExprList 0
+        intr_enter(ctx, "MINUS", ctx->pos);
         if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == CALC_TOK_MINUS) {
           // Not capturing MINUS.
           expr_ret_12 = SUCC;
@@ -1357,6 +1487,7 @@ static inline calc_astnode_t* calc_parse_sumexpr(calc_parser_ctx* ctx) {
           expr_ret_12 = NULL;
         }
 
+        if (expr_ret_12) intr_accept(ctx, "MINUS"); else intr_reject(ctx, "MINUS");
         // ModExprList 1
         if (expr_ret_12) {
           calc_astnode_t* expr_ret_13 = NULL;
@@ -1369,9 +1500,11 @@ static inline calc_astnode_t* calc_parse_sumexpr(calc_parser_ctx* ctx) {
         // ModExprList 2
         if (expr_ret_12) {
           // CodeExpr
+          intr_enter(ctx, "CodeExpr", ctx->pos);
           #define ret expr_ret_12
           ret = SUCC;
           rule=node(MINUS, rule, n);
+          if (ret) intr_accept(ctx, "CodeExpr"); else intr_reject(ctx, "CodeExpr");
           #undef ret
         }
 
@@ -1394,6 +1527,9 @@ static inline calc_astnode_t* calc_parse_sumexpr(calc_parser_ctx* ctx) {
   expr_ret_4 = expr_ret_5;
   if (!rule) rule = expr_ret_4;
   if (!expr_ret_4) rule = NULL;
+  if (rule==SUCC) intr_succ(ctx, "sumexpr");
+  else if (rule) intr_accept(ctx, "sumexpr");
+  else intr_reject(ctx, "sumexpr");
   return rule;
   #undef rule
 }
@@ -1404,6 +1540,7 @@ static inline calc_astnode_t* calc_parse_multexpr(calc_parser_ctx* ctx) {
   #define rule expr_ret_14
   calc_astnode_t* expr_ret_14 = NULL;
   calc_astnode_t* expr_ret_15 = NULL;
+  intr_enter(ctx, "multexpr", ctx->pos);
   calc_astnode_t* expr_ret_16 = NULL;
   rec(mod_16);
   // ModExprList 0
@@ -1426,6 +1563,7 @@ static inline calc_astnode_t* calc_parse_multexpr(calc_parser_ctx* ctx) {
         calc_astnode_t* expr_ret_21 = NULL;
         rec(mod_21);
         // ModExprList 0
+        intr_enter(ctx, "MULT", ctx->pos);
         if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == CALC_TOK_MULT) {
           // Not capturing MULT.
           expr_ret_21 = SUCC;
@@ -1434,6 +1572,7 @@ static inline calc_astnode_t* calc_parse_multexpr(calc_parser_ctx* ctx) {
           expr_ret_21 = NULL;
         }
 
+        if (expr_ret_21) intr_accept(ctx, "MULT"); else intr_reject(ctx, "MULT");
         // ModExprList 1
         if (expr_ret_21) {
           calc_astnode_t* expr_ret_22 = NULL;
@@ -1446,9 +1585,11 @@ static inline calc_astnode_t* calc_parse_multexpr(calc_parser_ctx* ctx) {
         // ModExprList 2
         if (expr_ret_21) {
           // CodeExpr
+          intr_enter(ctx, "CodeExpr", ctx->pos);
           #define ret expr_ret_21
           ret = SUCC;
           rule=node(MULT, rule, n);
+          if (ret) intr_accept(ctx, "CodeExpr"); else intr_reject(ctx, "CodeExpr");
           #undef ret
         }
 
@@ -1462,6 +1603,7 @@ static inline calc_astnode_t* calc_parse_multexpr(calc_parser_ctx* ctx) {
         calc_astnode_t* expr_ret_23 = NULL;
         rec(mod_23);
         // ModExprList 0
+        intr_enter(ctx, "DIV", ctx->pos);
         if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == CALC_TOK_DIV) {
           // Not capturing DIV.
           expr_ret_23 = SUCC;
@@ -1470,6 +1612,7 @@ static inline calc_astnode_t* calc_parse_multexpr(calc_parser_ctx* ctx) {
           expr_ret_23 = NULL;
         }
 
+        if (expr_ret_23) intr_accept(ctx, "DIV"); else intr_reject(ctx, "DIV");
         // ModExprList 1
         if (expr_ret_23) {
           calc_astnode_t* expr_ret_24 = NULL;
@@ -1482,9 +1625,11 @@ static inline calc_astnode_t* calc_parse_multexpr(calc_parser_ctx* ctx) {
         // ModExprList 2
         if (expr_ret_23) {
           // CodeExpr
+          intr_enter(ctx, "CodeExpr", ctx->pos);
           #define ret expr_ret_23
           ret = SUCC;
           rule=node(DIV,  rule, n);
+          if (ret) intr_accept(ctx, "CodeExpr"); else intr_reject(ctx, "CodeExpr");
           #undef ret
         }
 
@@ -1507,6 +1652,9 @@ static inline calc_astnode_t* calc_parse_multexpr(calc_parser_ctx* ctx) {
   expr_ret_15 = expr_ret_16;
   if (!rule) rule = expr_ret_15;
   if (!expr_ret_15) rule = NULL;
+  if (rule==SUCC) intr_succ(ctx, "multexpr");
+  else if (rule) intr_accept(ctx, "multexpr");
+  else intr_reject(ctx, "multexpr");
   return rule;
   #undef rule
 }
@@ -1516,6 +1664,7 @@ static inline calc_astnode_t* calc_parse_baseexpr(calc_parser_ctx* ctx) {
   #define rule expr_ret_25
   calc_astnode_t* expr_ret_25 = NULL;
   calc_astnode_t* expr_ret_26 = NULL;
+  intr_enter(ctx, "baseexpr", ctx->pos);
   calc_astnode_t* expr_ret_27 = NULL;
 
   // SlashExpr 0
@@ -1523,6 +1672,7 @@ static inline calc_astnode_t* calc_parse_baseexpr(calc_parser_ctx* ctx) {
     calc_astnode_t* expr_ret_28 = NULL;
     rec(mod_28);
     // ModExprList 0
+    intr_enter(ctx, "OPEN", ctx->pos);
     if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == CALC_TOK_OPEN) {
       // Not capturing OPEN.
       expr_ret_28 = SUCC;
@@ -1531,6 +1681,7 @@ static inline calc_astnode_t* calc_parse_baseexpr(calc_parser_ctx* ctx) {
       expr_ret_28 = NULL;
     }
 
+    if (expr_ret_28) intr_accept(ctx, "OPEN"); else intr_reject(ctx, "OPEN");
     // ModExprList 1
     if (expr_ret_28) {
       calc_astnode_t* expr_ret_29 = NULL;
@@ -1542,6 +1693,7 @@ static inline calc_astnode_t* calc_parse_baseexpr(calc_parser_ctx* ctx) {
 
     // ModExprList 2
     if (expr_ret_28) {
+      intr_enter(ctx, "CLOSE", ctx->pos);
       if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == CALC_TOK_CLOSE) {
         // Capturing CLOSE.
         expr_ret_28 = leaf(CLOSE);
@@ -1552,6 +1704,7 @@ static inline calc_astnode_t* calc_parse_baseexpr(calc_parser_ctx* ctx) {
         expr_ret_28 = NULL;
       }
 
+      if (expr_ret_28) intr_accept(ctx, "CLOSE"); else intr_reject(ctx, "CLOSE");
     }
 
     // ModExprList end
@@ -1564,6 +1717,7 @@ static inline calc_astnode_t* calc_parse_baseexpr(calc_parser_ctx* ctx) {
     calc_astnode_t* expr_ret_30 = NULL;
     rec(mod_30);
     // ModExprList Forwarding
+    intr_enter(ctx, "NUMBER", ctx->pos);
     if (ctx->pos < ctx->len && ctx->tokens[ctx->pos].kind == CALC_TOK_NUMBER) {
       // Capturing NUMBER.
       expr_ret_30 = leaf(NUMBER);
@@ -1574,6 +1728,7 @@ static inline calc_astnode_t* calc_parse_baseexpr(calc_parser_ctx* ctx) {
       expr_ret_30 = NULL;
     }
 
+    if (expr_ret_30) intr_accept(ctx, "NUMBER"); else intr_reject(ctx, "NUMBER");
     // ModExprList end
     if (!expr_ret_30) rew(mod_30);
     expr_ret_27 = expr_ret_30;
@@ -1584,6 +1739,9 @@ static inline calc_astnode_t* calc_parse_baseexpr(calc_parser_ctx* ctx) {
 
   if (!rule) rule = expr_ret_26;
   if (!expr_ret_26) rule = NULL;
+  if (rule==SUCC) intr_succ(ctx, "baseexpr");
+  else if (rule) intr_accept(ctx, "baseexpr");
+  else intr_reject(ctx, "baseexpr");
   return rule;
   #undef rule
 }
