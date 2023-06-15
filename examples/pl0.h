@@ -9,9 +9,10 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <limits.h>
 
-#define UTF8_END -1 /* 1111 1111 */
-#define UTF8_ERR -2 /* 1111 1110 */
+#define UTF8_END (char)(CHAR_MIN ? CHAR_MIN     : CHAR_MAX    ) /* 1111 1111 */
+#define UTF8_ERR (char)(CHAR_MIN ? CHAR_MIN + 1 : CHAR_MAX - 1) /* 1111 1110 */
 
 #ifndef UTF8_MALLOC
 #define UTF8_MALLOC malloc
@@ -51,6 +52,10 @@ static inline char UTF8_contByte(UTF8Decoder *state) {
   return ((c & 0xC0) == 0x80) ? (c & 0x3F) : UTF8_ERR;
 }
 
+static inline int UTF8_validByte(char c) {
+  return (c != UTF8_ERR) & (c != UTF8_END);
+}
+
 /* Extract the next unicode code point. Returns the codepoint, UTF8_END, or
  * UTF8_ERR. */
 static inline codepoint_t UTF8_decodeNext(UTF8Decoder *state) {
@@ -66,7 +71,7 @@ static inline codepoint_t UTF8_decodeNext(UTF8Decoder *state) {
     return (codepoint_t)c0;
   } else if ((c0 & 0xE0) == 0xC0) {
     c1 = UTF8_contByte(state);
-    if (c1 >= 0) {
+    if (UTF8_validByte(c1)) {
       c = ((c0 & 0x1F) << 6) | c1;
       if (c >= 128)
         return c;
@@ -74,7 +79,7 @@ static inline codepoint_t UTF8_decodeNext(UTF8Decoder *state) {
   } else if ((c0 & 0xF0) == 0xE0) {
     c1 = UTF8_contByte(state);
     c2 = UTF8_contByte(state);
-    if ((c1 | c2) >= 0) {
+    if (UTF8_validByte(c1) & UTF8_validByte(c2)) {
       c = ((c0 & 0x0F) << 12) | (c1 << 6) | c2;
       if ((c >= 2048) & ((c < 55296) | (c > 57343)))
         return c;
@@ -83,7 +88,7 @@ static inline codepoint_t UTF8_decodeNext(UTF8Decoder *state) {
     c1 = UTF8_contByte(state);
     c2 = UTF8_contByte(state);
     c3 = UTF8_contByte(state);
-    if ((c1 | c2 | c3) >= 0) {
+    if (UTF8_validByte(c1) & UTF8_validByte(c2) & UTF8_validByte(c3)) {
       c = ((c0 & 0x07) << 18) | (c1 << 12) | (c2 << 6) | c3;
       if ((c >= 65536) & (c <= 1114111))
         return c;
