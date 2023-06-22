@@ -1539,7 +1539,7 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("  size_t width = w.ws_col;\n");
     cwrite("  size_t leftwidth = (width - (1 + 3 + 1)) / 2;\n");
     cwrite("  size_t rightwidth = leftwidth + (leftwidth %% 2);\n");
-    cwrite("  size_t height = w.ws_row - 4;\n\n");
+    cwrite("  size_t height = w.ws_row - 6;\n\n");
 
     cwrite("// Clear screen, cursor to top left\n");
     cwrite("  printf(\"\\x1b[2J\\x1b[H\");\n\n");
@@ -1561,8 +1561,30 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("  printf(\"\\x1b[0m\"); // Clear Formatting\n\n");
 
     cwrite("  // Write labels and line.\n");
-    cwrite("  for (size_t i = 0; i < width; i++)\n");
-    cwrite("    putchar('-');\n\n");
+
+    cwrite("  putchar('-');\n");
+    cwrite("  for (size_t i = 0; i < %zu; i++)\n", max_len);
+    cwrite("    putchar('-');\n");
+    cwrite("  printf(\"-+-\");\n");
+    cwrite("  for (size_t i = 0; i < %zu; i++)\n", max_len);
+    cwrite("    putchar('-');\n");
+    cwrite("  printf(\"-+-\");\n");
+    cwrite("  for (size_t i = %zu; i < width; i++)\n", 2 * max_len + 7);
+    cwrite("    putchar('-');\n");
+
+    cwrite("  printf(\" %%-%zus | %%-%zus | %%-%zus\", \"Call Stack\",  \"Token Stack\",  \"Token Repr\");\n", max_len, max_len, max_len);
+    cwrite("  for (size_t i = %zu; i < width; i++)\n", 3 * max_len + 7);
+    cwrite("    putchar(' ');\n");
+    
+    cwrite("  putchar('-');\n");
+    cwrite("  for (size_t i = 0; i < %zu; i++)\n", max_len);
+    cwrite("    putchar('-');\n");
+    cwrite("  printf(\"-+-\");\n");
+    cwrite("  for (size_t i = 0; i < %zu; i++)\n", max_len);
+    cwrite("    putchar('-');\n");
+    cwrite("  printf(\"-+-\");\n");
+    cwrite("  for (size_t i = %zu; i < width; i++)\n", 2 * max_len + 7);
+    cwrite("    putchar('-');\n");
 
     cwrite("  // Write following lines\n");
     cwrite("  for (size_t i = height; i --> 0;) {\n");
@@ -1580,22 +1602,19 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("        putchar(' ');\n");
     cwrite("    }\n\n");
 
-    cwrite("    printf(\" | \"); // Middle bar\n\n");
+    cwrite("    printf(\" | \"); // Left bar\n\n");
 
     cwrite("    // Print tokens\n");
     cwrite("    size_t remaining_tokens = ctx->len - ctx->pos;\n");
     cwrite("    if (i < remaining_tokens) {\n");
     cwrite("      %s_token tok = ctx->tokens[ctx->pos + i];\n", ctx->lower);
     cwrite("      const char *name = %s_tokenkind_name[tok.kind];\n", ctx->lower);
-    cwrite("      printf(\"%%s\", name);\n");
-    cwrite("      for (size_t j = strlen(name); j < %zu; j++)\n", max_len);
-    cwrite("        putchar(' ');\n");
+    cwrite("      printf(\"%%-%zus\", name);\n", max_len);
     cwrite("    } else {\n");
-    cwrite("      for (size_t j = 0; j < %zu; j++)\n", max_len);
-    cwrite("        putchar(' ');\n");
+    cwrite("      printf(\"%%-%zus\", \"\");\n", max_len);
     cwrite("    }\n");
 
-    cwrite("    putchar(' '); putchar(' '); putchar('|'); putchar(' ');\n");
+    cwrite("    printf(\" | \"); // Right bar\n\n");
 
     cwrite("    // Print token content\n");
     cwrite("    if (i < remaining_tokens) {\n");
