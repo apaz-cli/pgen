@@ -1571,10 +1571,12 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("  printf(\"-+-\");\n");
     cwrite("  for (size_t i = %zu; i < width; i++)\n", 2 * max_len + 7);
     cwrite("    putchar('-');\n");
+    cwrite("  putchar('\\n');\n");
 
     cwrite("  printf(\" %%-%zus | %%-%zus | %%-%zus\", \"Call Stack\",  \"Token Stack\",  \"Token Repr\");\n", max_len, max_len, max_len);
     cwrite("  for (size_t i = %zu; i < width; i++)\n", 3 * max_len + 7);
     cwrite("    putchar(' ');\n");
+    cwrite("  putchar('\\n');\n");
     
     cwrite("  putchar('-');\n");
     cwrite("  for (size_t i = 0; i < %zu; i++)\n", max_len);
@@ -1585,6 +1587,7 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("  printf(\"-+-\");\n");
     cwrite("  for (size_t i = %zu; i < width; i++)\n", 2 * max_len + 7);
     cwrite("    putchar('-');\n");
+    cwrite("  putchar('\\n');\n");
 
     cwrite("  // Write following lines\n");
     cwrite("  for (size_t i = height; i --> 0;) {\n");
@@ -1619,20 +1622,26 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("    // Print token content\n");
     cwrite("    if (i < remaining_tokens) {\n");
     cwrite("      %s_token tok = ctx->tokens[ctx->pos + i];\n", ctx->lower);
-    cwrite("      if (tok.content && tok.len) {");
-    cwrite("        size_t tok_content_len = 0;\n");
+    cwrite("      if (tok.content && tok.len) {\n");
     cwrite("        char *tok_content = NULL;\n");
-    cwrite("        size_t trunc_to = 17;\n");
-    cwrite("        int truncd = tok.len > trunc_to;\n");
-    cwrite("        size_t trunc_len = tok.len > trunc_to ? trunc_to : tok.len;\n");
-    cwrite("        UTF8_encode(tok.content, trunc_len, &tok_content, &tok_content_len);\n");
-    cwrite("        printf(\"%%s%%s\", tok_content, truncd ? \"...\" : \"\");\n");
+    cwrite("        size_t _tok_content_len = 0;\n");
+    cwrite("        if (tok.len > %zu) {\n", max_len);
+    cwrite("          UTF8_encode(tok.content, %zu, &tok_content, &_tok_content_len);\n", max_len - 3);
+    cwrite("          printf(\"%%s...\", tok_content);\n");
+    cwrite("        } else {\n");
+    cwrite("          UTF8_encode(tok.content, tok.len, &tok_content, &_tok_content_len);\n");
+    cwrite("          printf(\"%%-%zus\", tok_content);\n", max_len);
+    cwrite("        }\n");
     cwrite("        UTF8_FREE(tok_content);\n");
+    cwrite("      } else {\n");
+    cwrite("        printf(\"%%-%zus\", \"\");\n", max_len);
     cwrite("      }\n");
-    cwrite("    }\n");
+    cwrite("    } else {\n");
+    cwrite("      printf(\"%%-%zus\", \"\");\n", max_len);
+    cwrite("    }\n\n");
     
-
-    cwrite("    putchar(' ');\n");
+    cwrite("    for (size_t i = %zu; i < width; i++)\n", 3 * max_len + 7);
+    cwrite("      putchar(' ');\n");
     cwrite("    putchar('\\n');\n");
     cwrite("  }\n");
     cwrite("}\n\n");

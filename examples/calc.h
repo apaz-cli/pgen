@@ -1323,9 +1323,11 @@ static inline void intr_display(calc_parser_ctx* ctx, const char* last) {
   printf("-+-");
   for (size_t i = 29; i < width; i++)
     putchar('-');
+  putchar('\n');
   printf(" %-11s | %-11s | %-11s", "Call Stack",  "Token Stack",  "Token Repr");
   for (size_t i = 40; i < width; i++)
     putchar(' ');
+  putchar('\n');
   putchar('-');
   for (size_t i = 0; i < 11; i++)
     putchar('-');
@@ -1335,6 +1337,7 @@ static inline void intr_display(calc_parser_ctx* ctx, const char* last) {
   printf("-+-");
   for (size_t i = 29; i < width; i++)
     putchar('-');
+  putchar('\n');
   // Write following lines
   for (size_t i = height; i --> 0;) {
     putchar(' ');
@@ -1365,17 +1368,26 @@ static inline void intr_display(calc_parser_ctx* ctx, const char* last) {
     // Print token content
     if (i < remaining_tokens) {
       calc_token tok = ctx->tokens[ctx->pos + i];
-      if (tok.content && tok.len) {        size_t tok_content_len = 0;
+      if (tok.content && tok.len) {
         char *tok_content = NULL;
-        size_t trunc_to = 17;
-        int truncd = tok.len > trunc_to;
-        size_t trunc_len = tok.len > trunc_to ? trunc_to : tok.len;
-        UTF8_encode(tok.content, trunc_len, &tok_content, &tok_content_len);
-        printf("%s%s", tok_content, truncd ? "..." : "");
+        size_t _tok_content_len = 0;
+        if (tok.len > 11) {
+          UTF8_encode(tok.content, 8, &tok_content, &_tok_content_len);
+          printf("%s...", tok_content);
+        } else {
+          UTF8_encode(tok.content, tok.len, &tok_content, &_tok_content_len);
+          printf("%-11s", tok_content);
+        }
         UTF8_FREE(tok_content);
+      } else {
+        printf("%-11s", "");
       }
+    } else {
+      printf("%-11s", "");
     }
-    putchar(' ');
+
+    for (size_t i = 40; i < width; i++)
+      putchar(' ');
     putchar('\n');
   }
 }
