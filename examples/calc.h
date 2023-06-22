@@ -1300,18 +1300,21 @@ static inline void intr_display(calc_parser_ctx* ctx, const char* last) {
   // Write first line in color.
   if (intr_stack.status == -1) {
     printf("\x1b[31m"); // Red
-    printf("Failed: %s\n", last);
+    printf("Failed: %-32s", last);
   } else if (intr_stack.status == 0) {
     printf("\x1b[34m"); // Blue
-    printf("Entering: %s\n", last);
+    printf("Entering: %-30s", last);
   } else if (intr_stack.status == 1) {
     printf("\x1b[32m"); // Green
-    printf("Accepted: %s\n", last);
+    printf("Accepted: %-30s", last);
   } else {
     printf("\x1b[33m"); // Green
-    printf("SUCCED: %s\n", last), exit(1);
+    printf("SUCCED: %-32s", last), exit(1);
   }
   printf("\x1b[0m"); // Clear Formatting
+  for (size_t i = 40; i < width; i++)
+    putchar(' ');
+  putchar('\n');
 
   // Write labels and line.
   putchar('-');
@@ -1351,7 +1354,6 @@ static inline void intr_display(calc_parser_ctx* ctx, const char* last) {
       for (size_t sp = 0; sp < 11; sp++)
         putchar(' ');
     }
-
     printf(" | "); // Left bar
 
     // Print tokens

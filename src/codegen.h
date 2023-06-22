@@ -1547,18 +1547,22 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("  // Write first line in color.\n");
     cwrite("  if (intr_stack.status == -1) {\n");
     cwrite("    printf(\"\\x1b[31m\"); // Red\n");
-    cwrite("    printf(\"Failed: %%s\\n\", last);\n");
+    cwrite("    printf(\"Failed: %%-%zus\", last);\n", 3 * max_len - 1);
     cwrite("  } else if (intr_stack.status == 0) {\n");
     cwrite("    printf(\"\\x1b[34m\"); // Blue\n");
-    cwrite("    printf(\"Entering: %%s\\n\", last);\n");
+    cwrite("    printf(\"Entering: %%-%zus\", last);\n", 3 * max_len - 3);
     cwrite("  } else if (intr_stack.status == 1) {\n");
     cwrite("    printf(\"\\x1b[32m\"); // Green\n");
-    cwrite("    printf(\"Accepted: %%s\\n\", last);\n");
+    cwrite("    printf(\"Accepted: %%-%zus\", last);\n", 3 * max_len - 3);
     cwrite("  } else {\n");
     cwrite("    printf(\"\\x1b[33m\"); // Green\n");
-    cwrite("    printf(\"SUCCED: %%s\\n\", last), exit(1);\n");
+    cwrite("    printf(\"SUCCED: %%-%zus\", last), exit(1);\n", 3 * max_len - 1);
     cwrite("  }\n");
-    cwrite("  printf(\"\\x1b[0m\"); // Clear Formatting\n\n");
+    cwrite("  printf(\"\\x1b[0m\"); // Clear Formatting\n");
+
+    cwrite("  for (size_t i = %zu; i < width; i++)\n", 3 * max_len + 7);
+    cwrite("    putchar(' ');\n");
+    cwrite("  putchar('\\n');\n\n");
 
     cwrite("  // Write labels and line.\n");
 
@@ -1603,7 +1607,7 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("    } else {\n");
     cwrite("      for (size_t sp = 0; sp < %zu; sp++)\n", max_len);
     cwrite("        putchar(' ');\n");
-    cwrite("    }\n\n");
+    cwrite("    }\n");
 
     cwrite("    printf(\" | \"); // Left bar\n\n");
 
