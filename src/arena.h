@@ -3,6 +3,7 @@
 
 #ifndef PGEN_ARENA_INCLUDED
 #define PGEN_ARENA_INCLUDED
+#include <stdbool.h>
 #include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
