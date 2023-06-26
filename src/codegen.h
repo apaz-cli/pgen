@@ -1611,10 +1611,16 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
 
     cwrite("    printf(\" | \"); // Left bar\n\n");
 
+    cwrite("    size_t remaining_tokens = ctx->len - ctx->pos;\n\n");
+    cwrite("    bool tokens_trunkated = remaining_tokens > height;\n");
+    cwrite("    if (tokens_trunkated)\n");
+    cwrite("      remaining_tokens = height;\n");
+
     cwrite("    // Print tokens\n");
-    cwrite("    size_t remaining_tokens = ctx->len - ctx->pos;\n");
-    cwrite("    if (i < remaining_tokens) {\n");
-    cwrite("      %s_token tok = ctx->tokens[ctx->pos + i];\n", ctx->lower);
+    cwrite("    if (i == 0 && tokens_trunkated) {\n");
+    cwrite("      printf(\"%%-%zus\", \"...\");\n", max_len);
+    cwrite("    } else if (i < remaining_tokens) {\n");
+    cwrite("      %s_token tok = ctx->tokens[ctx->pos + remaining_tokens - 1 - i];\n", ctx->lower);
     cwrite("      const char *name = %s_tokenkind_name[tok.kind];\n", ctx->lower);
     cwrite("      printf(\"%%-%zus\", name);\n", max_len);
     cwrite("    } else {\n");
@@ -1624,8 +1630,10 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("    printf(\" | \"); // Right bar\n\n");
 
     cwrite("    // Print token content\n");
-    cwrite("    if (i < remaining_tokens) {\n");
-    cwrite("      %s_token tok = ctx->tokens[ctx->pos + i];\n", ctx->lower);
+    cwrite("    if (i == 0 && tokens_trunkated) {\n");
+    cwrite("      printf(\"%%-%zus\", \"...\");\n", max_len);
+    cwrite("    } else if (i < remaining_tokens) {\n");
+    cwrite("      %s_token tok = ctx->tokens[ctx->pos + remaining_tokens - 1 - i];\n", ctx->lower);
     cwrite("      if (tok.content && tok.len) {\n");
     cwrite("        char *tok_content = NULL;\n");
     cwrite("        size_t _tok_content_len = 0;\n");

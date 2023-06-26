@@ -243,6 +243,7 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
 
 #ifndef PGEN_ARENA_INCLUDED
 #define PGEN_ARENA_INCLUDED
+#include <stdbool.h>
 #include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -1356,10 +1357,16 @@ static inline void intr_display(calc_parser_ctx* ctx, const char* last) {
     }
     printf(" | "); // Left bar
 
-    // Print tokens
     size_t remaining_tokens = ctx->len - ctx->pos;
-    if (i < remaining_tokens) {
-      calc_token tok = ctx->tokens[ctx->pos + i];
+
+    bool tokens_trunkated = remaining_tokens > height;
+    if (tokens_trunkated)
+      remaining_tokens = height;
+    // Print tokens
+    if (i == 0 && tokens_trunkated) {
+      printf("%-11s", "...");
+    } else if (i < remaining_tokens) {
+      calc_token tok = ctx->tokens[ctx->pos + remaining_tokens - 1 - i];
       const char *name = calc_tokenkind_name[tok.kind];
       printf("%-11s", name);
     } else {
@@ -1368,8 +1375,10 @@ static inline void intr_display(calc_parser_ctx* ctx, const char* last) {
     printf(" | "); // Right bar
 
     // Print token content
-    if (i < remaining_tokens) {
-      calc_token tok = ctx->tokens[ctx->pos + i];
+    if (i == 0 && tokens_trunkated) {
+      printf("%-11s", "...");
+    } else if (i < remaining_tokens) {
+      calc_token tok = ctx->tokens[ctx->pos + remaining_tokens - 1 - i];
       if (tok.content && tok.len) {
         char *tok_content = NULL;
         size_t _tok_content_len = 0;
