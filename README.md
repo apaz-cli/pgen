@@ -140,7 +140,7 @@ by [Arihiro Yoshida](https://github.com/arithy). You may see many commonalities.
 * `repr(node, ofnode)`      - Set the string representation of the current node to another node's
 * `srepr(node, string)`     - Set the string representation of node to a cstring
 * `cprepr(node, cps, len)`  - Set the string representation of node to a codepoint string
-* `expect(kind, cap)       - Parses a token the same way `TOKEN` does. Returns the astnode if cap(tured).
+* `expect(kind, cap)`       - Parses a token the same way `TOKEN` does. Returns the astnode if cap(tured).
 
 
 ### Error Logging Builtins
@@ -159,7 +159,8 @@ by [Arihiro Yoshida](https://github.com/arithy). You may see many commonalities.
 
 There's documentation, but realistically you're not going to figure everything out on your own. Talk to me, submit an issue, send me an email, or find me on Discord, and I can walk you through how to use it.
 
-C code in Code expressions are parsed by matching left and right curly braces. Therefore, it could get confused if you write something like `{ ret = ...; ret->str = "}"; }`. Instead of using `"{"` or `"}"`, you can use the macros `LBSTR`/`RBSTR`.
+C code in Code expressions are parsed by matching left and right curly braces. Therefore, it could get confused if you write something like `{ ret = ...; ret->str = "I have a } in my string"; }`. Instead of using `"{"` or `"}"`, you can use the macros `LBSTR`/`RBSTR`. Then you would have `{ ret = ...; ret->str = "I have a " RBSTR "in my string";}`
+
 
 
 ## Generated Parser C API Example:
