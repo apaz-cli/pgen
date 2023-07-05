@@ -49,6 +49,26 @@ elif [ "$1" = "profile" ]; then
   rm dump calls cache cachegrind.out.* callgrind.out.* 2>/dev/null
   cd ..
 
+elif [ "$1" = "pgo" ]; then
+  # Build instrumented binary
+  clang src/pgen.c -o pgen -O3 -march=native -fprofile-instr-generate
+
+  # Run the instrumented binary on the examples, creating perf data.
+  ./pgen examples/calc.peg
+  mv *.profraw 1.p
+  ./pgen examples/bf.peg
+  mv *.profraw 2.p
+  ./pgen examples/pl0.peg
+  mv *.profraw 3.p
+
+  # Combine and index the perf data.
+  llvm-profdata merge *.p -o pgen.pgo
+
+  # Recompile using the perf data
+  clang src/pgen.c -o pgen -O3 -march=native -fprofile-use=pgen.pgo
+
+  #rm *.p pgen.pgo
+
 elif [ "$1" = "macrocheck" ]; then
 
   # Build pgen and examples
