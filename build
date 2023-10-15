@@ -50,8 +50,12 @@ elif [ "$1" = "profile" ]; then
   cd ..
 
 elif [ "$1" = "pgo" ]; then
+  CLANG_VERSION="$(clang --version | awk 'NR == 1 {print $4}' | cut -d. -f1)"
+  CLANG="clang-$CLANG_VERSION"
+  PROFMERGE="llvm-profdata-$CLANG_VERSION"
+
   # Build instrumented binary
-  clang src/pgen.c -o pgen -O3 -march=native -fprofile-instr-generate
+  $CLANG src/pgen.c -o pgen -O3 -march=native -fprofile-instr-generate
 
   # Run the instrumented binary on the examples, creating perf data.
   ./pgen examples/calc.peg
@@ -62,15 +66,14 @@ elif [ "$1" = "pgo" ]; then
   mv *.profraw 3.p
 
   # Combine and index the perf data.
-  llvm-profdata merge *.p -o pgen.pgo
+  $PROFMERGE merge *.p -o pgen.pgo
 
   # Recompile using the perf data
-  clang src/pgen.c -o pgen -O3 -march=native -fprofile-use=pgen.pgo
+  $CLANG src/pgen.c -o pgen -O3 -march=native -fprofile-use=pgen.pgo
 
-  #rm *.p pgen.pgo
+  rm *.p pgen.pgo
 
 elif [ "$1" = "macrocheck" ]; then
-
   # Build pgen and examples
   cc src/pgen.c -o pgen
   ./pgen examples/pl0.peg -o examples/pl0.h

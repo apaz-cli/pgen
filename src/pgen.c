@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
   Symtabs symtabs = gen_symtabs(ast);
   validateSymtabs(args, symtabs);
 
-  // Create the tokenizer automata (IR).
+  // Parse IR from symtabs.
   TrieAutomaton trie = createTrieAutomaton(symtabs.tokendefs);
   list_SMAutomaton smauts = createSMAutomata(symtabs.tokendefs);
 
