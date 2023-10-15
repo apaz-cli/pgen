@@ -50,6 +50,11 @@ elif [ "$1" = "profile" ]; then
   cd ..
 
 elif [ "$1" = "pgo" ]; then
+  shift
+  if [ "$1" = "install" ]; then
+    INSTALL="1"
+  fi
+
   CLANG_VERSION=$(clang --version | sed -n '1s/[^0-9]*\([0-9][^.]*\.[0-9][^.]*\.[0-9][^.]*\).*/\1/p' | cut -d. -f1)
   CLANG="clang-$CLANG_VERSION"
   PROFMERGE="llvm-profdata-$CLANG_VERSION"
@@ -60,10 +65,13 @@ elif [ "$1" = "pgo" ]; then
   # Run the instrumented binary on the examples, creating perf data.
   ./pgen examples/calc.peg
   mv *.profraw 1.p
+  rm calc.h
   ./pgen examples/bf.peg
   mv *.profraw 2.p
+  rm bf.h
   ./pgen examples/pl0.peg
   mv *.profraw 3.p
+  rm pl0.h
 
   # Combine and index the perf data.
   $PROFMERGE merge *.p -o pgen.pgo
@@ -71,6 +79,13 @@ elif [ "$1" = "pgo" ]; then
   # Recompile using the perf data
   $CLANG src/pgen.c -o pgen -O3 -march=native -fprofile-use=pgen.pgo
 
+  # Install binary
+  if [ "$INSTALL" = "1" ]; then
+    sudo cp pgen /bin/pgen
+    echo "Installed pgen."
+  fi
+
+  # Clean up
   rm *.p pgen.pgo
 
 elif [ "$1" = "macrocheck" ]; then
