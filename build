@@ -86,6 +86,7 @@ elif [ "$1" = "macrocheck" ]; then
   echo '#include <stdlib.h>'   >> .empty.c
   echo '#include <string.h>'   >> .empty.c
   echo '#include <inttypes.h>' >> .empty.c
+  echo '#include <stdbool.h>'  >> .empty.c
 
   cc -dM -E .empty.c       | sort > .predef.c
   cc -dM -E examples/pl0.h | sort > .nowdef.c
