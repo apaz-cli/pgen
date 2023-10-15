@@ -1305,13 +1305,7 @@ static inline void pl0_parser_ctx_init(pl0_parser_ctx* parser,
   size_t to_zero = sizeof(pl0_parse_err) * PL0_MAX_PARSER_ERRORS;
   memset(&parser->errlist, 0, to_zero);
 }
-static inline void freemsg(const char* msg, void* extra) {
-  (void)extra;
-  PGEN_FREE((void*)msg);
-}
-
-static inline pl0_parse_err* pl0_report_parse_error(pl0_parser_ctx* ctx,
-              const char* msg, void (*msgfree)(const char* msg, void* extra), int severity) {
+static inline pl0_parse_err* pl0_report_parse_error(pl0_parser_ctx* ctx, const char* msg, int severity) {
   if (ctx->num_errors >= PL0_MAX_PARSER_ERRORS) {
     ctx->exit = 1;
     return NULL;
@@ -1752,14 +1746,10 @@ static inline void pl0_astnode_print_json(pl0_token* tokens, pl0_astnode_t *node
 #define LB {
 #define RB }
 
-#define INFO(msg)                pl0_report_parse_error(ctx, (const char*)msg, NULL,   0)
-#define WARNING(msg)             pl0_report_parse_error(ctx, (const char*)msg, NULL,   1)
-#define ERROR(msg)               pl0_report_parse_error(ctx, (const char*)msg, NULL,   2)
-#define FATAL(msg)               pl0_report_parse_error(ctx, (const char*)msg, NULL,   3)
-#define INFO_F(msg, freefn)      pl0_report_parse_error(ctx, (const char*)msg, freefn, 0)
-#define WARNING_F(msg, freefn)   pl0_report_parse_error(ctx, (const char*)msg, freefn, 1)
-#define ERROR_F(msg, freefn)     pl0_report_parse_error(ctx, (const char*)msg, freefn, 2)
-#define FATAL_F(msg, freefn)     pl0_report_parse_error(ctx, (const char*)msg, freefn, 3)
+#define INFO(msg)                pl0_report_parse_error(ctx, (const char*)msg, 0)
+#define WARNING(msg)             pl0_report_parse_error(ctx, (const char*)msg, 1)
+#define ERROR(msg)               pl0_report_parse_error(ctx, (const char*)msg, 2)
+#define FATAL(msg)               pl0_report_parse_error(ctx, (const char*)msg, 3)
 
 /******************/
 /* Mid Directives */

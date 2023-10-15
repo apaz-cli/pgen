@@ -149,10 +149,6 @@ by [Arihiro Yoshida](https://github.com/arithy). You may see many commonalities.
 * `WARNING(msg)`            - Log an error to ctx->errlist with the position and severity 1.
 * `ERROR(msg)`              - Log an error to ctx->errlist with the position and severity 2.
 * `FATAL(msg)`              - Log an error to ctx->errlist with the position and severity 3, and sets ctx->exit = 1.
-* `INFO_F(msg, freefn)`     - INFO(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
-* `WARNING_F(msg, freefn)`  - WARNING(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
-* `ERROR_F(msg, freefn)`    - ERROR(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
-* `FATAL_F(msg, freefn)`    - FATAL(), but pgen_allocator_destroy(ctx->alloc) calls freefn(msg).
 
 
 ### Notes:
@@ -160,7 +156,6 @@ by [Arihiro Yoshida](https://github.com/arithy). You may see many commonalities.
 There's documentation, but realistically you're not going to figure everything out on your own. Talk to me, submit an issue, send me an email, or find me on Discord, and I can walk you through how to use it.
 
 C code in Code expressions are parsed by matching left and right curly braces. Therefore, it could get confused if you write something like `{ ret = ...; ret->str = "I have a } in my string"; }`. Instead of using `"{"` or `"}"`, you can use the macros `LBSTR`/`RBSTR`. Then you would have `{ ret = ...; ret->str = "I have a " RBSTR "in my string";}`
-
 
 
 ## Generated Parser C API Example:

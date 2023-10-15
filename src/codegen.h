@@ -884,16 +884,8 @@ static inline void peg_write_parser_ctx_init(codegen_ctx *ctx) {
 }
 
 static inline void peg_write_report_parse_error(codegen_ctx *ctx) {
-
-  cwrite("static inline void freemsg(const char* msg, void* extra) {\n"
-         "  (void)extra;\n"
-         "  PGEN_FREE((void*)msg);\n"
-         "}\n\n");
-
   cwrite(
-      "static inline %s_parse_err* %s_report_parse_error(%s_parser_ctx* ctx,\n"
-      "              const char* msg, void (*msgfree)(const char* msg, void* "
-      "extra), int severity) {\n",
+      "static inline %s_parse_err* %s_report_parse_error(%s_parser_ctx* ctx, const char* msg, int severity) {\n",
       ctx->lower, ctx->lower, ctx->lower);
   cwrite("  if (ctx->num_errors >= %s_MAX_PARSER_ERRORS) {\n", ctx->upper);
   cwrite("    ctx->exit = 1;\n");
@@ -1213,30 +1205,17 @@ static inline void peg_write_parsermacros(codegen_ctx *ctx) {
   cwrite("\n");
 
   cwrite("#define INFO(msg)                "
-         "%s_report_parse_error(ctx, (const char*)msg, NULL,   0)\n",
+         "%s_report_parse_error(ctx, (const char*)msg, 0)\n",
          ctx->lower);
   cwrite("#define WARNING(msg)             "
-         "%s_report_parse_error(ctx, (const char*)msg, NULL,   1)\n",
+         "%s_report_parse_error(ctx, (const char*)msg, 1)\n",
          ctx->lower);
   cwrite("#define ERROR(msg)               "
-         "%s_report_parse_error(ctx, (const char*)msg, NULL,   2)\n",
+         "%s_report_parse_error(ctx, (const char*)msg, 2)\n",
          ctx->lower);
   cwrite("#define FATAL(msg)               "
-         "%s_report_parse_error(ctx, (const char*)msg, NULL,   3)\n",
+         "%s_report_parse_error(ctx, (const char*)msg, 3)\n",
          ctx->lower);
-  cwrite("#define INFO_F(msg, freefn)      "
-         "%s_report_parse_error(ctx, (const char*)msg, freefn, 0)\n",
-         ctx->lower);
-  cwrite("#define WARNING_F(msg, freefn)   "
-         "%s_report_parse_error(ctx, (const char*)msg, freefn, 1)\n",
-         ctx->lower);
-  cwrite("#define ERROR_F(msg, freefn)     "
-         "%s_report_parse_error(ctx, (const char*)msg, freefn, 2)\n",
-         ctx->lower);
-  cwrite("#define FATAL_F(msg, freefn)     "
-         "%s_report_parse_error(ctx, (const char*)msg, freefn, 3)\n",
-         ctx->lower);
-
   cwrite("\n");
 }
 
