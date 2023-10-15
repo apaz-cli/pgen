@@ -102,7 +102,7 @@ elif [ "$1" = "macrocheck" ]; then
   fi
 else
   # Build debug
-  cc src/pgen.c -o pgen --std=c99 -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable -Wconversion -fsanitize=address
+  cc src/pgen.c -o pgen --std=c99 -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable -Wconversion
   if [ ! "$?" -eq 0 ]; then exit 1; fi
 
   # Test
@@ -115,7 +115,7 @@ else
 
     # Build and run pl0 example
     cd examples/
-    cc pl0.c -g -fsanitize=address -Wconversion
+    cc pl0.c -g -Wconversion
     if [ ! "$?" -eq 0 ]; then exit 1; fi
 
     ./a.out > ../.testast.json

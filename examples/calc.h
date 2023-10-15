@@ -9,9 +9,10 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <limits.h>
 
-#define UTF8_END -1 /* 1111 1111 */
-#define UTF8_ERR -2 /* 1111 1110 */
+#define UTF8_END (char)(CHAR_MIN ? CHAR_MIN     : CHAR_MAX    ) /* 1111 1111 */
+#define UTF8_ERR (char)(CHAR_MIN ? CHAR_MIN + 1 : CHAR_MAX - 1) /* 1111 1110 */
 
 #ifndef UTF8_MALLOC
 #define UTF8_MALLOC malloc
@@ -51,6 +52,10 @@ static inline char UTF8_contByte(UTF8Decoder *state) {
   return ((c & 0xC0) == 0x80) ? (c & 0x3F) : UTF8_ERR;
 }
 
+static inline int UTF8_validByte(char c) {
+  return (c != UTF8_ERR) & (c != UTF8_END);
+}
+
 /* Extract the next unicode code point. Returns the codepoint, UTF8_END, or
  * UTF8_ERR. */
 static inline codepoint_t UTF8_decodeNext(UTF8Decoder *state) {
@@ -66,7 +71,7 @@ static inline codepoint_t UTF8_decodeNext(UTF8Decoder *state) {
     return (codepoint_t)c0;
   } else if ((c0 & 0xE0) == 0xC0) {
     c1 = UTF8_contByte(state);
-    if (c1 >= 0) {
+    if (UTF8_validByte(c1)) {
       c = ((c0 & 0x1F) << 6) | c1;
       if (c >= 128)
         return c;
@@ -74,7 +79,7 @@ static inline codepoint_t UTF8_decodeNext(UTF8Decoder *state) {
   } else if ((c0 & 0xF0) == 0xE0) {
     c1 = UTF8_contByte(state);
     c2 = UTF8_contByte(state);
-    if ((c1 | c2) >= 0) {
+    if (UTF8_validByte(c1) & UTF8_validByte(c2)) {
       c = ((c0 & 0x0F) << 12) | (c1 << 6) | c2;
       if ((c >= 2048) & ((c < 55296) | (c > 57343)))
         return c;
@@ -83,7 +88,7 @@ static inline codepoint_t UTF8_decodeNext(UTF8Decoder *state) {
     c1 = UTF8_contByte(state);
     c2 = UTF8_contByte(state);
     c3 = UTF8_contByte(state);
-    if ((c1 | c2 | c3) >= 0) {
+    if (UTF8_validByte(c1) & UTF8_validByte(c2) & UTF8_validByte(c3)) {
       c = ((c0 & 0x07) << 18) | (c1 << 12) | (c2 << 6) | c3;
       if ((c >= 65536) & (c <= 1114111))
         return c;
@@ -238,6 +243,7 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
 
 #ifndef PGEN_ARENA_INCLUDED
 #define PGEN_ARENA_INCLUDED
+#include <stdbool.h>
 #include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -1287,7 +1293,7 @@ static inline void intr_display(calc_parser_ctx* ctx, const char* last) {
   size_t width = w.ws_col;
   size_t leftwidth = (width - (1 + 3 + 1)) / 2;
   size_t rightwidth = leftwidth + (leftwidth % 2);
-  size_t height = w.ws_row - 4;
+  size_t height = w.ws_row - 6;
 
 // Clear screen, cursor to top left
   printf("\x1b[2J\x1b[H");
@@ -1295,66 +1301,104 @@ static inline void intr_display(calc_parser_ctx* ctx, const char* last) {
   // Write first line in color.
   if (intr_stack.status == -1) {
     printf("\x1b[31m"); // Red
-    printf("Failed: %s\n", last);
+    printf("Failed: %-32s", last);
   } else if (intr_stack.status == 0) {
     printf("\x1b[34m"); // Blue
-    printf("Entering: %s\n", last);
+    printf("Entering: %-30s", last);
   } else if (intr_stack.status == 1) {
     printf("\x1b[32m"); // Green
-    printf("Accepted: %s\n", last);
+    printf("Accepted: %-30s", last);
   } else {
     printf("\x1b[33m"); // Green
-    printf("SUCCED: %s\n", last), exit(1);
+    printf("SUCCED: %-32s", last), exit(1);
   }
   printf("\x1b[0m"); // Clear Formatting
+  for (size_t i = 40; i < width; i++)
+    putchar(' ');
+  putchar('\n');
 
   // Write labels and line.
-  for (size_t i = 0; i < width; i++)
+  putchar('-');
+  for (size_t i = 0; i < 11; i++)
     putchar('-');
-
+  printf("-+-");
+  for (size_t i = 0; i < 11; i++)
+    putchar('-');
+  printf("-+-");
+  for (size_t i = 29; i < width; i++)
+    putchar('-');
+  putchar('\n');
+  printf(" %-11s | %-11s | %-11s", "Call Stack",  "Token Stack",  "Token Repr");
+  for (size_t i = 40; i < width; i++)
+    putchar(' ');
+  putchar('\n');
+  putchar('-');
+  for (size_t i = 0; i < 11; i++)
+    putchar('-');
+  printf("-+-");
+  for (size_t i = 0; i < 11; i++)
+    putchar('-');
+  printf("-+-");
+  for (size_t i = 29; i < width; i++)
+    putchar('-');
+  putchar('\n');
   // Write following lines
   for (size_t i = height; i --> 0;) {
     putchar(' ');
 
     // Print rule stack
     if (i < intr_stack.size) {
-      int d = intr_stack.size - height;
-      size_t disp = d > 0 ? i + d : i;
+      ssize_t d = (ssize_t)intr_stack.size - (ssize_t)height;
+      size_t disp = d > 0 ? i + (size_t)d : i;
       printf("%-11s", intr_stack.rules[disp].rule_name);
     } else {
       for (size_t sp = 0; sp < 11; sp++)
         putchar(' ');
     }
+    printf(" | "); // Left bar
 
-    printf(" | "); // Middle bar
-
-    // Print tokens
     size_t remaining_tokens = ctx->len - ctx->pos;
-    if (i < remaining_tokens) {
-      calc_token tok = ctx->tokens[ctx->pos + i];
+
+    bool tokens_trunkated = remaining_tokens > height;
+    if (tokens_trunkated)
+      remaining_tokens = height;
+    // Print tokens
+    if (i == 0 && tokens_trunkated) {
+      printf("%-11s", "...");
+    } else if (i < remaining_tokens) {
+      calc_token tok = ctx->tokens[ctx->pos + remaining_tokens - 1 - i];
       const char *name = calc_tokenkind_name[tok.kind];
-      printf("%s", name);
-      for (size_t j = strlen(name); j < 11; j++)
-        putchar(' ');
+      printf("%-11s", name);
     } else {
-      for (size_t j = 0; j < 11; j++)
-        putchar(' ');
+      printf("%-11s", "");
     }
-    putchar(' '); putchar(' '); putchar('|'); putchar(' ');
+    printf(" | "); // Right bar
+
     // Print token content
-    if (i < remaining_tokens) {
-      calc_token tok = ctx->tokens[ctx->pos + i];
-      if (tok.content && tok.len) {        size_t tok_content_len = 0;
+    if (i == 0 && tokens_trunkated) {
+      printf("%-11s", "...");
+    } else if (i < remaining_tokens) {
+      calc_token tok = ctx->tokens[ctx->pos + remaining_tokens - 1 - i];
+      if (tok.content && tok.len) {
         char *tok_content = NULL;
-        size_t trunc_to = 17;
-        int truncd = tok.len > trunc_to;
-        size_t trunc_len = tok.len > trunc_to ? trunc_to : tok.len;
-        UTF8_encode(tok.content, trunc_len, &tok_content, &tok_content_len);
-        printf("%s%s", tok_content, truncd ? "..." : "");
+        size_t _tok_content_len = 0;
+        if (tok.len > 11) {
+          UTF8_encode(tok.content, 8, &tok_content, &_tok_content_len);
+          printf("%s...", tok_content);
+        } else {
+          UTF8_encode(tok.content, tok.len, &tok_content, &_tok_content_len);
+          printf("%-11s", tok_content);
+        }
         UTF8_FREE(tok_content);
+      } else {
+        printf("%-11s", "");
       }
+    } else {
+      printf("%-11s", "");
     }
-    putchar(' ');
+
+    for (size_t i = 40; i < width; i++)
+      putchar(' ');
     putchar('\n');
   }
 }
