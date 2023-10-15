@@ -244,17 +244,19 @@ static inline int codepoint_atoi(const codepoint_t *a, size_t len,
 
 // Aspi is a beautiful SIMD sorceress.
 
-#if defined(__has_include)
-#  if __has_include (<emmintrin.h>) && defined(__x86_64__)
-#    include <emmintrin.h>
-#    define SIMD_MERGE 1
-#    ifdef __GNUC__
-#     define LIKELY(x) __builtin_expect(!!(x), 1)
+#ifndef SIMD_MERGE
+#  if defined(__has_include)
+#    if __has_include (<emmintrin.h>) && defined(__x86_64__) && (__clang__ || __GNUC__)
+#      include <emmintrin.h>
+#      define SIMD_MERGE 1
+#      ifdef __GNUC__
+#        define LIKELY(x) __builtin_expect(!!(x), 1)
+#      else
+#        define LIKELY(x) (x)
+#      endif
 #    else
-#     define LIKELY(x) (x)
+#      define SIMD_MERGE 0
 #    endif
-#  else
-#    define SIMD_MERGE 0
 #  endif
 #endif
 

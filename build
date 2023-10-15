@@ -49,8 +49,31 @@ elif [ "$1" = "profile" ]; then
   rm dump calls cache cachegrind.out.* callgrind.out.* 2>/dev/null
   cd ..
 
-elif [ "$1" = "macrocheck" ]; then
+elif [ "$1" = "pgo" ]; then
+  CLANG_VERSION="$(clang --version | awk 'NR == 1 {print $4}' | cut -d. -f1)"
+  CLANG="clang-$CLANG_VERSION"
+  PROFMERGE="llvm-profdata-$CLANG_VERSION"
 
+  # Build instrumented binary
+  $CLANG src/pgen.c -o pgen -O3 -march=native -fprofile-instr-generate
+
+  # Run the instrumented binary on the examples, creating perf data.
+  ./pgen examples/calc.peg
+  mv *.profraw 1.p
+  ./pgen examples/bf.peg
+  mv *.profraw 2.p
+  ./pgen examples/pl0.peg
+  mv *.profraw 3.p
+
+  # Combine and index the perf data.
+  $PROFMERGE merge *.p -o pgen.pgo
+
+  # Recompile using the perf data
+  $CLANG src/pgen.c -o pgen -O3 -march=native -fprofile-use=pgen.pgo
+
+  rm *.p pgen.pgo
+
+elif [ "$1" = "macrocheck" ]; then
   # Build pgen and examples
   cc src/pgen.c -o pgen
   ./pgen examples/pl0.peg -o examples/pl0.h
@@ -63,6 +86,7 @@ elif [ "$1" = "macrocheck" ]; then
   echo '#include <stdlib.h>'   >> .empty.c
   echo '#include <string.h>'   >> .empty.c
   echo '#include <inttypes.h>' >> .empty.c
+  echo '#include <stdbool.h>'  >> .empty.c
 
   cc -dM -E .empty.c       | sort > .predef.c
   cc -dM -E examples/pl0.h | sort > .nowdef.c
