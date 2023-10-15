@@ -243,6 +243,7 @@ static inline int UTF8_decode(char *str, size_t len, codepoint_t **retcps,
 
 #ifndef PGEN_ARENA_INCLUDED
 #define PGEN_ARENA_INCLUDED
+#include <stdbool.h>
 #include <limits.h>
 #include <stddef.h>
 #include <stdint.h>

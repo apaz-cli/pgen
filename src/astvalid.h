@@ -76,7 +76,7 @@ static inline void validateVisitLabel(ASTNode *label, list_cstr *names) {
   }
 }
 
-static inline void validatePegVisit(ASTNode *node, list_ASTNodePtr* tokdefs,
+static inline void validatePegVisit(ASTNode *node, list_ASTNodePtr *tokdefs,
                                     list_cstr *names) {
   // Pull out all the upperidents from pegast and find them in the tokast.
   if (!strcmp(node->name, "UpperIdent")) {
@@ -226,9 +226,7 @@ static inline int is_left_recursive(list_ASTNodePtr *definitions,
       }
     }
     if (!nextrule)
-      ERROR("While checking for left recurison, "
-            "could not find next rule %s.\n",
-            nextrulename);
+      ERROR("Rule %s is not defined.\n", nextrulename);
     return is_left_recursive(definitions, defnames, nextrule, nextrulename,
                              trace);
   }
@@ -257,6 +255,50 @@ static inline void validateDefinitions(list_cstr defnames) {
         ERROR("More than one rule is named %s.", defnames.buf[i]);
 }
 
+static inline char *validateSubrulesExist(ASTNode *node, list_cstr *names) {
+  char *ret = NULL;
+  if (!strcmp(node->name, "Definition")) {
+    return validateSubrulesExist(node->children[node->num_children - 1], names);
+  } else if (!strcmp(node->name, "SlashExpr")) {
+    for (size_t i = 0; i < node->num_children; i++)
+      if ((ret = validateSubrulesExist(node->children[i], names)))
+        return ret;
+    return NULL;
+  } else if (!strcmp(node->name, "ModExprList")) {
+    for (size_t i = 0; i < node->num_children; i++)
+      if ((ret = validateSubrulesExist(node->children[i], names)))
+        return ret;
+    return NULL;
+  } else if (!strcmp(node->name, "ModExpr")) {
+    return validateSubrulesExist(node->children[0], names);
+  } else if (!strcmp(node->name, "BaseExpr")) {
+    return validateSubrulesExist(node->children[0], names);
+  } else if (!strcmp(node->name, "CodeExpr")) {
+    return NULL;
+  } else if (!strcmp(node->name, "UpperIdent")) {
+    return NULL;
+  } else if (!strcmp(node->name, "Variables")) {
+    return NULL;
+  } else if (!strcmp(node->name, "LowerIdent")) {
+    int found = 0;
+    for (size_t i = 0; i < names->len; i++)
+      if (!strcmp((char *)node->extra, names->buf[i])) {
+        found = 1;
+        break;
+      }
+    return found ? NULL : (char *)node->extra;
+  } else
+    ERROR("Unexpected astnode kind in subrule existence check: %s", node->name);
+}
+
+static inline void validateRulesExist(list_ASTNodePtr *rules,
+                                      list_cstr *names) {
+  char *name = NULL;
+  for (size_t i = 0; i < rules->len; i++)
+    if ((name = validateSubrulesExist(rules->buf[i], names)))
+      ERROR("Rule %s does not exist.", name);
+}
+
 static inline void validateSymtabs(Args args, Symtabs symtabs) {
 
   if (args.u)
@@ -268,7 +310,8 @@ static inline void validateSymtabs(Args args, Symtabs symtabs) {
     for (size_t j = 0; j < pks->len; j++)
       for (size_t i = 0; i < tks->len; i++)
         if (!strcmp(tks->buf[i], pks->buf[j]))
-          ERROR("%%node kind %s is already declared as a token.\n", tks->buf[i]);
+          ERROR("%%node kind %s is already declared as a token.\n",
+                tks->buf[i]);
 
   list_cstr defnames = list_cstr_new();
   for (size_t i = 0; i < symtabs.definitions.len; i++) {
@@ -282,6 +325,7 @@ static inline void validateSymtabs(Args args, Symtabs symtabs) {
   for (size_t i = 0; i < symtabs.tokendefs.len; i++)
     validatePegVisit(symtabs.tokendefs.buf[i], &symtabs.tokendefs, &defnames);
 
+  validateRulesExist(&symtabs.definitions, &defnames);
   validateLeftRecursion(&symtabs.definitions, &defnames);
 
   list_cstr_clear(&defnames);
