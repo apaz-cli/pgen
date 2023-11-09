@@ -176,6 +176,8 @@ static inline void codegen_ctx_destroy(codegen_ctx *ctx) {
   char destr_buf[DESTR_BUFLEN];
   rewind(ctx->f);
   FILE *outfile = fopen(ctx->args->outputTarget, "w");
+  if (!outfile)
+    ERROR("Could not open output file.");
   while (!feof(ctx->f)) {
     if (fgets(destr_buf, DESTR_BUFLEN, ctx->f) == NULL)
       break;
@@ -203,6 +205,7 @@ static inline void codegen_ctx_destroy(codegen_ctx *ctx) {
 /****************/
 static inline void write_utf8_lib(codegen_ctx *ctx) {
 #include "strutf8.xxd"
+  (void)src_utf8_h_len;
   cwrite("%s", (char *)src_utf8_h);
   cwrite("\n\n");
 }
@@ -213,6 +216,7 @@ static inline void write_utf8_lib(codegen_ctx *ctx) {
 static inline void write_oom_directive(codegen_ctx *ctx);
 static inline void write_arena_lib(codegen_ctx *ctx) {
 #include "strarena.xxd"
+  (void)src_arena_h_len;
   cwrite("%s", (char *)src_arena_h);
   cwrite("\n\n");
 }
@@ -884,9 +888,9 @@ static inline void peg_write_parser_ctx_init(codegen_ctx *ctx) {
 }
 
 static inline void peg_write_report_parse_error(codegen_ctx *ctx) {
-  cwrite(
-      "static inline %s_parse_err* %s_report_parse_error(%s_parser_ctx* ctx, const char* msg, int severity) {\n",
-      ctx->lower, ctx->lower, ctx->lower);
+  cwrite("static inline %s_parse_err* %s_report_parse_error(%s_parser_ctx* "
+         "ctx, const char* msg, int severity) {\n",
+         ctx->lower, ctx->lower, ctx->lower);
   cwrite("  if (ctx->num_errors >= %s_MAX_PARSER_ERRORS) {\n", ctx->upper);
   cwrite("    ctx->exit = 1;\n");
   cwrite("    return NULL;\n");
@@ -1535,7 +1539,8 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("    printf(\"Accepted: %%-%zus\", last);\n", 3 * max_len - 3);
     cwrite("  } else {\n");
     cwrite("    printf(\"\\x1b[33m\"); // Green\n");
-    cwrite("    printf(\"SUCCED: %%-%zus\", last), exit(1);\n", 3 * max_len - 1);
+    cwrite("    printf(\"SUCCED: %%-%zus\", last), exit(1);\n",
+           3 * max_len - 1);
     cwrite("  }\n");
     cwrite("  printf(\"\\x1b[0m\"); // Clear Formatting\n");
 
@@ -1556,11 +1561,13 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("    putchar('-');\n");
     cwrite("  putchar('\\n');\n");
 
-    cwrite("  printf(\" %%-%zus | %%-%zus | %%-%zus\", \"Call Stack\",  \"Token Stack\",  \"Token Repr\");\n", max_len, max_len, max_len);
+    cwrite("  printf(\" %%-%zus | %%-%zus | %%-%zus\", \"Call Stack\",  "
+           "\"Token Stack\",  \"Token Repr\");\n",
+           max_len, max_len, max_len);
     cwrite("  for (size_t i = %zu; i < width; i++)\n", 3 * max_len + 7);
     cwrite("    putchar(' ');\n");
     cwrite("  putchar('\\n');\n");
-    
+
     cwrite("  putchar('-');\n");
     cwrite("  for (size_t i = 0; i < %zu; i++)\n", max_len);
     cwrite("    putchar('-');\n");
@@ -1599,8 +1606,11 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("    if (i == 0 && tokens_trunkated) {\n");
     cwrite("      printf(\"%%-%zus\", \"...\");\n", max_len);
     cwrite("    } else if (i < remaining_tokens) {\n");
-    cwrite("      %s_token tok = ctx->tokens[ctx->pos + remaining_tokens - 1 - i];\n", ctx->lower);
-    cwrite("      const char *name = %s_tokenkind_name[tok.kind];\n", ctx->lower);
+    cwrite("      %s_token tok = ctx->tokens[ctx->pos + remaining_tokens - 1 - "
+           "i];\n",
+           ctx->lower);
+    cwrite("      const char *name = %s_tokenkind_name[tok.kind];\n",
+           ctx->lower);
     cwrite("      printf(\"%%-%zus\", name);\n", max_len);
     cwrite("    } else {\n");
     cwrite("      printf(\"%%-%zus\", \"\");\n", max_len);
@@ -1612,15 +1622,20 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("    if (i == 0 && tokens_trunkated) {\n");
     cwrite("      printf(\"%%-%zus\", \"...\");\n", max_len);
     cwrite("    } else if (i < remaining_tokens) {\n");
-    cwrite("      %s_token tok = ctx->tokens[ctx->pos + remaining_tokens - 1 - i];\n", ctx->lower);
+    cwrite("      %s_token tok = ctx->tokens[ctx->pos + remaining_tokens - 1 - "
+           "i];\n",
+           ctx->lower);
     cwrite("      if (tok.content && tok.len) {\n");
     cwrite("        char *tok_content = NULL;\n");
     cwrite("        size_t _tok_content_len = 0;\n");
     cwrite("        if (tok.len > %zu) {\n", max_len);
-    cwrite("          UTF8_encode(tok.content, %zu, &tok_content, &_tok_content_len);\n", max_len - 3);
+    cwrite("          UTF8_encode(tok.content, %zu, &tok_content, "
+           "&_tok_content_len);\n",
+           max_len - 3);
     cwrite("          printf(\"%%s...\", tok_content);\n");
     cwrite("        } else {\n");
-    cwrite("          UTF8_encode(tok.content, tok.len, &tok_content, &_tok_content_len);\n");
+    cwrite("          UTF8_encode(tok.content, tok.len, &tok_content, "
+           "&_tok_content_len);\n");
     cwrite("          printf(\"%%-%zus\", tok_content);\n", max_len);
     cwrite("        }\n");
     cwrite("        UTF8_FREE(tok_content);\n");
@@ -1630,7 +1645,7 @@ static inline void peg_write_interactive_stack(codegen_ctx *ctx) {
     cwrite("    } else {\n");
     cwrite("      printf(\"%%-%zus\", \"\");\n", max_len);
     cwrite("    }\n\n");
-    
+
     cwrite("    for (size_t i = %zu; i < width; i++)\n", 3 * max_len + 7);
     cwrite("      putchar(' ');\n");
     cwrite("    putchar('\\n');\n");
@@ -1721,7 +1736,6 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
     ModExprOpts opts = *(ModExprOpts *)expr->extra;
     int has_label = expr->num_children >= 2 &&
                     !strcmp(expr->children[1]->name, "LowerIdent");
-    ASTNode *label = has_label ? expr->children[1] : NULL;
     int has_errhandler = (expr->num_children - (size_t)has_label) == 2;
     ASTNode *errhandler =
         has_errhandler ? expr->children[has_label ? 2 : 1] : NULL;

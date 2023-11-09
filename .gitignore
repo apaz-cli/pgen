@@ -1,3 +1,4 @@
 pgen
 **/a.out
 **/*.swp
+infer-out/**

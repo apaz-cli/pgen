@@ -26,7 +26,7 @@ typedef ASTNode *ASTNodePtr;
 LIST_DECLARE(ASTNodePtr)
 LIST_DEFINE(ASTNodePtr)
 
-#define PGENAST_OOM()                                                           \
+#define PGENAST_OOM()                                                          \
   do {                                                                         \
     fprintf(stderr, "Out of memory.\n");                                       \
     exit(1);                                                                   \
@@ -34,8 +34,10 @@ LIST_DEFINE(ASTNodePtr)
 
 static inline ASTNode *ASTNode_new(const char *name) {
   ASTNode *node = (ASTNode *)malloc(sizeof(ASTNode));
+  if (!node)
+    PGENAST_OOM();
   node->name = name;
-  //node->parent = NULL;
+  // node->parent = NULL;
   node->children = NULL; // realloc() as children are added
   node->num_children = 0;
   node->extra = NULL;
@@ -50,9 +52,9 @@ static inline void ASTNode_addChild(ASTNode *parent, ASTNode *child) {
   parent->num_children++;
   parent->children = (ASTNode **)realloc(
       parent->children, sizeof(ASTNode *) * parent->num_children);
-  parent->children[parent->num_children - 1] = child;
   if (!parent->children)
     PGENAST_OOM();
+  parent->children[parent->num_children - 1] = child;
 }
 
 static inline void ASTNode_destroy(ASTNode *self) {

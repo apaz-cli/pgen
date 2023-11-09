@@ -212,6 +212,7 @@ static inline ASTNode *peg_parse_Variables(parser_ctx *ctx) {
 
     int done = 0;
     RECORD(spos);
+    (void)_rew_to_line_nbr_spos;
     while (HAS_CURRENT()) {
       char c = (char)CURRENT();
 
@@ -225,6 +226,7 @@ static inline ASTNode *peg_parse_Variables(parser_ctx *ctx) {
       NEXT();
     }
     RECORD(epos);
+    (void)_rew_to_line_nbr_epos;
 
     size_t diff = _rew_to_epos - _rew_to_spos;
     if (!diff) {
@@ -325,6 +327,8 @@ static inline ASTNode *peg_parse_ModExpr(parser_ctx *ctx) {
   INIT("ModExpr");
   ModExprOpts *opts;
   node->extra = opts = (ModExprOpts *)malloc(sizeof(ModExprOpts));
+  if (!opts)
+    OOM();
   opts->inverted = 0;
   opts->rewind = 0;
   opts->optional = 0;

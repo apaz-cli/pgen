@@ -43,7 +43,7 @@
   static inline int list_##type##_add(list_##type *self, type item) {          \
     size_t next_len = self->len + 1;                                           \
     /* Grow the buffer if there's not enough space. */                         \
-    if (self->cap <= next_len) {                                               \
+    if (!self->buf || self->cap <= next_len) {                                 \
       size_t next_cap = next_len * 2 + 8;                                      \
       type *reall = (type *)realloc(self->buf, sizeof(type) * next_cap);       \
       if (!reall)                                                              \

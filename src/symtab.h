@@ -51,7 +51,6 @@ static inline void resolvePrevNext(list_ASTNodePtr *defs) {
   // Resolve prev and next by replacing content of LowerIdents.
   char *prev_name = NULL, *next_name = NULL;
   for (size_t i = 0; i < defs->len; i++) {
-    int f = !!i;
     int l = (i != defs->len - 1);
     prev_name = i ? (char *)defs->buf[i - 1]->children[0]->extra : NULL;
     next_name = l ? (char *)defs->buf[i + 1]->children[0]->extra : NULL;

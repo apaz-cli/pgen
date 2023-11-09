@@ -48,6 +48,7 @@ static inline void parser_ctx_init(parser_ctx *ctx, Args args,
   /* Can't be in a do block. Oh well. */                                       \
   ctx_rule_debug(0, (rulename), ctx);                                          \
   RECORD(begin);                                                               \
+  (void)_rew_to_##begin, (void)_rew_to_line_nbr_##begin;                       \
   const char *_rulename = (rulename)
 #define RULE_SUCCESS() ctx_rule_debug(1, _rulename, ctx)
 #define RULE_FAIL() ctx_rule_debug(-1, _rulename, ctx)
