@@ -13,7 +13,7 @@
 #include "symtab.h"
 #include "utf8.h"
 
-#define NODE_NUM_FIXED 5
+#define NODE_NUM_FIXED 10
 
 /*******/
 /* ctx */
