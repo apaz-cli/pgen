@@ -88,6 +88,7 @@ HSLCOM: (1, 2) {
 %node PROGRAM
 program    <- {rule=list(PROGRAM)}
               (b:block {add(rule, b)})*
+              !IDENT|"Unexpected identifier"
               DOT|"Expected a dot at the end of the program"
 
 %node VARLIST

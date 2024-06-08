@@ -899,7 +899,7 @@ static inline void peg_write_report_parse_error(codegen_ctx *ctx) {
          ctx->lower, ctx->lower);
   cwrite("  err->msg = (const char*)msg;\n");
   cwrite("  err->severity = severity;\n");
-  cwrite("  size_t toknum = ctx->pos + (ctx->pos != ctx->len - 1);\n");
+  cwrite("  size_t toknum = ctx->pos;\n"); // used to have + (ctx->pos != ctx->len - 1)
   cwrite("  %s_token tok = ctx->tokens[toknum];\n", ctx->lower);
   cwrite("  err->line = tok.line;\n");
   cwrite("  err->col = tok.col;\n\n");
@@ -1807,6 +1807,12 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
       iwrite("expr_ret_%zu = expr_ret_%zu ? NULL : SUCC;\n", ret, ret);
     }
 
+    // Rewind if applicable
+    if (stateless) {
+      comment("rewind");
+      iwrite("rew(mexpr_state_%zu);\n", ret);
+    }
+
     // Handle errors
     if (errhandler) {
       if (!strcmp(errhandler->name, "ErrString")) {
@@ -1829,12 +1835,6 @@ static inline void peg_visit_write_exprs(codegen_ctx *ctx, ASTNode *expr,
 
         end_block(ctx);
       }
-    }
-
-    // Rewind if applicable
-    if (stateless) {
-      comment("rewind");
-      iwrite("rew(mexpr_state_%zu);\n", ret);
     }
 
     // Copy ret into ret_to and label if applicable
