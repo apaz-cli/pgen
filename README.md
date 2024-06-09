@@ -100,7 +100,7 @@ by [Arihiro Yoshida](https://github.com/arithy). You may see many commonalities.
 
 * `/`  - Try to match the left side, then try to match the right side. Returns the first that matches. Otherwise fail.
 * `&`  - Try to parse, perform the match, but rewind back to the starting position and return SUCC. Otherwise fail as usual.
-* `!`  - Try to parse, return SUCC on no match and fail on match.
+* `!`  - Try to parse, and then rewind. Returns SUCC on no match and fail on match.
 * `?`  - Optionally match, returning either the result, or SUCC if no match. Does not cause the rule to fail.
 * `*`  - Match zero or more. Returns SUCC.
 * `+`  - Match one or more. Returns SUCC, or fails if no matches.
@@ -127,6 +127,7 @@ by [Arihiro Yoshida](https://github.com/arithy). You may see many commonalities.
 * `%extrainit`    - Add initialization to the astnode
 * `%errextra`     - Add fields to errors
 * `%errextrainit` - Add initialization to errors
+* `%ignore`       - Don't add token to list of tokens parsed in python bindings
 
 ## C Builtins:
 * `rec(label)`              - Record the parser's state to a label

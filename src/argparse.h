@@ -6,6 +6,7 @@
 typedef struct {
   char *grammarTarget; // (path to .peg) May be null
   char *outputTarget;  // (path to output) May be null
+  char *pythonTarget;  // (path to module folder) May be null, may not exist.
   bool h : 1;          // Help
   bool i : 1;          // Interactive
   bool d : 1;          // Debug runtime errors
@@ -20,6 +21,7 @@ static inline Args argparse(int argc, char **argv) {
   Args args;
   args.grammarTarget = NULL;
   args.outputTarget = NULL;
+  args.pythonTarget = NULL;
   args.h = 0;
   args.i = 0;
   args.d = 0;
@@ -41,7 +43,8 @@ static inline Args argparse(int argc, char **argv) {
       "    -g, --grammar-debug      Show .peg syntax errors.                 \n"
       "    -s, --grammar-step       Step through your .peg file as it parses.\n"
       "    -m, --memdebug           Debug the generated memory allocator.    \n"
-      "    -l, --lines              Generate #line directives.               "
+      "    -l, --lines              Generate #line directives.               \n"
+      "    -p, --python             Generate a python module for your parser.\n"
       "\n";
 
   // Unsafe strips comments, disables checking the result of malloc, and removes
@@ -73,6 +76,12 @@ static inline Args argparse(int argc, char **argv) {
       } else {
         ERROR("-o requires an argument.");
       }
+    } else if (!strcmp(a, "-p") || !strcmp(a, "--python")) {
+      if (i != argc - 1) {
+        args.pythonTarget = argv[++i];
+      } else {
+        ERROR("-p requires an argument, the path to the module folder.");
+      }
     }
     // Unrecognized
     else if (strlen(a) && a[0] == '-') {
@@ -100,6 +109,10 @@ static inline Args argparse(int argc, char **argv) {
 
   if (!args.grammarTarget) {
     ERROR("Please provide a grammar file as an argument.");
+  }
+
+  if (args.outputTarget && args.pythonTarget) {
+    ERROR("Cannot specify both -o and -p.");
   }
 
   return args;

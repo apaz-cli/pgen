@@ -2,3 +2,5 @@ pgen
 **/a.out
 **/*.swp
 infer-out/**
+**/*.o
+**/*.so

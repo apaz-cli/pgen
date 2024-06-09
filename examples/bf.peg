@@ -11,10 +11,13 @@ LBRACK: "[";
 RBRACK: "]";
 PUTC: ".";
 GETC: ",";
+
+%ignore COMMENT
 COMMENT: 1 { (0, [^+-\[\]><.,]) -> 1; };
 
 runprogam <- {memset(array, 0, ARRSIZE), ptr = array}
              char*
+             {rule=leaf(COMMENT)}
 
 char <- PLUS   {++*ptr}
       / MINUS  {--*ptr}

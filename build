@@ -119,7 +119,31 @@ elif [ "$1" = "macrocheck" ]; then
     printf "%s\n" "$MACRS"
     exit 1;
   fi
-else
+
+elif [ "$1" = "python_test" ]; then
+  cc src/pgen.c -o pgen -fsanitize=address -g
+  ./pgen examples/calc.peg -p examples/calc/
+
+  cd examples/calc/
+  python setup.py build_ext --inplace >/dev/null
+  python test.py
+  if [ $? -ne 0 ]; then
+      exit 1
+  fi
+  cd ../..
+
+  cc src/pgen.c -o pgen -fsanitize=address -g
+  ./pgen examples/pl0.peg -p examples/pl0/
+
+  cd examples/pl0/
+  python setup.py build_ext --inplace >/dev/null
+  python test.py
+  if [ $? -ne 0 ]; then
+      exit 1
+  fi
+  cd ../..
+
+else # Debug Build
   # Build debug
   cc src/pgen.c -o pgen --std=c99 -g -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable -Wconversion
   if [ ! "$?" -eq 0 ]; then exit 1; fi

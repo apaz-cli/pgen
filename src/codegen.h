@@ -149,13 +149,40 @@ static inline void codegen_ctx_init(codegen_ctx *ctx, Args *args, ASTNode *ast,
   // otherwise the -o target.
   // Doesn't overflow.
 
-  if (!args->outputTarget) {
-    args->outputTarget = (char *)malloc(PGEN_PREFIX_LEN + 3);
-    sprintf(args->outputTarget, "%s.h", ctx->lower);
+  char *module_folder = args->pythonTarget;
+  if (module_folder) {
+    // Check if he module folder exits. Stat and check enoent.
+    struct stat st = {0};
+    if (stat(module_folder, &st) == -1) {
+      if (ENOENT == errno) {
+        if (mkdir(module_folder, 0755) == -1) {
+          perror("mkdir");
+          ERROR("Could not create the module folder: %s", module_folder);
+        }
+      } else {
+        perror("stat");
+        ERROR("Could not stat the module folder: %s", module_folder);
+      }
+    }
+
+    // Set the output target to be in the module folder.
+    args->outputTarget =
+        (char *)malloc(strlen(module_folder) + 1 + PGEN_PREFIX_LEN + 3);
+    args->outputTarget[0] = '\0';
+    strcat(args->outputTarget, module_folder);
+    if (args->outputTarget[strlen(module_folder) - 1] != '/')
+      strcat(args->outputTarget, "/");
+    strcat(args->outputTarget, ctx->lower);
+    strcat(args->outputTarget, ".h");
   } else {
-    char *cpy = (char *)malloc(strlen(args->outputTarget) + 1);
-    strcpy(cpy, args->outputTarget);
-    args->outputTarget = cpy;
+    if (!args->outputTarget) {
+      args->outputTarget = (char *)malloc(PGEN_PREFIX_LEN + 3);
+      sprintf(args->outputTarget, "%s.h", ctx->lower);
+    } else {
+      char *cpy = (char *)malloc(strlen(args->outputTarget) + 1);
+      strcpy(cpy, args->outputTarget);
+      args->outputTarget = cpy;
+    }
   }
 
   ctx->f = tmpfile();
@@ -681,11 +708,12 @@ static inline void peg_write_footer(codegen_ctx *ctx) {
 }
 
 static const char *known_directives[] = {
-    "oom",        "node",        "token",      "include",
-    "preinclude", "postinclude", "code",       "precode",
-    "postcode",   "define",      "predefine",  "postdefine",
-    "extra",      "extrainit",   "tokenextra", "tokenextrainit",
-    "context",    "contextinit", "errextra",   "errextrainit"};
+    "oom",          "node",        "token",      "include",
+    "preinclude",   "postinclude", "code",       "precode",
+    "postcode",     "define",      "predefine",  "postdefine",
+    "extra",        "extrainit",   "tokenextra", "tokenextrainit",
+    "context",      "contextinit", "errextra",   "errextrainit",
+    "ignore"};
 static const size_t num_known_directives =
     sizeof(known_directives) / sizeof(const char *);
 
@@ -899,7 +927,8 @@ static inline void peg_write_report_parse_error(codegen_ctx *ctx) {
          ctx->lower, ctx->lower);
   cwrite("  err->msg = (const char*)msg;\n");
   cwrite("  err->severity = severity;\n");
-  cwrite("  size_t toknum = ctx->pos;\n"); // used to have + (ctx->pos != ctx->len - 1)
+  cwrite("  size_t toknum = ctx->pos;\n"); // used to have + (ctx->pos !=
+                                           // ctx->len - 1)
   cwrite("  %s_token tok = ctx->tokens[toknum];\n", ctx->lower);
   cwrite("  err->line = tok.line;\n");
   cwrite("  err->col = tok.col;\n\n");
@@ -2048,6 +2077,10 @@ static inline void codegen_write_parser(codegen_ctx *ctx) {
 /* Everything */
 /**************/
 
+#ifndef PGEN_PYTHONGEN_INCLUDE
+#include "pythongen.h"
+#endif
+
 static inline void codegen_write(codegen_ctx *ctx) {
 
   // Write headers
@@ -2062,7 +2095,12 @@ static inline void codegen_write(codegen_ctx *ctx) {
   // Write bodies
   codegen_write_tokenizer(ctx);
   codegen_write_parser(ctx);
+
+  // Write footer
   peg_write_include_footer(ctx);
+
+  // Write Python bindings
+  generate_python_module(ctx);
 }
 
 #endif /* TOKCODEGEN_INCLUDE */
