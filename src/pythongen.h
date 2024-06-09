@@ -1,9 +1,11 @@
 #ifndef PGEN_PYTHONGEN_INCLUDE
 #define PGEN_PYTHONGEN_INCLUDE
 
-#include "ast.h"
 #include <stdio.h>
 #include <string.h>
+
+#include "ast.h"
+
 #ifndef PGEN_CODEGEN_INCLUDE
 #include "codegen.h"
 #include <sys/stat.h>
@@ -67,7 +69,8 @@ static inline void generate_extension_prologue(codegen_ctx *ctx,
   fprintf(ext_file, "_Static_assert(sizeof(int32_t) == sizeof(int), \"int32_t "
                     "is not int\");\n");
   fprintf(ext_file, "\n");
-  fprintf(ext_file, "static PyObject *ast_to_python_dict(%s_astnode_t *node) {\n",
+  fprintf(ext_file,
+          "static PyObject *ast_to_python_dict(%s_astnode_t *node) {\n",
           ctx->lower);
   fprintf(ext_file, "  if (!node)\n");
   fprintf(ext_file, "    Py_RETURN_NONE;\n");
@@ -203,15 +206,23 @@ static inline void generate_extension_rule_binding(codegen_ctx *ctx,
             contents[i] = ' ';
         }
 
-        // Try to find the token in the contents.
-        char *extra = NULL;
-        char *token = strtok_r(contents, " ", &extra);
-        while (token) {
-          if (!strcmp(ctx->tok_kind_names.buf[i], token)) {
+        // Try to find the token in the contents. Exact match to one of the
+        // items split by spaces.
+        char *token = ctx->tok_kind_names.buf[i];
+        char *contents_ptr = contents;
+        while (*contents_ptr) {
+          while (*contents_ptr == ' ')
+            contents_ptr++;
+          char *start = contents_ptr;
+          while (*contents_ptr && *contents_ptr != ' ')
+            contents_ptr++;
+          size_t len = (size_t)(contents_ptr - start);
+          if (strncmp(token, start, len) == 0 && strlen(token) == len) {
             found_ignored = 1;
             break;
           }
-          token = strtok_r(NULL, " ", &extra);
+
+          contents_ptr++;
         }
       }
     }
@@ -224,11 +235,13 @@ static inline void generate_extension_rule_binding(codegen_ctx *ctx,
   }
   fprintf(ext_file, ")) {\n");
   fprintf(ext_file, "      if (toklist.size == toklist.cap) {\n");
-  fprintf(ext_file, "        toklist.buf = realloc(toklist.buf, toklist.cap *= 2);\n");
+  fprintf(ext_file,
+          "        toklist.buf = realloc(toklist.buf, toklist.cap *= 2);\n");
   fprintf(ext_file, "        if (!toklist.buf) {\n");
   fprintf(ext_file, "          free(cps);\n");
   fprintf(ext_file, "          PyErr_SetString(PyExc_RuntimeError,\n");
-  fprintf(ext_file, "                          \"Out of memory reallocating token list.\");\n");
+  fprintf(ext_file, "                          \"Out of memory reallocating "
+                    "token list.\");\n");
   fprintf(ext_file, "          return NULL;\n");
   fprintf(ext_file, "        }\n");
   fprintf(ext_file, "      }\n");
@@ -239,10 +252,14 @@ static inline void generate_extension_rule_binding(codegen_ctx *ctx,
   fprintf(ext_file, "  // Initialize parser\n");
   fprintf(ext_file, "  pgen_allocator allocator = pgen_allocator_new();\n");
   fprintf(ext_file, "  %s_parser_ctx parser;\n", ctx->lower);
-  fprintf(ext_file, "  %s_parser_ctx_init(&parser, &allocator, toklist.buf, toklist.size);\n", ctx->lower);
+  fprintf(
+      ext_file,
+      "  %s_parser_ctx_init(&parser, &allocator, toklist.buf, toklist.size);\n",
+      ctx->lower);
   fprintf(ext_file, "\n");
   fprintf(ext_file, "  // Parse AST\n");
-  fprintf(ext_file, "  %s_astnode_t *ast = %s_parse_%s(&parser);\n", ctx->lower, ctx->lower, rulename);
+  fprintf(ext_file, "  %s_astnode_t *ast = %s_parse_%s(&parser);\n", ctx->lower,
+          ctx->lower, rulename);
   fprintf(ext_file, "\n");
   fprintf(ext_file, "  // Create result dictionary\n");
   fprintf(ext_file, "  PyObject *result_dict = PyDict_New();\n");
@@ -255,11 +272,14 @@ static inline void generate_extension_rule_binding(codegen_ctx *ctx,
   fprintf(ext_file, "\n");
   fprintf(ext_file, "  // Convert AST to Python dictionary\n");
   fprintf(ext_file, "  PyObject *ast_dict = ast_to_python_dict(ast);\n");
-  fprintf(ext_file, "  PyDict_SetItemString(result_dict, \"ast\", ast_dict ? ast_dict : Py_None);\n");
+  fprintf(ext_file, "  PyDict_SetItemString(result_dict, \"ast\", ast_dict ? "
+                    "ast_dict : Py_None);\n");
   fprintf(ext_file, "  Py_XDECREF(ast_dict);\n");
   fprintf(ext_file, "\n");
   fprintf(ext_file, "  // Create error list\n");
-  fprintf( ext_file, "  PyObject *error_list = PyList_New((Py_ssize_t)parser.num_errors);\n");
+  fprintf(
+      ext_file,
+      "  PyObject *error_list = PyList_New((Py_ssize_t)parser.num_errors);\n");
   fprintf(ext_file, "  if (!error_list) {\n");
   fprintf(ext_file, "    Py_DECREF(result_dict);\n");
   fprintf(ext_file, "    pgen_allocator_destroy(&allocator);\n");
@@ -267,9 +287,11 @@ static inline void generate_extension_rule_binding(codegen_ctx *ctx,
   fprintf(ext_file, "    free(cps);\n");
   fprintf(ext_file, "    return NULL;\n");
   fprintf(ext_file, "  }\n");
-  fprintf(ext_file, "  char *err_sev_str[] = {\"info\", \"warning\", \"error\", \"fatal\"};\n");
+  fprintf(ext_file, "  char *err_sev_str[] = {\"info\", \"warning\", "
+                    "\"error\", \"fatal\"};\n");
   fprintf(ext_file, "  for (size_t i = 0; i < parser.num_errors; i++) {\n");
-  fprintf(ext_file, "    %s_parse_err error = parser.errlist[i];\n", ctx->lower);
+  fprintf(ext_file, "    %s_parse_err error = parser.errlist[i];\n",
+          ctx->lower);
   fprintf(ext_file, "    PyObject *error_dict = PyDict_New();\n");
   fprintf(ext_file, "    if (!error_dict) {\n");
   fprintf(ext_file, "      Py_DECREF(result_dict);\n");
@@ -281,15 +303,22 @@ static inline void generate_extension_rule_binding(codegen_ctx *ctx,
   fprintf(ext_file, "    }\n");
   fprintf(ext_file, "\n");
   fprintf(ext_file, "    // Set error info\n");
-  fprintf(ext_file, "    PyDict_SetItemString(error_dict, \"msg\", PyUnicode_FromString(error.msg));\n");
+  fprintf(ext_file, "    PyDict_SetItemString(error_dict, \"msg\", "
+                    "PyUnicode_FromString(error.msg));\n");
   fprintf(ext_file, "    PyDict_SetItemString(\n");
   fprintf(ext_file, "        error_dict, \"severity\",\n");
-  fprintf(ext_file, "        PyUnicode_InternFromString(err_sev_str[error.severity]));\n");
-  fprintf(ext_file, "    PyDict_SetItemString(error_dict, \"line\", PyLong_FromSize_t(error.line));\n");
-  fprintf(ext_file, "    PyDict_SetItemString(error_dict, \"col\", PyLong_FromSize_t(error.col));\n");
-  fprintf(ext_file, "    PyList_SetItem(error_list, (Py_ssize_t)i, error_dict);\n");
+  fprintf(
+      ext_file,
+      "        PyUnicode_InternFromString(err_sev_str[error.severity]));\n");
+  fprintf(ext_file, "    PyDict_SetItemString(error_dict, \"line\", "
+                    "PyLong_FromSize_t(error.line));\n");
+  fprintf(ext_file, "    PyDict_SetItemString(error_dict, \"col\", "
+                    "PyLong_FromSize_t(error.col));\n");
+  fprintf(ext_file,
+          "    PyList_SetItem(error_list, (Py_ssize_t)i, error_dict);\n");
   fprintf(ext_file, "  }\n");
-  fprintf(ext_file, "  PyDict_SetItemString(result_dict, \"error_list\", error_list);\n");
+  fprintf(ext_file,
+          "  PyDict_SetItemString(result_dict, \"error_list\", error_list);\n");
   fprintf(ext_file, "  Py_DECREF(error_list);\n");
   fprintf(ext_file, "\n");
   fprintf(ext_file, "  // Clean up\n");
@@ -379,9 +408,8 @@ static inline void generate_python_module(codegen_ctx *ctx) {
 
   // Write module/%s_ext.c
   const char *ext_path = "_ext.c";
-  char *extension_path =
-      (char *)malloc(strlen(module_folder) + 1 + strlen(ctx->lower) +
-                     strlen(extension_path) + 1);
+  char *extension_path = (char *)malloc(strlen(module_folder) + 1 + strlen(ctx->lower) +
+                     strlen(ext_path) + 1);
   if (!extension_path)
     OOM();
   extension_path[0] = '\0';

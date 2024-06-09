@@ -44,6 +44,7 @@ try:
             print(json.dumps(expected_ast, indent=2))
             print("Actual:")
             print(json.dumps(ast, indent=2))
+            exit(1)
         exit(0)
     else:
         if len(error_list) == 0:

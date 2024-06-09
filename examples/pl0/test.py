@@ -317,13 +317,14 @@ try:
             print(json.dumps(expected_ast, indent=2))
             print("Actual:")
             print(json.dumps(ast, indent=2))
+            exit(1)
         exit(0)
     else:
         if len(error_list) == 0:
             print("No errors or AST returned.")
         for error in error_list:
             print(f"{error['line']}:{error['col']} - {error['msg']}")
-            exit(1)
+        exit(1)
 except Exception as e:
     print(f"An error occurred: {e}")
     exit(1)
